@@ -54,6 +54,7 @@ if (scenario === "logout_without_accounts_reloads") disk.set("access-code", "fix
 
 const api = await import("../../web/static/js/api.js");
 const runView = await import("../../web/static/js/run.js");
+const { modelKind } = await import("../../web/static/js/model_kind.js");
 const compareView = await import("../../web/static/js/compare.js");
 // The real grading of a sample's score, so the list's words are the scorecard's.
 const { sampleFacts, sampleTitle } = await import("../../web/static/js/result.js");
@@ -135,7 +136,7 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
       if (scores?.cannot_be_drawn) throw new TypeError("fixture: the scorecard could not be drawn");
       return typeof scores?.overall_score === "number" ? { className: "scorecard scorecard--summary", scores } : null;
     } },
-    needsScopeWarning: () => false,
+    needsScopeWarning: () => false, modelKind,
     i18n: { t: (key) => key, language: () => "English", apply: () => {}, setLanguage: () => {},
             pageTitle: (name = "") => (name ? `${name} · brand_full` : "brand_full") },
     document: { querySelector: get, querySelectorAll: () => [], createElement: () => new Element(),
@@ -603,6 +604,183 @@ const scenarios = {
     assert.deepEqual(list.children.map((item) => item.children[0].href), drawn.map((item) => item.children[0].href));
     assert.equal(f.requests.filter((r) => r.url === "/api/samples").length, 1, "...from the list it had already read");
   },
+  // A run on the live site failed at the evidence step on an OCR model, and
+  // the one prominent button was "Resume from checkpoint": the same step, on
+  // the same model, for another of the day's runs.
+  async a_run_that_did_not_finish_offers_what_fits_its_cause() {
+    const f = fixture({ access: { status: 200, body: { ok: true } } });
+    await settle();
+    const OCR = "qwen-vl-ocr-2025-11-20";
+    const agents = (model, each) => ["Academic Literature Analyst for x", "Patent Landscape Analyst for x",
+      "Market and Competitive Intelligence Analyst for x"].map((role) => ({ role, model, requests: 3, completion_tokens: each * 3 }));
+    const flat = (node) => [node, ...(node.children ?? []).flatMap(flat)];
+    const paint = (state, facts, { committed = ["retrieval"], canModify = true } = {}) => {
+      f.run(`activeRunId = "fixture-run"; paintActions(${JSON.stringify(state)}, ${JSON.stringify({ committed_nodes: committed })},
+        ${canModify}, ${JSON.stringify(facts)})`);
+      // "Behind More" is in the row and hidden until More is pressed.
+      const all = f.get("#run-actions").children.flatMap(flat);
+      const top = f.get("#run-actions").children.filter((node) => !node.hidden);
+      const named = (node) => node.id || node.textContent;
+      return { top: top.map(named), all: all.map(named),
+        main: all.filter((node) => String(node.className).includes("btn--primary")).map(named),
+        button: (name) => all.find((node) => named(node) === name),
+        advice: f.get("#run-advice").hidden ? null : f.get("#run-advice").textContent,
+        note: f.get("#run-resume-note").hidden ? null : f.get("#run-resume-note").textContent };
+    };
+
+    // The run that prompted this: its model's name says it is another kind of model.
+    let page = paint("failed", { error_code: "quality_checks", funded_by: "own_keys", artifacts: ["sources"],
+      usage: { agents: agents(OCR, 280) } });
+    assert.deepEqual(page.main, ["run-fix"], "Changing the model is the one main action");
+    assert.equal(page.top[0], "run-fix", "...and comes first");
+    assert.equal(page.button("run-fix").textContent, "Change the model");
+    assert.equal(page.button("run-fix").type, "button");
+    assert.equal(page.button("run-fix").listeners.click, f.run("openKeyForm"), "It opens the key form, where the model can be changed alone");
+    assert.equal(page.button("resume").className, "btn btn--secondary", "Resuming is still there, and is no longer the main thing");
+    assert.match(page.advice, new RegExp(`^The model this run used, ${OCR}, does not look like a general chat model\\.`));
+    assert.ok(!page.all.includes("run-compare"), "No report was written: nothing to compare");
+    assert.equal(page.note, "Resuming starts again at the evidence analysis and reuses what was saved before it.",
+      "No allowance on this deployment and no model known to the page: neither is guessed");
+
+    // An ordinary model whose evidence answers were far shorter than any saved run's.
+    page = paint("failed", { error_code: "quality_checks", funded_by: "own_keys", artifacts: ["sources"],
+      usage: { agents: agents("some-model", 280) } });
+    assert.deepEqual(page.main, ["run-fix"]);
+    assert.match(page.advice, /^Each answer some-model gave in the evidence step was under 500 tokens/);
+    // The same cause with answers of ordinary length: resuming is the main action, and nothing is said about the model.
+    page = paint("failed", { error_code: "quality_checks", funded_by: "own_keys", artifacts: ["sources"],
+      usage: { agents: agents("some-model", 900) } });
+    assert.deepEqual([page.main, page.advice, page.all.includes("run-fix")], [["resume"], null, false]);
+
+    // A key the provider refused: the key form, named for that.
+    page = paint("failed", { error_code: "provider_auth", funded_by: "own_keys", artifacts: [] });
+    assert.deepEqual(page.main, ["run-fix"]);
+    assert.equal(page.button("run-fix").textContent, "Check your API keys");
+    assert.equal(page.advice, null);
+    // The same refusal on the deployment's keys: not the reader's key, so no such button, and nothing is the main action.
+    page = paint("failed", { error_code: "provider_auth", funded_by: "deployment", artifacts: [] });
+    assert.deepEqual([page.main, page.all.includes("run-fix")], [[], false]);
+    assert.equal(page.button("resume").className, "btn btn--secondary");
+
+    // Out of time with a checkpoint: resuming is the main action.
+    page = paint("timeout", { error_code: "timeout_resumable", funded_by: "own_keys", artifacts: ["sources"] });
+    assert.deepEqual(page.main, ["resume"]);
+    // Out of time with nothing saved: the same topic as a new run, in the row and not behind More.
+    page = paint("timeout", { error_code: "timeout", funded_by: "own_keys", artifacts: [] }, { committed: [] });
+    assert.deepEqual(page.main, ["run-again"]);
+    assert.ok(page.top.includes("run-again") && !page.all.includes("resume"));
+    assert.equal(page.note, null, "Nothing to resume from: no note about resuming");
+    // Otherwise "Run again" stays behind More.
+    page = paint("failed", { error_code: "provider_unreachable", funded_by: "own_keys", artifacts: ["sources"] });
+    assert.ok(!page.top.includes("run-again") && page.all.includes("run-again"));
+    // The same cause with nothing saved: the page tells the guide so, and the
+    // main action is one that exists.
+    page = paint("failed", { error_code: "provider_unreachable", funded_by: "own_keys", artifacts: [] }, { committed: [] });
+    assert.deepEqual(page.main, ["run-again"]);
+    assert.ok(page.top.includes("run-again") && !page.all.includes("resume"));
+
+    // Someone else's run: nothing of this is theirs.
+    page = paint("failed", { error_code: "quality_checks", funded_by: "own_keys", artifacts: ["sources"],
+      usage: { agents: agents(OCR, 280) } }, { canModify: false });
+    assert.deepEqual([page.main, page.advice, page.note, page.all.includes("run-fix"), page.all.includes("resume")],
+      [[], null, null, false, false]);
+
+    // Comparing reads two reports: offered for a run that wrote one, whatever its end.
+    assert.ok(paint("completed", { artifacts: ["report", "scores", "sources"] }).all.includes("run-compare"));
+    assert.ok(paint("failed", { error_code: "quality_checks", funded_by: "own_keys", artifacts: ["report", "sources"] })
+      .all.includes("run-compare"));
+    assert.ok(!paint("cancelled", { funded_by: "own_keys", artifacts: ["sources"] }).all.includes("run-compare"));
+    // A run first seen by its state alone is offered what it always was.
+    f.run('activeRunId = "fixture-run"; paintActions("failed", { committed_nodes: ["retrieval"] })');
+    const legacy = f.get("#run-actions").children;
+    assert.equal(legacy.find((node) => node.textContent === "resume").className, "btn btn--primary");
+    assert.ok(legacy.flatMap(flat).some((node) => node.id === "run-compare"));
+
+    // The note beside "Resume" names the model a resume would use now.
+    f.run('deploymentModel = "qwen3.8-max"; quotaEnabled = true; lastQuota = { remaining: 2, limit: 3 }');
+    page = paint("failed", { error_code: "provider_unreachable", funded_by: "deployment", artifacts: ["sources"],
+      usage: { agents: agents("deepseek-v4.1-flash-1017", 900) } });
+    assert.equal(page.note, "Resuming uses one more of today's runs. It starts again at the evidence analysis and reuses what "
+      + "was saved before it. It will run on qwen3.8-max, not on deepseek-v4.1-flash-1017, which this run used.");
+    // An account's own keys: the model saved with the account now, asked of the server.
+    // The page's client is a module and cannot be changed in place: the name is given another object with two answers of its own.
+    f.run(`accountMode = true; accountKeysSaved = true;
+      api = { ...api, savedKeys: async () => ({ saved: true, llm_model: "qwen3.8-max" }), getByok: () => null }`);
+    page = paint("failed", { error_code: "quality_checks", funded_by: "own_keys", artifacts: ["sources"],
+      usage: { agents: agents(OCR, 280) } });
+    assert.ok(!page.note.includes("It will run on"), "Not said before the server has answered");
+    await settle();
+    assert.ok(f.get("#run-resume-note").textContent.endsWith(`It will run on qwen3.8-max, not on ${OCR}, which this run used.`));
+    // Keys kept in the tab are what a resume would send: their model, with nothing asked.
+    f.run('api = { ...api, savedKeys: async () => { throw new Error("not asked"); }, getByok: () => ({ model: "tab-model" }) }');
+    page = paint("failed", { error_code: "quality_checks", funded_by: "own_keys", artifacts: ["sources"],
+      usage: { agents: agents(OCR, 280) } });
+    assert.ok(page.note.endsWith(`It will run on tab-model, not on ${OCR}, which this run used.`));
+
+    // An answer that comes back after the page has painted another run's
+    // actions is that other run's no longer: it is not written over them.
+    f.run(`globalThis.heldKeys = new Promise((resolve) => { globalThis.letGo = resolve; });
+      api = { ...api, savedKeys: () => globalThis.heldKeys, getByok: () => null }`);
+    paint("failed", { error_code: "quality_checks", funded_by: "own_keys", artifacts: ["sources"],
+      usage: { agents: agents(OCR, 280) } });
+    page = paint("failed", { error_code: "provider_unreachable", funded_by: "deployment", artifacts: ["sources"] });
+    assert.ok(page.note.endsWith("It will run on qwen3.8-max."));
+    f.run('globalThis.letGo({ saved: true, llm_model: "late-model" })');
+    await settle();
+    assert.ok(f.get("#run-resume-note").textContent.endsWith("It will run on qwen3.8-max."), "The late answer is dropped");
+
+    // The model can be changed in the key form. When the form closes, the
+    // note says the model that is saved now.
+    f.run(`globalThis.savedNow = "first-model"; showGate = async () => { globalThis.savedNow = "changed-in-the-form"; };
+      api = { ...api, savedKeys: async () => ({ saved: true, llm_model: globalThis.savedNow }), getByok: () => null }`);
+    paint("failed", { error_code: "quality_checks", funded_by: "own_keys", artifacts: ["sources"],
+      usage: { agents: agents(OCR, 280) } });
+    await settle();
+    assert.ok(f.get("#run-resume-note").textContent.includes("It will run on first-model,"));
+    f.run("openKeyForm()");
+    await settle();
+    assert.ok(f.get("#run-resume-note").textContent.includes("It will run on changed-in-the-form,"),
+      "Read again after the form: the run would now use the model chosen there");
+  },
+
+  // A run takes minutes and does not need the page it was started from.
+  async a_run_that_is_going_says_the_page_can_be_closed() {
+    const f = fixture({ access: { status: 200, body: { ok: true } } });
+    await settle();
+    const leave = f.get("#run-leave"), offer = f.get("#run-leave-notify");
+    const paint = (body) => f.run(`paintHeader(${JSON.stringify({ topic: "t", ...body })})`);
+    paint({ state: "running", viewer_can_modify: true });
+    assert.equal(leave.hidden, false);
+    assert.equal(f.get("#run-leave-text").textContent, "You can close this page. When the assessment finishes, it is in the history on the left.");
+    assert.equal(offer.hidden, true, "No account, or no mail on this deployment: no email to offer");
+    // An account on a deployment that sends no mail: an offer there would
+    // open a setting that does nothing.
+    f.run("accountMode = true; authConfig = { enabled: true, notices: false }; accountNotify = false");
+    paint({ state: "running", viewer_can_modify: true });
+    assert.deepEqual([leave.hidden, offer.hidden], [false, true]);
+    f.run("authConfig = { enabled: true }");
+    paint({ state: "running", viewer_can_modify: true });
+    assert.equal(offer.hidden, true, "Not said by the deployment: not assumed");
+    // An account on a deployment that sends mail, which has not asked for the email: offered, and it opens the settings.
+    f.run("accountMode = true; authConfig = { enabled: true, notices: true }; accountNotify = false");
+    paint({ state: "running", viewer_can_modify: true });
+    assert.equal(offer.hidden, false);
+    assert.equal(offer.textContent, "Email me when it finishes");
+    assert.equal(offer.listeners.click, f.run("openAccountSettings"));
+    f.run("accountNotify = true");
+    paint({ state: "running", viewer_can_modify: true });
+    assert.equal(offer.hidden, true, "Already asked for");
+    assert.equal(leave.hidden, false);
+    // Not said of a run that is over, nor to a reader of someone else's.
+    for (const state of ["completed", "failed", "cancelled", "timeout", "unknown"]) {
+      paint({ state, viewer_can_modify: true });
+      assert.equal(leave.hidden, true, state);
+    }
+    f.run("accountNotify = false");
+    paint({ state: "running", viewer_can_modify: false });
+    assert.deepEqual([leave.hidden, offer.hidden], [true, true]);
+  },
+
   async the_header_folds_what_only_a_maintainer_reads() {
     const f = fixture({ access: { status: 200, body: { ok: true } } });
     await settle();
@@ -619,12 +797,31 @@ const scenarios = {
     assert.equal(terminal.textContent, "· worker completed", "...with its text as it was, for whoever opens it");
     assert.equal(f.get("#run-status-record").placedBefore, undefined);
 
-    // Anything else is not folded: the reason is put back in the line.
-    const endings = [
+    // The same for the other ordinary endings: the worker's word says what
+    // the state already says ("worker failed" beside a pill that reads FAILED).
+    const ordinary = [
       { state: "failed", terminal: { record_state: "committed", reason_code: "worker_exception" } },
       { state: "timeout", terminal: { record_state: "committed", reason_code: "hard_timeout" } },
       { state: "cancelled", terminal: { record_state: "committed", reason_code: "user_cancelled" } },
+    ];
+    for (const body of ordinary) {
+      paint(body);
+      assert.deepEqual(tech.children.at(-1), terminal, `${JSON.stringify(body)} goes inside the fold`);
+      assert.equal(f.get("#run-status-record").placedBefore, undefined, "...and is not left in the line");
+      assert.equal(tech.hidden, false);
+      assert.equal(f.run(`runView.isOrdinaryEnding(${JSON.stringify(body.terminal)}, ${JSON.stringify(body.state)})`), true);
+    }
+    const folded = tech.children.length;
+
+    // Anything else is not folded: the reason is put back in the line. A
+    // record that is missing or unreadable, a reason that disagrees with the
+    // state, or one this page does not know, is not an ordinary ending.
+    const endings = [
       { state: "completed", terminal: { record_state: "unreadable", reason_code: "worker_completed" } },
+      { state: "failed", terminal: { record_state: "unreadable", reason_code: "worker_exception" } },
+      { state: "failed", terminal: null },
+      { state: "failed", terminal: { record_state: "committed", reason_code: "hard_timeout" } },
+      { state: "cancelled", terminal: { record_state: "committed", reason_code: "worker_exception" } },
       { state: "completed", terminal: null },
       { state: "failed", terminal: { record_state: "committed", reason_code: "worker_completed" } },
       // A finished run whose record gives any other reason: not the plain case.
@@ -634,10 +831,13 @@ const scenarios = {
       paint(body);
       assert.equal(f.get("#run-status-record").placedBefore.length, index + 1, `${JSON.stringify(body)} stays in the line`);
       assert.equal(f.get("#run-status-record").placedBefore.at(-1), terminal);
-      assert.equal(tech.children.length, 1, "...and is not put in the fold again");
+      assert.equal(tech.children.length, folded, "...and is not put in the fold again");
       assert.equal(tech.hidden, false, "The fold is still there for the model and the revision");
     }
-    for (const body of endings) assert.equal(f.run(`runView.isPlainCompletion(${JSON.stringify(body.terminal)}, ${JSON.stringify(body.state)})`), false);
+    for (const body of endings) {
+      assert.equal(f.run(`runView.isPlainCompletion(${JSON.stringify(body.terminal)}, ${JSON.stringify(body.state)})`), false);
+      assert.equal(f.run(`runView.isOrdinaryEnding(${JSON.stringify(body.terminal)}, ${JSON.stringify(body.state)})`), false);
+    }
     assert.equal(f.run('runView.isPlainCompletion({ reason_code: "worker_completed" }, "completed")'), true);
 
     // Nothing to put in it: no fold.

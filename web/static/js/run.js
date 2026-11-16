@@ -374,7 +374,24 @@ const HEADER_STRINGS = {
     // Beside a failed run's reason: a code holder has three runs a day and
     // should not have to guess whether a failure spent one of them.
     outcome_charged: "This run counted toward today's quota.",
-    outcome_charged_resume: "Resuming from the checkpoint uses another.",
+    // Under a run that did not finish: what the model's own record suggests (failureGuide).
+    advice_model_kind: "The model this run used, {model}, does not look like a general chat model. Change to a model this project has measured before trying again: resuming repeats the same step on the model that is saved now.",
+    advice_model_short: "Each answer {model} gave in the evidence step was under {limit} tokens, where every run this project has saved wrote more. Change to a model this project has measured before trying again: resuming repeats the same step on the model that is saved now.",
+    // Beside "Resume from checkpoint" (resumeNote): what it costs, where it starts, on which model.
+    resume_note_quota: "Resuming uses one more of today's runs.",
+    resume_note_step: "It starts again at {step} and reuses what was saved before it.",
+    resume_note_step_first: "Resuming starts again at {step} and reuses what was saved before it.",
+    resume_note_model: "It will run on {model}.",
+    resume_note_model_changed: "It will run on {model}, not on {ranOn}, which this run used.",
+    resume_step_evidence: "the evidence analysis",
+    resume_step_writing: "writing the report",
+    resume_step_review: "the review and scoring",
+    // The main action when the cause is the reader's model or key.
+    fix_model: "Change the model",
+    fix_keys: "Check your API keys",
+    // While a run is going: it does not need the page.
+    leave_note: "You can close this page. When the assessment finishes, it is in the history on the left.",
+    leave_notify: "Email me when it finishes",
     outcome_refunded: "This run did not count toward today's quota: it failed before any work began.",
     outcome_refunded_unreachable: "This run did not count toward today's quota: the model provider could not be reached, which nothing in your request caused.",
     outcome_not_charged: "This run did not use the daily quota.",
@@ -408,7 +425,20 @@ const HEADER_STRINGS = {
     source_locator_title: "实验功能：针对报告中的问题，找出对应的已保存来源并显示其原文",
     identity_title: "本次运行各阶段请求的模型，以及产出它的流水线代码版本。本站会不定期更换模型；两者都不是质量指标。",
     outcome_charged: "本次运行已计入今日额度。",
-    outcome_charged_resume: "从检查点续跑会再用 1 次。",
+    advice_model_kind: "这次运行用的模型 {model} 看起来不是通用对话模型。请先换成本项目实测过的模型再试：续跑会在当前保存的模型上重做同一步。",
+    advice_model_short: "{model} 在证据分析这一步的每次回答都不到 {limit} token，而本项目保存的每一次运行都比这长。请先换成本项目实测过的模型再试：续跑会在当前保存的模型上重做同一步。",
+    resume_note_quota: "续跑会再用 1 次今日额度。",
+    resume_note_step: "它从{step}重新开始，之前已保存的部分会沿用。",
+    resume_note_step_first: "续跑从{step}重新开始，之前已保存的部分会沿用。",
+    resume_note_model: "它会在 {model} 上运行。",
+    resume_note_model_changed: "它会在 {model} 上运行，而不是这次运行所用的 {ranOn}。",
+    resume_step_evidence: "证据分析",
+    resume_step_writing: "撰写报告",
+    resume_step_review: "评审与评分",
+    fix_model: "更换模型",
+    fix_keys: "检查 API Key",
+    leave_note: "可以关掉这个页面，完成后在左侧历史里找到它。",
+    leave_notify: "完成时发邮件给我",
     outcome_refunded: "本次运行未计入今日额度：它在开始工作前就失败了。",
     outcome_refunded_unreachable: "本次运行未计入今日额度：模型服务暂时无法连接，与你的请求无关。",
     outcome_not_charged: "本次运行不占用每日额度。",
@@ -644,8 +674,10 @@ const FAILURE_STRINGS = {
     provider_rate_limited: "上游服务商的速率或额度限制已触发。请稍后重试。",
     "provider_rate_limited:own_keys": "你的某个服务商触发了速率或额度限制。请稍后重试，或在服务商处检查额度。",
     insufficient_evidence: "系统未能为这个主题收集到足够的已校验证据。请稍后重试或调整主题。",
-    provider_response_format: "上游模型返回了不支持的响应格式。请重试。",
-    quality_checks: "生成的分析未通过证据质量检查。请重试。",
+    provider_response_format: "模型的回答没有按要求的格式返回（需要结构化的 JSON），无法读取。",
+    "provider_response_format:own_keys": "你填写的模型的回答没有按要求的格式返回（需要结构化的 JSON），无法读取。如果再次出现，请在“API Key”里换一个模型。",
+    quality_checks: "模型的回答没有按要求的格式返回，因此没有通过分析的检查。",
+    "quality_checks:own_keys": "你填写的模型的回答没有按要求的格式返回，因此没有通过分析的检查。如果再次出现，请在“API Key”里换一个模型。",
     provider_unreachable: "无法连接上游服务。请稍后重试。",
     unknown: "分析失败。请重试，或把运行 ID 发给运营者。",
   },
@@ -659,6 +691,137 @@ export function failureText({ error, error_code, funded_by } = {}) {
     if (worded) return worded;
   }
   return typeof error === "string" ? error : "";
+}
+
+/* What to do next, cause by cause: the page's one table for it.
+ *
+ * A run on the live site (2026-11-15) failed at the evidence step on an OCR
+ * model, and the page's one prominent button was "Resume from checkpoint":
+ * the same step, on the same model, for another of the day's runs. Which
+ * action is the main one depends on the cause, and on whose keys paid.
+ *
+ * Each row: the main action for a reader whose own keys paid, then for anyone
+ * else. `keys` opens the key form (the model can be changed there alone),
+ * `resume` continues from the checkpoint, `again` is the same topic as a new
+ * run, and null is nothing the reader can do: the deployment's model and key
+ * are the operator's. The cause's code is the API's (api/runs.py) and is not
+ * decided here; a code this table does not know is read as `unknown`.
+ * tests/test_failure_next_steps.py holds a row for every code the API names. */
+export const FAILURE_NEXT = {
+  quality_checks: ["resume", "resume"],
+  provider_response_format: ["resume", "resume"],
+  provider_empty_answer: ["resume", "resume"],
+  provider_auth: ["keys", null],
+  provider_billing: ["keys", null],
+  provider_free_quota: ["keys", null],
+  provider_model_unavailable: ["keys", null],
+  provider_request_rejected: ["keys", null],
+  provider_output_limit: ["keys", null],
+  provider_rate_limited: ["resume", "resume"],
+  provider_unreachable: ["resume", "resume"],
+  insufficient_evidence: ["again", "again"],
+  timeout: ["again", "again"],
+  timeout_resumable: ["resume", "resume"],
+  cancelled: ["resume", "resume"],
+  unknown: ["resume", "resume"],
+};
+// Where the key form is the main action because a key is the trouble, not the model.
+const KEY_CAUSES = new Set(["provider_auth", "provider_billing"]);
+// The causes a model that cannot do the step produces: its answers fail the checks or cannot be read.
+const MODEL_CAUSES = new Set(["quality_checks", "provider_response_format"]);
+
+/* An evidence answer shorter than this, from every analyst that answered,
+ * is not one a model that can do the step writes. Measured on outputs/
+ * (2026-11-16): over the 269 saved runs with all three analysts on record,
+ * no analyst averaged under 643 completion tokens a request, failures
+ * included; the run that prompted this averaged 250 to 300. */
+export const SHORT_EVIDENCE_ANSWER = 500;
+// The crew's own names for the three (config/agents.yaml), each followed there by the topic.
+export const EVIDENCE_ROLES = ["Academic Literature Analyst", "Patent Landscape Analyst", "Market and Competitive Intelligence Analyst"];
+
+/** Whether every evidence analyst answered far shorter than any saved run; null where the usage does not say. */
+export function shortEvidenceAnswers(usage) {
+  const agents = Array.isArray(usage?.agents) ? usage.agents : [];
+  const averages = [];
+  for (const name of EVIDENCE_ROLES) {
+    const agent = agents.find((row) => typeof row?.role === "string" && row.role.trim().startsWith(name));
+    const requests = Number(agent?.requests);
+    const written = Number(agent?.completion_tokens);
+    if (!agent || !(requests > 0) || !Number.isFinite(written)) return null;
+    averages.push(written / requests);
+  }
+  return averages.every((average) => average < SHORT_EVIDENCE_ANSWER);
+}
+
+/**
+ * What a run that did not finish offers first, and what its record suggests.
+ *
+ * `primary` is "keys", "resume", "again" or null; `keys` says which the key
+ * form is opened for ("model" or "keys"); `suspect` is "kind" when the
+ * model's name says it is another kind of model (`otherKind`, the caller's
+ * reading of the name), "short" when its evidence answers were far shorter
+ * than any saved run's, and `advice` is the sentence for either. The model
+ * is a suspect only for the causes such a model produces, and only to the
+ * reader who can change it. null for a run that is not over or that finished.
+ */
+export function failureGuide({
+  state, error_code, funded_by, usage, model, otherKind = false, resumable = false, canModify = true,
+} = {}) {
+  if (!["failed", "timeout", "cancelled"].includes(state)) return null;
+  const nothing = { primary: null, keys: null, suspect: null, advice: "" };
+  if (!canModify) return nothing;
+  const code = state === "cancelled" ? "cancelled"
+    : Object.hasOwn(FAILURE_NEXT, error_code ?? "") ? error_code : "unknown";
+  const own = funded_by === "own_keys";
+  let primary = FAILURE_NEXT[code][own ? 0 : 1];
+  let suspect = null;
+  if (own && MODEL_CAUSES.has(code)) {
+    suspect = otherKind ? "kind" : shortEvidenceAnswers(usage) === true ? "short" : null;
+    if (suspect) primary = "keys";
+  }
+  if (primary === "resume" && !resumable) primary = "again";
+  const advice = suspect
+    ? headerLabel(suspect === "kind" ? "advice_model_kind" : "advice_model_short")
+      .replace("{model}", () => model || "?").replace("{limit}", () => String(SHORT_EVIDENCE_ANSWER))
+    : "";
+  return { primary, keys: primary === "keys" ? (KEY_CAUSES.has(code) ? "keys" : "model") : null, suspect, advice };
+}
+
+/* Where a resumed run starts again: the first of these whose nodes are not
+ * all saved. The node names are the checkpoints' own
+ * (checkpoint_runtime.TASK_NODES); a test holds the two lists together. */
+export const RESUME_STEPS = [
+  { label: "resume_step_evidence", nodes: ["academic", "patent", "market"] },
+  { label: "resume_step_writing", nodes: ["writer"] },
+  { label: "resume_step_review", nodes: ["reviewer", "scorer"] },
+];
+
+/**
+ * Beside "Resume from checkpoint": what it costs, where it starts, on which model.
+ *
+ * `quota` is whether this reader has a daily allowance at all; `model` is
+ * what a resume would run on now and `ranOn` what this run used. A part the
+ * page does not know is left out, never guessed. "" when nothing was saved
+ * to resume from.
+ */
+export function resumeNote({ committed, quota = false, model = null, ranOn = null } = {}) {
+  if (!Array.isArray(committed) || !committed.includes("retrieval")) return "";
+  const next = RESUME_STEPS.find((step) => !step.nodes.every((node) => committed.includes(node))) ?? RESUME_STEPS.at(-1);
+  const parts = [];
+  if (quota) parts.push(headerLabel("resume_note_quota"));
+  parts.push(headerLabel(quota ? "resume_note_step" : "resume_note_step_first").replace("{step}", () => headerLabel(next.label)));
+  if (model) {
+    parts.push(headerLabel(ranOn && ranOn !== model ? "resume_note_model_changed" : "resume_note_model")
+      .replace("{model}", () => model).replace("{ranOn}", () => ranOn ?? ""));
+  }
+  return parts.join(uiLanguage() === "Simplified Chinese" ? "" : " ");
+}
+
+/** The model a run's steps asked for, as its usage records it; null when it records none. */
+export function runModel(usage) {
+  const agents = Array.isArray(usage?.agents) ? usage.agents : [];
+  const named = agents.find((row) => typeof row?.model === "string" && row.model);
+  return named ? named.model : null;
 }
 
 /**
@@ -677,11 +840,8 @@ export function outcomeSummary({
   const reason = failureText({ error, error_code, funded_by });
   if (reason) parts.push(reason);
   if (daily_charge === "charged") {
+    // What resuming would cost is said beside the button that does it (resumeNote).
     parts.push(headerLabel("outcome_charged"));
-    const committed = checkpointing?.committed_nodes;
-    if (Array.isArray(committed) && committed.includes("retrieval")) {
-      parts.push(headerLabel("outcome_charged_resume"));
-    }
   } else if (daily_charge === "refunded") {
     // A refund recorded before reasons were keeps the sentence it always had.
     parts.push(headerLabel(daily_charge_reason === "provider_unreachable"
@@ -716,6 +876,21 @@ export function terminalSummary(terminal, state = "") {
 /** Whether a run simply finished: completed, by the worker's own record, with nothing else to tell.
  *  Only then may the header fold the terminal reason away; every other
  *  ending, and a record that is missing or unreadable, stays in sight. */
+/* Whether the worker's word for how a run ended belongs under "Technical
+ * details". It does when it says what the state already says: a failed run
+ * whose worker raised, a cancelled one the user stopped, a timeout the clock
+ * ended, a completion. "worker failed" stood in the header of every failed
+ * run, beside a pill that reads FAILED and a line that says why. Anything
+ * else stays in the line: a record that is missing or unreadable, a reason
+ * this page does not know, or one that disagrees with the state. */
+const ORDINARY_ENDINGS = {
+  completed: "worker_completed", failed: "worker_exception", cancelled: "user_cancelled", timeout: "hard_timeout",
+};
+export function isOrdinaryEnding(terminal, state = "") {
+  return Boolean(terminal) && terminal.record_state !== "unreadable"
+    && Object.hasOwn(ORDINARY_ENDINGS, state) && terminal.reason_code === ORDINARY_ENDINGS[state];
+}
+
 export function isPlainCompletion(terminal, state = "") {
   return state === "completed" && Boolean(terminal) && terminal.record_state !== "unreadable"
     && terminal.reason_code === "worker_completed";

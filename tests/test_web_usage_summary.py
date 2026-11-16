@@ -380,13 +380,15 @@ class UsageSummaryTests(unittest.TestCase):
     def test_a_charged_failure_says_so_and_what_resuming_costs(self):
         """The 2026-10-23 production failure: a code holder lost one of three
         daily runs to the operator's model switch and was told to check a
-        setting they do not have. The line now says whose problem it was,
-        that the run counted, and that resuming uses another."""
+        setting they do not have. The line says whose problem it was and that
+        the run counted. What resuming costs is said beside the button that
+        does it since 2026-11-16 (run.js resumeNote,
+        tests/test_failure_next_steps.py), with where it starts and on which
+        model."""
         text = self._outcome_line(state="failed", error=self._OPERATOR_SIDE, daily_charge="charged",
                              checkpointing=self._RESUMABLE)
-        self.assertEqual(text, self._OPERATOR_SIDE + " This run counted toward today's quota. "
-                                                     "Resuming from the checkpoint uses another.")
-        # Without a checkpoint there is nothing to resume, so no cost sentence for it.
+        self.assertEqual(text, self._OPERATOR_SIDE + " This run counted toward today's quota.")
+        # Without a checkpoint the line is the same: resuming was never its subject.
         without = self._outcome_line(state="failed", error=self._OPERATOR_SIDE, daily_charge="charged",
                                 checkpointing={"state": "partial", "committed_nodes": []})
         self.assertTrue(without.endswith("This run counted toward today's quota."))
@@ -394,7 +396,7 @@ class UsageSummaryTests(unittest.TestCase):
     def test_the_same_line_in_chinese(self):
         text = self._outcome_line(language="Simplified Chinese", state="failed", error=self._OPERATOR_SIDE,
                              daily_charge="charged", checkpointing=self._RESUMABLE)
-        self.assertEqual(text, self._OPERATOR_SIDE + " 本次运行已计入今日额度。 从检查点续跑会再用 1 次。")
+        self.assertEqual(text, self._OPERATOR_SIDE + " 本次运行已计入今日额度。")
 
     _OWN_KEY = ("A provider rejected one of your keys. Check the model key and the search key "
                 "under API keys, then start again.")

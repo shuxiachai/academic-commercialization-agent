@@ -57,7 +57,8 @@ def test_the_model_guide_follows_the_provider_and_never_fills_the_field_itself(s
     with TemporaryDirectory() as tmp:
         work = Path(tmp)
         sources = {}
-        for name in ("byok_fields.js", "i18n.js"):
+        # model_kind.js: the rule that reads a model's kind from its name, which the field's module imports.
+        for name in ("byok_fields.js", "i18n.js", "model_kind.js"):
             served = client.get(f"/static/js/{name}")
             assert served.status_code == 200, name
             sources[name] = served.text

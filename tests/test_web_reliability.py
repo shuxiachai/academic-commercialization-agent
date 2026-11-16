@@ -51,13 +51,21 @@ class ReliabilityPanelTests(unittest.TestCase):
         (work / "harness.mjs").write_text(textwrap.dedent("""
             globalThis.localStorage = { getItem: () => null, setItem: () => {} };
             globalThis.document = { querySelectorAll: () => [], documentElement: {} };
-            const { reliabilityRows, reliabilityVerdict, groundingNumbers } = await import("./result.mjs");
+            const { reliabilityRows, reliabilityVerdict, groundingNumbers, ranWithoutReport, renderReliability }
+              = await import("./result.mjs");
             const i18n = await import("./i18n.js");
             if (process.argv[3]) i18n.setLanguage?.(process.argv[3]);
             const progress = JSON.parse(process.argv[2]);
             const rows = reliabilityRows(progress);
+            // The card as drawn, for a run with no report: one element, its class and its text.
+            class Node { constructor(tag) { this.tag = tag; this.className = ""; this.textContent = ""; this.dataset = {}; this.children = []; }
+              append(...nodes) { this.children.push(...nodes); } }
+            document.createElement = (tag) => new Node(tag);
+            const card = ranWithoutReport(progress) ? renderReliability(progress) : null;
             console.log(JSON.stringify({ rows, verdict: reliabilityVerdict(rows),
-                                         numbers: groundingNumbers(progress) }));
+                                         numbers: groundingNumbers(progress), withoutReport: ranWithoutReport(progress),
+                                         card: card && { tag: card.tag, className: card.className, text: card.textContent,
+                                                         children: card.children.length } }));
         """), encoding="utf-8")
         cls._work = work
 
@@ -88,6 +96,41 @@ class ReliabilityPanelTests(unittest.TestCase):
         self.fail(f"no {row_id!r} row in {[r['id'] for r in panel['rows']]}")
 
     # ── The findings that must reach the reader ──────────────────────────
+
+    def test_a_run_with_no_report_is_given_one_sentence_and_no_count(self):
+        """A run on the live site failed at the evidence step. Its page said
+        "1 of 5 checks found no problem; 4 could not give a result", and gave
+        "this check reads English and Chinese conclusions only" as the reason
+        the report was not checked. No check ran because there was no report."""
+        for state in ("failed", "cancelled", "timeout"):
+            for artifacts in (["sources"], ["sources", "retrieval"], []):
+                seen = self._panel(state=state, artifacts=artifacts)
+                self.assertIs(seen["withoutReport"], True, (state, artifacts))
+                self.assertEqual(seen["card"], {"tag": "p", "className": "empty-note reliability-none", "children": 0,
+                                                "text": "This run produced no report, so there are no check results."})
+                consistency = next(row for row in seen["rows"] if row["id"] == "consistency")
+                self.assertEqual((consistency["tone"], consistency["detail"]),
+                                 ("muted", "Not run: this run produced no report"))
+        chinese = self._panel("Simplified Chinese", state="failed", artifacts=["sources"])
+        self.assertEqual(chinese["card"]["text"], "这次运行没有生成报告，所以没有检查结果。")
+        self.assertEqual(next(row for row in chinese["rows"] if row["id"] == "consistency")["detail"],
+                         "未运行：这次运行没有生成报告")
+        # "Silence is not a pass": the sentence says nothing ran, in neither language that nothing was found.
+        for text in (seen["card"]["text"], chinese["card"]["text"]):
+            for claim in ("no problem", "passed", "未发现问题", "通过"):
+                self.assertNotIn(claim, text)
+
+    def test_a_run_that_wrote_a_report_keeps_its_checks_however_it_ended(self):
+        # Finished: the card, and the language reason where that is the reason.
+        done = self._panel(state="completed", artifacts=["report", "scores", "sources"])
+        self.assertIs(done["withoutReport"], False)
+        self.assertEqual(next(row for row in done["rows"] if row["id"] == "consistency")["detail"],
+                         "Not run — this check reads English and Chinese conclusions only")
+        # Failed after the report was written (in review, say): its checks are still its checks.
+        late = self._panel(state="failed", artifacts=["report", "sources"])
+        self.assertIs(late["withoutReport"], False)
+        # Still going: nothing is concluded about a report that is not there yet.
+        self.assertIs(self._panel(state="running", artifacts=["sources"])["withoutReport"], False)
 
     def test_a_recommendation_that_outruns_its_score_is_the_headline(self):
         """The case the whole check was written for: a report urging a move to

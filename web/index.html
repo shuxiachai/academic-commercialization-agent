@@ -557,6 +557,18 @@
             <span id="run-recovery"></span>
           </div>
           <p class="run-outcome" id="run-outcome" hidden></p>
+          <!-- What the run's own record suggests about its model, when that is
+               the likely cause (run.js failureGuide). -->
+          <p class="run-outcome run-advice" id="run-advice" hidden></p>
+          <!-- Beside "Resume from checkpoint": what it costs, where it starts,
+               on which model (run.js resumeNote). -->
+          <p class="run-outcome run-resume-note" id="run-resume-note" hidden></p>
+          <!-- While a run is going: it does not need this page, and an
+               account that has not asked for the finish email is offered it. -->
+          <p class="run-outcome run-leave" id="run-leave" hidden>
+            <span id="run-leave-text"></span>
+            <button type="button" class="gate__switch" id="run-leave-notify" hidden></button>
+          </p>
         </div>
         <div class="pane__actions" id="run-actions"></div>
       </header>

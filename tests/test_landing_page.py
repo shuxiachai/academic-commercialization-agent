@@ -64,6 +64,8 @@ SCENARIOS = (
     "the_card_in_sign_in_mode_says_only_what_signing_in_needs",
     # The run header's fold for the model, the revision and a plain completion.
     "a_change_of_language_renames_the_tab_and_redraws_the_landing_samples",
+    "a_run_that_did_not_finish_offers_what_fits_its_cause",
+    "a_run_that_is_going_says_the_page_can_be_closed",
     "the_header_folds_what_only_a_maintainer_reads",
     # Whose run it is: the owner's actions, and a signed-in reader's.
     "the_owners_actions_keep_the_rare_ones_behind_more",
@@ -186,9 +188,9 @@ def test_every_repaint_of_a_runs_actions_is_told_whose_run_it_is():
     them painting without it would offer a reader the owner's buttons until
     the next poll, or for good on a finished run, which is polled once."""
     calls = re.findall(r"^\s+paintActions\(([^;]*)\);$", _APP, re.M)
-    assert calls == ['known?.state ?? "unknown", known?.checkpointing, mayModify(known)',
-                     "progress.state, progress.checkpointing, mayModify(progress)",
-                     "progress.state, progress.checkpointing, mayModify(progress)"], calls
+    assert calls == ['known?.state ?? "unknown", known?.checkpointing, mayModify(known), known ?? null',
+                     "progress.state, progress.checkpointing, mayModify(progress), progress",
+                     "progress.state, progress.checkpointing, mayModify(progress), progress"], calls
     # The notice is in the page, hidden until a reader's status says to show it.
     assert re.search(r'<p class="run-shared" id="run-shared" hidden>', _INDEX)
     assert re.search(r'<button type="button" class="run-shared__new" id="run-shared-new" data-i18n="shared_new">', _INDEX)

@@ -1812,8 +1812,17 @@ _PUBLIC_FAILURE_CATEGORIES: tuple[_FailureCategory, ...] = (
             "jsondecodeerror",
             "invalid json",
         ),
-        "An upstream model returned an unsupported response format. "
-        "Retry the analysis.",
+        # Said as what happened. It ended "Retry the analysis.", which after a
+        # failure the model caused sends the reader back to the same failure;
+        # what to do next is the page's (run.js FAILURE_NEXT). No wording for
+        # the deployment's keys: that would make it a cause the operator is
+        # alerted for (OPERATOR_FAILURE_CODES), and which causes those are
+        # is not a matter of wording.
+        "The model's answer did not come back in the form the analysis requires (structured JSON), "
+        "so it could not be read.",
+        own_keys="The answer of the model you named did not come back in the form the analysis requires "
+                 "(structured JSON), so it could not be read. If it happens again, name another model "
+                 "under API keys.",
     ),
     _FailureCategory(
         "quality_checks",
@@ -1823,8 +1832,10 @@ _PUBLIC_FAILURE_CATEGORIES: tuple[_FailureCategory, ...] = (
             "evidence validation failed",
             "final report validation failed",
         ),
-        "The generated analysis did not pass the evidence-quality checks. "
-        "Retry the analysis.",
+        "The model's answers did not come back in the form the analysis requires, so they did not "
+        "pass its checks.",
+        own_keys="The answers of the model you named did not come back in the form the analysis requires, "
+                 "so they did not pass its checks. If it happens again, name another model under API keys.",
     ),
     _FailureCategory(
         "provider_unreachable",

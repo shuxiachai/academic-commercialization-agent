@@ -8,6 +8,7 @@ import * as result from "./result.js";
 import * as i18n from "./i18n.js";
 import { needsScopeWarning } from "./topic.js";
 import { createPaidReceipts } from "./paid_receipts.js";
+import { modelKind } from "./model_kind.js";
 const t = i18n.t;
 
 // For whoever is looking at a page that does not respond: "scripts" once
@@ -382,11 +383,13 @@ function paintHeader({
   // (an exception, a timeout, a record that is missing or cannot be read)
   // is not folded: its reason stays in the line, where it always was. The
   // element and its text are the same either way; only its place differs.
-  const plainCompletion = runView.isPlainCompletion(terminal, state);
+  // "worker failed" beside a pill that reads FAILED and a line that says why
+  // is the same thing a third time: folded too, like a plain completion.
+  const ordinaryEnding = runView.isOrdinaryEnding(terminal, state);
   const tech = $("#run-tech-details");
-  if (plainCompletion) tech.append?.(terminalEl);
+  if (ordinaryEnding) tech.append?.(terminalEl);
   else $("#run-status-record").before?.(terminalEl);
-  tech.hidden = !(identity || plainCompletion);
+  tech.hidden = !(identity || ordinaryEnding);
   $("#run-tech-label").textContent = `· ${runView.headerLabel("tech_details")}`;
 
   // Why it ended and whether it spent one of today's runs, kept with the run
@@ -395,6 +398,15 @@ function paintHeader({
   const outcome = runView.outcomeSummary({ state, error, error_code, funded_by, daily_charge, daily_charge_reason, checkpointing });
   outcomeEl.textContent = outcome;
   outcomeEl.hidden = !outcome;
+
+  // A run takes minutes and does not need the page. Said to whoever started
+  // it; an account that has not asked for the finish email is offered it.
+  const leaving = state === "running" && !viewerMode && mayModify(arguments[0]);
+  $("#run-leave").hidden = !leaving;
+  $("#run-leave-text").textContent = leaving ? runView.headerLabel("leave_note") : "";
+  const offer = $("#run-leave-notify");
+  offer.hidden = !(leaving && accountMode && authConfig?.notices === true && !accountNotify);
+  offer.textContent = runView.headerLabel("leave_notify");
 
   // Terminal success is still usable when its live projection is damaged,
   // but missing audit fields must not silently masquerade as a clean read.
@@ -567,9 +579,14 @@ function behindMore(actions, items) {
   actions.append(more, ...items);
 }
 
-function paintActions(state, checkpointing = null, canModify = true) {
+function paintActions(state, checkpointing = null, canModify = true, facts = null) {
   const actions = $("#run-actions");
   actions.innerHTML = "";
+  // What the run's record says, for the choice of main action below. Without
+  // it (a run first seen by its state alone) the page offers what it always did.
+  lastActionFacts = { state, checkpointing, canModify, facts };
+  $("#run-advice").hidden = true;
+  $("#run-resume-note").hidden = true;
   // Said under the header to a signed-in reader of someone else's run. An
   // anonymous reader has the viewer bar, which says the same and offers the
   // way in.
@@ -640,13 +657,35 @@ function paintActions(state, checkpointing = null, canModify = true) {
     new Set(["failed", "cancelled", "timeout"]).has(state)
     && checkpointing?.committed_nodes?.includes("retrieval")
   );
+  // Which action is the main one depends on why the run stopped and on whose
+  // keys paid (run.js failureGuide, and the table it reads). Resuming a run whose model cannot do
+  // the step repeats the failure for another of the day's runs.
+  const ranOn = runView.runModel(facts?.usage);
+  const guide = facts ? runView.failureGuide({
+    state, error_code: facts.error_code, funded_by: facts.funded_by, usage: facts.usage, model: ranOn,
+    otherKind: Boolean(modelKind(ranOn)), resumable: canResume, canModify,
+  }) : null;
+  const main = guide ? guide.primary : (canResume ? "resume" : null);
+  if (guide?.advice) {
+    $("#run-advice").textContent = guide.advice;
+    $("#run-advice").hidden = false;
+  }
+  if (main === "keys") {
+    const fix = document.createElement("button");
+    fix.type = "button";
+    fix.className = "btn btn--primary";
+    fix.id = "run-fix";
+    fix.textContent = runView.headerLabel(guide.keys === "keys" ? "fix_keys" : "fix_model");
+    fix.addEventListener("click", openKeyForm);
+    actions.append(fix);
+  }
   if (canResume) {
     const sourceRunId = activeRunId;
     const resume = document.createElement("button");
     resume.type = "button";
-    // The main thing to do with a run that stopped short, so it reads as
-    // such; what it costs is said in the outcome line above the actions.
-    resume.className = "btn btn--primary";
+    // The main thing to do with a run that stopped short, unless its cause
+    // says otherwise; what it costs is said in the note beside it.
+    resume.className = main === "resume" ? "btn btn--primary" : "btn btn--secondary";
     resume.textContent = t("resume");
     resume.dataset.resumeRun = sourceRunId;
     resume.disabled = pendingResumes.has(sourceRunId) || paidReceipts.state().uncertain;
@@ -674,6 +713,7 @@ function paintActions(state, checkpointing = null, canModify = true) {
       }
     });
     actions.append(resume);
+    paintResumeNote();
   }
 
   // The same topic, as a new run. It fills the composer and stops there:
@@ -681,7 +721,7 @@ function paintActions(state, checkpointing = null, canModify = true) {
   // and decision context are not carried over; the page never had them.
   const again = document.createElement("button");
   again.type = "button";
-  again.className = "btn btn--secondary";
+  again.className = main === "again" ? "btn btn--primary" : "btn btn--secondary";
   again.id = "run-again";
   // On someone else's run it is named for what it does: a new assessment of
   // the reader's own, on this topic.
@@ -694,8 +734,10 @@ function paintActions(state, checkpointing = null, canModify = true) {
     syncComposer();
     topic.focus();
   });
+  // Behind More, unless it is the main thing to do with this run.
+  if (main === "again") actions.append(again);
+  else rare.push(again);
   actions.append(copyLinkButton());
-  rare.push(again);
   if (canModify) {
     // Only the known terminal states reaching here offer permanent removal,
     // and only to whoever the server would accept it from. Last in the row,
@@ -705,9 +747,47 @@ function paintActions(state, checkpointing = null, canModify = true) {
     del.className = "btn btn--danger";
     del.textContent = t("delete_run");
     del.addEventListener("click", () => handleDeleteRun(activeRunId, $("#run-title").textContent));
-    rare.push(compareButton(), del);
+    // Comparing reads two reports. A run that produced none has nothing to compare.
+    const hasReport = facts ? (facts.artifacts ?? []).includes("report") : true;
+    if (hasReport) rare.push(compareButton());
+    rare.push(del);
   }
   behindMore(actions, rare);
+}
+
+/* Beside "Resume from checkpoint": what it costs, where it starts, and on
+ * which model (run.js resumeNote). The model is the one a resume would use
+ * now, which is not always the one the run used: an account's saved model
+ * may have been changed since, and that is the point of changing it. Asked
+ * of the server for an account, read from the tab for keys kept there, and
+ * taken from the deployment's health for a run the deployment pays for. A
+ * model the page cannot learn is left out of the sentence. */
+let lastActionFacts = null;
+let deploymentModel = null;
+let resumeNoteAsked = 0;
+async function paintResumeNote() {
+  const asked = ++resumeNoteAsked;
+  const { checkpointing, facts } = lastActionFacts ?? {};
+  const note = $("#run-resume-note");
+  const say = (model) => {
+    const text = runView.resumeNote({
+      committed: checkpointing?.committed_nodes, quota: quotaEnabled && lastQuota !== null,
+      model, ranOn: runView.runModel(facts?.usage),
+    });
+    note.textContent = text;
+    note.hidden = !text;
+  };
+  let model = null;
+  let tab = null;
+  try { tab = api.getByok(); } catch { tab = null; }
+  if (facts?.funded_by === "deployment") model = deploymentModel;
+  else if (tab?.model) model = tab.model;
+  say(model);
+  if (model || facts?.funded_by !== "own_keys" || !accountMode || !accountKeysSaved) return;
+  let saved = null;
+  try { saved = await api.savedKeys(); } catch { return; }
+  if (asked !== resumeNoteAsked || saved?.saved !== true) return;
+  say(saved.llm_model ?? null);
 }
 
 // The notice's way out: an assessment of the reader's own.
@@ -766,7 +846,7 @@ async function openRun(runId, { known } = {}) {
   const body = $("#run-body");
   body.innerHTML = "";
   paintHeader({ topic: known?.topic ?? "…", state: known?.state ?? "unknown" });
-  paintActions(known?.state ?? "unknown", known?.checkpointing, mayModify(known));
+  paintActions(known?.state ?? "unknown", known?.checkpointing, mayModify(known), known ?? null);
   try { history.pushState({}, "", `/run/${runId}`); }
   catch {
     // Optional URL persistence cannot strand an accepted run before follow.
@@ -788,12 +868,12 @@ async function openRun(runId, { known } = {}) {
     onUpdate(progress) {
       if (progress.state === "running") watchedActive = true;
       paintHeader(progress);
-      paintActions(progress.state, progress.checkpointing, mayModify(progress));
+      paintActions(progress.state, progress.checkpointing, mayModify(progress), progress);
       runView.renderStages(body, runView.stageStates(progress.stage, progress.state, progress.stage_timings));
     },
     onDone(progress) {
       paintHeader(progress);
-      paintActions(progress.state, progress.checkpointing, mayModify(progress));
+      paintActions(progress.state, progress.checkpointing, mayModify(progress), progress);
       runView.renderStages(body, runView.stageStates(progress.stage, progress.state, progress.stage_timings));
       refreshSidebar();
 
@@ -1506,7 +1586,10 @@ async function refreshCapacity() {
       active_paid_operations = active_runs,
       max_concurrent,
       retention_days,
+      llm_model,
     } = await api.health();
+    // The model a run the deployment pays for would use now (paintResumeNote).
+    deploymentModel = typeof llm_model === "string" && llm_model ? llm_model : null;
     const dots = $("#capacity-dots");
     dots.innerHTML = "";
     for (let i = 0; i < max_concurrent; i += 1) {
@@ -1838,13 +1921,18 @@ const openKeyForm = async () => {
   if (submitting || extracting) return;
   await showGate(null, { keysOnly: true });
   paintTrialNote();     // keys may have been added, replaced or removed in there
+  // ...and the model: the note beside "Resume" names the one a resume would use now.
+  if (lastActionFacts && !$("#run-resume-note").hidden) paintResumeNote();
 };
 $("#account-keys").addEventListener("click", openKeyForm);
 $("#keys-needed-add").addEventListener("click", openKeyForm);
-$("#account-manage").addEventListener("click", () => {
+const openAccountSettings = () => {
   if (submitting || extracting || pendingResumes.size) return;
   showAccountSettings();
-});
+};
+$("#account-manage").addEventListener("click", openAccountSettings);
+// From a run that is going: where the finish email is turned on.
+$("#run-leave-notify").addEventListener("click", openAccountSettings);
 
 /* Account self-service: change the password, or delete the account with
  * everything recorded under it. Shown on the gate card because it is the
