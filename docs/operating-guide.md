@@ -49,6 +49,20 @@ by the provider contract rather than accepting arbitrary visitor URLs.
 | `anthropic` | `ANTHROPIC_API_KEY` | `ANTHROPIC_MODEL`, `ANTHROPIC_API_BASE` |
 | `openai` | `OPENAI_API_KEY` | `OPENAI_MODEL`, `OPENAI_API_BASE` |
 
+An OpenAI-compatible gateway works through the `openai` row: set
+`LLM_PROVIDER=openai`, point `OPENAI_API_BASE` at the gateway's `/v1` address
+and name a model the gateway lists. This path sends no `max_tokens`, so the
+gateway decides how long an answer may be. A gateway that also serves
+Anthropic's Messages format can carry Claude models through the `anthropic`
+row (`ANTHROPIC_API_BASE` without `/v1`), which keeps the output limit this
+project sets for Claude. Token counts for such runs are what the gateway
+reports, priced at the original provider's list price, and a gateway run is
+not a measurement of that provider's own model. Checked on 2026-11-16 with
+[Infistar](https://infistar.cc), which provided the credits: held-out topic
+V01 completed with `claude-sonnet-5-5` through both rows and with `gpt-4.1`
+through the `openai` row, and the token counts it reported did not match a
+direct Anthropic run of the same topic.
+
 Auto-selection is DeepSeek → Qwen → Anthropic → OpenAI; unused keys do not
 force extra model calls, but they can change the selected provider if
 `LLM_PROVIDER` is absent. Remove unused template placeholders. Qwen's
