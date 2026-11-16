@@ -687,12 +687,18 @@ guarantee factual entailment.
 The market stage lists a story once and spreads its slots over sites:
 - **One copy of a story.** Two results are one story when they are the same article address on one site (a regional host, a tracking parameter), when one site republishes the other's document whole, or when they carry one headline and either their dates fall together or their excerpts share text. At least one of the two must then be a host that carries other parties' releases. A similar title alone merges nothing. Of two copies the one nearer the issuer is kept.
 - **Two slots a site.** A third result from one site, counting a publisher's regional hosts as one site, is held back. It is listed only if no other site's result fills the slot.
+- **Two slots an issuer.** A third release by one issuer is held back the same way, whichever hosts carry its releases. The issuer is read only from what a release states about itself: the stock symbol a carrier files it under and the name printed beside it, the symbol or name that opens the release after the wire's mark, the name it gives itself beside "the Company", and the research firm it credits. A company a release merely mentions is not its issuer, and a result that states no issuer is never held for one.
 - **No encyclopedia entry.**
 
 The retrieval audit records each of these as a rejection note (`duplicate
-story`, `deferred (site share: ...)`, `encyclopedia entry is not market
-evidence`). The rules and what they change on saved runs are in the
-[offline result](results-2026-11-13-market-selection-offline.md).
+story`, `deferred (site share: ...)`, `deferred (issuer share: ...)`,
+`encyclopedia entry is not market evidence`). The rules and what they change
+on saved runs are in the
+[offline result](results-2026-11-13-market-selection-offline.md), and the
+issuer share in [its own](results-2026-11-17-market-issuer-share.md). That
+result also records what was measured and left without a rule: a report
+beside the release announcing it, a news item beside the release it reports,
+and dates for pages whose metadata gives none.
 
 Web search returns market sources undated. After the relevance filter, each
 accepted market source is read once for the publication date its own page

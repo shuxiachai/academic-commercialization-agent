@@ -130,6 +130,18 @@ numbers are the point; if you want to revisit one, beat the number.
   attack. Look at all five again when CrewAI is upgraded, and sooner if
   anything starts reading trace context from a request or a message.
 
+- **Do not merge two market sources because one firm wrote both or their
+  titles name one market.** Measured on 132 saved runs on 2026-11-17: 123
+  pairs open with one subject before "Market" and are different firms'
+  reports; of ten pairs tied to one research firm, at least seven are that
+  firm's different reports. The exact sign for "a report beside its own release"
+  (the release quotes the listed page's title) occurred 0 times, and a
+  subject-and-year title match once. One firm or one company counts toward
+  an issuer's share of two slots; it is never a copy. Nor is there an unread
+  date field to add: 25 pages whose metadata gave no date were read again,
+  and none carries a reliable one
+  ([result](docs/results-2026-11-17-market-issuer-share.md)).
+
 Two TRL rubric hypotheses were pre-registered and **both falsified** (see
 `docs/`). If you want to improve calibration, the next step is a different
 method — independent scores from several models, compared — not another rubric

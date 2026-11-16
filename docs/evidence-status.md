@@ -280,6 +280,18 @@ arms is separated from run-to-run variation, and no score is shown to
 improve. Every registered bar holds. See the
 [result](results-2026-11-14-market-selection-v1.md), including its deviations.
 
+Since 2026-11-17 the market stage also holds a third release by one issuer,
+wherever it is carried, for a slot nothing else fills. The issuer is read
+only from what a release states about itself. On 132 saved runs the share
+holds back 8 of 967 sources, 5 beyond what the site share already held, all
+of one company; the 29 pairs the signs tie were each read as one issuer.
+What takes a freed slot is not on disk, and the registered live comparison
+has not run. A report beside the release announcing it, a news item beside
+its release, and dates for pages whose metadata gives none were measured and
+left without a rule. No effect on any score is shown or predicted. See the
+[result](results-2026-11-17-market-issuer-share.md) and the
+[protocol](prereg-2026-11-17-market-issuer-share-v1.md).
+
 **Market page dates v1 (2026-10-22).** Web search returns market sources
 undated. `page_dates.py` reads a page's own publication metadata, excluding
 market reports, Wikipedia and home pages. It was registered on the held-out v2

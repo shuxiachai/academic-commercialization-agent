@@ -18,7 +18,9 @@ from pydantic import BaseModel, Field, ValidationError
 
 from academic_agent.evidence import EvidenceSource, _WEIGHT_PROFILES, check_public_url
 from academic_agent.market_selection import (
+    MARKET_SOURCES_PER_ISSUER,
     MARKET_SOURCES_PER_SITE,
+    issuer_mates,
     item_of,
     prefer,
     same_story,
@@ -2827,6 +2829,20 @@ def _site_is_full(source: EvidenceSource, listed: Sequence[EvidenceSource]) -> b
     return held >= MARKET_SOURCES_PER_SITE
 
 
+def _issuer_is_full(source: EvidenceSource, listed: Sequence[EvidenceSource]) -> bool:
+    """Whether the source's issuer already holds its share of the market slots.
+
+    A source that states no issuer has no mates and is never held here.
+    """
+    mates = issuer_mates(item_of(source), [item_of(other) for other in listed])
+    return len(mates) >= MARKET_SOURCES_PER_ISSUER
+
+
+def _over_its_share(source: EvidenceSource, listed: Sequence[EvidenceSource]) -> bool:
+    """Whether the source's site or its issuer already holds its share."""
+    return _site_is_full(source, listed) or _issuer_is_full(source, listed)
+
+
 def _market_deferral(
     source: EvidenceSource,
     accepted: Sequence[EvidenceSource],
@@ -2835,8 +2851,9 @@ def _market_deferral(
     """Why a market source waits for a slot nothing else fills, or None to admit it.
 
     The kind caps count what this pass accepted, as they always have. The
-    site share also counts ``earlier``, the sources a previous pass of the
-    run kept: eight slots are one run's, whichever pass filled them.
+    site share and the issuer share also count ``earlier``, the sources a
+    previous pass of the run kept: eight slots are one run's, whichever pass
+    filled them.
     """
     if source.source_type in _MARKET_INSTITUTIONAL_TYPES:
         institutional = [
@@ -2857,6 +2874,8 @@ def _market_deferral(
     if _site_is_full(source, (*earlier, *accepted)):
         site = site_of(str(source.url))
         return f"site share: {site} already holds {MARKET_SOURCES_PER_SITE}"
+    if _issuer_is_full(source, (*earlier, *accepted)):
+        return f"issuer share: {MARKET_SOURCES_PER_ISSUER} listed sources have its issuer"
     return None
 
 
@@ -3114,18 +3133,19 @@ def _collect_domain(
             break
 
     # Fill remaining market slots from the sources held back above, when
-    # nothing else filled them. Those from a site still within its share go
-    # first, in the order they arrived; a site already at its share adds a
-    # further source only to a slot that would otherwise stay empty. Three
-    # releases one aggregator carries are three sources, and a thin market
-    # registry reads to the scorer as evidence about the technology. A held
-    # source that is a copy of a story accepted since is dropped, not promoted.
+    # nothing else filled them. Those from a site and an issuer still within
+    # their shares go first, in the order they arrived; a site or an issuer
+    # already at its share adds a further source only to a slot that would
+    # otherwise stay empty. Three releases one aggregator carries, or one
+    # company wrote, are three sources, and a thin market registry reads to
+    # the scorer as evidence about the technology. A held source that is a
+    # copy of a story accepted since is dropped, not promoted.
     #
-    # A source held for its site's share is charged to the query that found
-    # it, and a query at its source limit promotes no more. Holding such a
-    # source does not stop the query being read, so without the charge the
-    # first query to meet a full site would supply every remaining slot,
-    # which is what _MARKET_SOURCES_PER_QUERY exists to prevent.
+    # A source held for a share is charged to the query that found it, and a
+    # query at its source limit promotes no more. Holding such a source does
+    # not stop the query being read, so without the charge the first query
+    # to meet a full site would supply every remaining slot, which is what
+    # _MARKET_SOURCES_PER_QUERY exists to prevent.
     _promoted_deferred: list[EvidenceSource] = []
     _promotion_notes: list[str] = []
     _promoted_from: dict[int, int] = {}
@@ -3143,7 +3163,7 @@ def _collect_domain(
                     )
                     continue
                 _found_by = _deferred_by[id(_deferred_src)]
-                if _site_is_full(_deferred_src, (*market_kept, *accepted)):
+                if _over_its_share(_deferred_src, (*market_kept, *accepted)):
                     if _within_share:
                         continue
                     _limit = (query_limits or {}).get(_found_by.query)
