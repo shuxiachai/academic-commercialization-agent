@@ -92,6 +92,8 @@ const STRINGS = {
     byok_keys_qwen: "(China Qwen)",
     byok_keys_search: "Search keys:",
     byok_keys_recommended: "(recommended)",
+    // The stop after each of the two lists: in the markup it was an ASCII one in every language.
+    byok_keys_stop: ".",
     byok_keys_json: "The model you name must support JSON output.",
     model_placeholder: "Model (required), e.g. {example}",
     model_measured: "Checked by this project on topics set aside for testing: runs that landed in the expected readiness range, out of those made. Choose one to fill it in. Any other model is untested here, not unsupported.",
@@ -116,6 +118,7 @@ const STRINGS = {
     byok_keys_qwen: "（中国区 Qwen）",
     byok_keys_search: "检索密钥：",
     byok_keys_recommended: "（推荐）",
+    byok_keys_stop: "。",
     byok_keys_json: "所填模型需支持 JSON 输出。",
     model_placeholder: "模型（必填），例如 {example}",
     model_measured: "本项目用专门留作测试的主题抽检过的模型：落在预期成熟度区间的次数／运行次数。点一个即可填入。其他模型只是没有在这里测过，并非不支持。",

@@ -13,7 +13,7 @@ class Element {
   constructor() { Object.assign(this, { children: [], dataset: {}, hidden: false, textContent: "", listeners: {} }); }
   set innerHTML(_value) { this.children = []; }
   append(...nodes) { this.children.push(...nodes); }
-  setAttribute() {}
+  setAttribute(name, value) { (this.attributes ??= {})[name] = String(value); }
   addEventListener(name, handler) { this.listeners[name] = handler; }
 }
 
@@ -41,6 +41,39 @@ const run = (index, topic = `topic ${index}`) => ({
 const many = (count) => Array.from({ length: count }, (_, index) => run(index));
 
 const scenarios = {
+  // A run's state was a coloured dot and nothing else: no word for a screen
+  // reader, none for a reader who cannot tell red from green.
+  async states() {
+    const states = ["running", "completed", "failed", "cancelled", "timeout"];
+    const history = states.map((state, index) => ({ ...run(index, `topic ${state}`), state }));
+    history.push({ ...run(9, "topic unknown"), state: "unknown" });
+    history.push({ ...run(10, "topic owned"), state: "failed", owner_label: "team" });
+    const h = harness(history);
+    await h.refresh();
+    const items = h.list.children.filter((node) => node.className === "runitem-row").map((row) => row.children[0]);
+    assert.equal(items.length, history.length);
+    const flat = (node) => [node, ...(node.children ?? []).flatMap(flat)];
+    const part = (item, name) => flat(item).find((node) => node.className === name);
+    for (const [index, state] of states.entries()) {
+      const item = items[index];
+      const dot = part(item, "runitem__state"), spoken = part(item, "visually-hidden");
+      assert.equal(dot.dataset.state, state);
+      assert.equal(dot.title, `run_state_${state}`, "The word, on the dot, for a pointer");
+      assert.ok(spoken, `${state} has a word for a screen reader`);
+      assert.equal(spoken.textContent, ` \u2014 run_state_${state}`, "After the topic, as the unknown state reads");
+      assert.equal(item.children.at(-1), spoken, "Read after the topic");
+      assert.equal(item.attributes?.["aria-label"], undefined, "The topic stays the button's own text");
+      assert.equal(item.title, `topic ${state}`, "The tooltip stays the topic, which the rail cuts short");
+    }
+    // The state nobody could read keeps the sentence it already had, and gets no second word.
+    const unknown = items[5];
+    assert.equal(unknown.attributes["aria-label"], "topic unknown \u2014 run_state_unknown");
+    assert.equal(part(unknown, "visually-hidden"), undefined);
+    // An administrator's row carries the owner too; the word still comes last.
+    const owned = items[6];
+    assert.equal(part(owned, "runitem__owner").textContent, "team");
+    assert.equal(owned.children.at(-1).textContent, " \u2014 run_state_failed");
+  },
   async first_page() {
     const h = harness(many(130));
     await h.refresh();

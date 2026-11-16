@@ -2053,11 +2053,17 @@ function admitSavedSources(collection) {
   return admitted;
 }
 
+// A title longer than this is drawn cut (result.css, six lines) and is given
+// whole as the element's tooltip. The text in the page is never shortened.
+const LONG_SOURCE_TITLE = 160;
+
 function renderSavedSource(source) {
   const li = el("li", "source");
   const id = el("span", "source__id", source.source_id.text ?? t("sources_id_unavailable"));
   const body = el("div", "source__body");
-  const title = el(source.href ? "a" : "span", "source__link", source.title.text ?? t("sources_title_unavailable"));
+  const shown = source.title.text ?? t("sources_title_unavailable");
+  const title = el(source.href ? "a" : "span", "source__link", shown);
+  if (shown.length > LONG_SOURCE_TITLE) title.title = shown;
   if (source.href) {
     title.href = source.href;
     title.target = "_blank";

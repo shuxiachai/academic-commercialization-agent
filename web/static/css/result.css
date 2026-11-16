@@ -470,8 +470,18 @@
   text-align: center;
 }
 .source__body { min-width: 0; }
+/* A title is drawn in at most six lines. One source's "title" ran to 662
+   characters and was a link 504 px tall on a phone. Cut for the eye only:
+   the whole text stays in the page, and a long one is the link's tooltip
+   (result.js renderSavedSource). An unbroken string wraps instead of
+   pushing the page sideways. */
 .source__link {
-  display: block;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+  overflow: hidden;
+  overflow-wrap: anywhere;
   color: var(--text-primary);
   font-family: var(--font-serif);
   font-size: var(--text-md);

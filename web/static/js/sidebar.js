@@ -30,6 +30,8 @@ const GROUP_ORDER = ["Today", "Yesterday", "Earlier"];
 // Stopping a run has its own explicit Cancel button in the run pane; once a
 // run reaches one of these states, deleting it here means what it says.
 const DELETABLE_STATES = new Set(["completed", "failed", "cancelled", "timeout"]);
+// The states the list colours (workbench.css .runitem__state), each with a word in i18n.js (run_state_*).
+const STATE_WORDS = new Set(["running", "completed", "failed", "cancelled", "timeout"]);
 
 const TRASH_ICON = `
   <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -73,9 +75,18 @@ export function render(container, runs, { activeId, onSelect, onDelete, emptyKey
       const dot = document.createElement("span");
       dot.className = "runitem__state";
       dot.dataset.state = run.state;
+      // The dot says the state by colour alone. Every state gets its word:
+      // as the dot's tooltip, and as text only a screen reader meets, after
+      // the topic. The state nobody could read keeps the sentence it had.
+      let spoken = null;
       if (run.state === "unknown") {
         dot.title = t("run_state_unknown");
         item.setAttribute("aria-label", `${run.topic || run.run_id} — ${t("run_state_unknown")}`);
+      } else if (STATE_WORDS.has(run.state)) {
+        dot.title = t(`run_state_${run.state}`);
+        spoken = document.createElement("span");
+        spoken.className = "visually-hidden";
+        spoken.textContent = ` — ${t(`run_state_${run.state}`)}`;
       }
 
       const label = document.createElement("span");
@@ -103,6 +114,7 @@ export function render(container, runs, { activeId, onSelect, onDelete, emptyKey
       } else {
         item.append(dot, label);
       }
+      if (spoken) item.append(spoken);
       item.addEventListener("click", () => onSelect(run.run_id));
       row.append(item);
 
