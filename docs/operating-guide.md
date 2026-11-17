@@ -502,6 +502,16 @@ and the rest follows; with no such tag, `/sitemap.xml` answers 404 and
 own title, description and address, in the language of its report; a shared
 run keeps the site's general card.
 
+Each indexable page also carries `<link rel="canonical">` with that same
+address, so that a search engine reading it at a second host (this
+deployment also answers at the address Railway issued) keeps one copy. The
+link is written in `web/index.html`, `web/samples.html` and
+`web/privacy.html`, and a self-hosted copy changes it together with `og:url`:
+a copy that leaves it tells search engines its public pages are copies of
+this deployment's. `tests/test_search_indexing.py` fails when the two name
+different addresses. A run page, and every other address that says
+`noindex`, is served without the link.
+
 Readiness performs an isolated real-file write per request; concurrent probes
 do not share a filename. A cleanup-only failure is named separately from a
 write failure. This is local readiness, not provider connectivity or model
