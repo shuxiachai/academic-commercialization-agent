@@ -175,8 +175,14 @@ def unlisted_page(page: str) -> str:
 
 # The sample reader's name for itself, as web/static/js/samples_i18n.js has it
 # (samples_title). The served <title> is the one samples.js sets once it runs,
-# `<sample> · <this>`, so the page has one name whether or not its script has
-# run; tests/test_search_indexing.py reads the script's strings and compares.
+# `<sample> · <this>`, in the language of the report;
+# tests/test_search_indexing.py reads the script's strings and compares. So
+# for a reader whose interface is in the report's language the page has one
+# name with or without script. The script names the tab in the interface
+# language, though: in an English interface the Chinese sample becomes
+# "特高压直流输电 · Sample reports" once it runs, and a crawler that renders
+# the page may keep that one. Seen in a browser on 2026-11-17 and left as it
+# is; the script's naming has its own tests (tests/test_samples_title_web.py).
 _READER_NAME = {"English": "Sample reports", "Simplified Chinese": "示例报告"}
 
 

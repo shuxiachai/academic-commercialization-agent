@@ -379,9 +379,10 @@ class SampleHeadTests(_Case):
                 head = _head(response.text)
                 scores = self._scores(sample)
                 overall, trl = f"{scores['overall_score']:.1f} / 100", f"TRL {scores['trl_score']:g}"
-                # The tab's name is the one the reader's script gives it, in
-                # the language of the report: one name for the page, whether
-                # or not the reader's script has run.
+                # The tab's name is the one the reader's script gives it
+                # where the interface is in the report's language. (In an
+                # English interface the script renames the Chinese sample
+                # "… · Sample reports"; that is the script's and not pinned here.)
                 self.assertEqual(head.titles, [f"{sample.title} · {names[sample.language]}"])
                 for key in _CARD_TAGS:
                     self.assertEqual(len(head.tags.get(key, [])), 1, key)
