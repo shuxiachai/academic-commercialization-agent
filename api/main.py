@@ -429,7 +429,13 @@ if os.environ.get("SOURCE_LOCATOR_ENABLED") in {"1", "true"}:
 app.state.source_locator = _source_locator
 
 
-# Response headers applied to everything this app serves.
+# Response headers applied to everything this app serves: what an endpoint
+# returns, what a middleware answers by itself (the access gate's 401, the
+# rate limiter's 429, the upload boundary's refusals), and the 500 for an
+# exception nothing handled. Two places put them on, both further down:
+# `_security_headers`, declared last so that it is outside every other
+# middleware, and `_unhandled_error` for the one response that is sent from
+# outside all of them.
 #
 # The web client makes a strict policy affordable: it has no inline <script>,
 # no inline <style>, no on* attributes, and loads every asset from its own
@@ -604,21 +610,6 @@ async def _revalidate_page_assets(request: Request, call_next):
 
 
 @app.middleware("http")
-async def _security_headers(request: Request, call_next):
-    """Attach the response headers above to every response.
-
-    Deliberately not HSTS: that is the platform's to set. Railway terminates
-    TLS ahead of this process and already redirects http→https, and an app
-    that sends max-age on a host it does not control can outlive its own
-    certificate story.
-    """
-    response = await call_next(request)
-    for name, value in _SECURITY_HEADERS.items():
-        response.headers.setdefault(name, value)
-    return response
-
-
-@app.middleware("http")
 async def _access_gate(request: Request, call_next):
     """Reject ungated requests before they reach any endpoint.
 
@@ -714,6 +705,54 @@ async def _keep_out_of_search(request: Request, call_next):
     if not crawlers.indexable(request.url.path):
         response.headers.setdefault("X-Robots-Tag", crawlers.NOINDEX)
     return response
+
+
+@app.middleware("http")
+async def _security_headers(request: Request, call_next):
+    """Attach the response headers above to every response.
+
+    Declared last, and it has to stay last. With `@app.middleware` the one
+    declared last is the outermost, and a middleware that answers by itself
+    instead of calling on is seen only by the ones outside it. Three here
+    do that: the access gate (401 to a visitor without a code), the rate
+    limiter (429) and the upload boundary (400, 408, 413, 429). Until
+    2026-11-17 this was declared before the gate, so every 401 under /api/
+    went out with none of the four headers: 23 of the 67 answers an
+    anonymous visitor gets from the routes of a gated deployment, and all of
+    what is answered at an /api/ address that does not exist. A middleware
+    added below this one would be outside it in the same way;
+    tests/test_security_headers.py walks the routes and checks the position.
+
+    `setdefault`, so a response that chose its own value keeps it: the
+    saved-source locator's refusals carry a stricter policy of their own.
+
+    Deliberately not HSTS: that is the platform's to set. Railway terminates
+    TLS ahead of this process and already redirects http→https, and an app
+    that sends max-age on a host it does not control can outlive its own
+    certificate story.
+    """
+    response = await call_next(request)
+    for name, value in _SECURITY_HEADERS.items():
+        response.headers.setdefault(name, value)
+    return response
+
+
+@app.exception_handler(Exception)
+async def _unhandled_error(_request: Request, _exc: Exception) -> PlainTextResponse:
+    """The 500 for an exception nothing else handled, with the headers above.
+
+    Ordering cannot reach this one. An exception raised in an endpoint passes
+    up through every middleware as an exception, not as a response, and
+    Starlette's outermost layer, which no declared middleware is outside of,
+    turns it into the 500. A handler registered for `Exception` is what that
+    layer calls to build the response, so the headers are put on here.
+
+    The status and the body are the ones sent when no handler is registered,
+    so nothing about the failure reaches the caller, and the layer raises
+    the exception again after sending, so the server still logs the
+    traceback exactly as before.
+    """
+    return PlainTextResponse("Internal Server Error", status_code=500, headers=dict(_SECURITY_HEADERS))
 
 
 _AUTH_OPEN_PATHS = {
