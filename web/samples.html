@@ -6,9 +6,13 @@
 <meta name="color-scheme" content="light dark">
 <title>Sample reports · Academic Commercialization Assessment</title>
 <meta name="description" content="Read finished commercialization assessment reports without an account or API keys.">
-<!-- Link previews; see the same block in index.html. This document is also
-     served for /samples/<slug>, so og:url names the list page rather than
-     whichever sample a shared link opens. -->
+<!-- Link previews; see the same block in index.html. As committed, this is
+     the head of the list page, /samples. For /samples/<slug> the server
+     rewrites the title, the two descriptions, og:title and og:url to the
+     sample's own (api/crawlers.py), because a crawler runs no script and
+     would otherwise read every sample as this one page. It finds each tag
+     by the exact form written here: one tag per line, attributes in this
+     order. -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Academic Commercialization Assessment">
 <meta property="og:title" content="Sample reports · Academic Commercialization Assessment">

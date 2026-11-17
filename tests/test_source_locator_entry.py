@@ -37,7 +37,15 @@ RUN = "20260926T010101Z-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 LINK = 'id="source-locator-link"'
 NAVIGATION = {"Sec-Fetch-Mode": "navigate", "Sec-Fetch-Dest": "document",
               "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"}
-PLAIN = (main._WEB_ROOT / "index.html").read_text(encoding="utf-8")
+
+
+def _without_the_feature(monkeypatch, path):
+    """What the app serves at `path` with no locator registered. For a run
+    that is no longer the committed file: since 2026-11-17 a run page says
+    noindex in its head (api/crawlers.py), with or without this feature."""
+    monkeypatch.setattr(main, "_source_locator", None)
+    with TestClient(main.app) as client:
+        return client.get(path).text
 
 
 def _main_page(monkeypatch, runtime, host, path="/", **headers):
@@ -55,10 +63,12 @@ def test_the_link_is_offered_at_the_configured_address_and_nowhere_else(prepared
     deep = _main_page(monkeypatch, runtime, "locator.invalid", f"/run/{RUN}")
     assert f'href="/source-locator#{RUN}"' in deep.text
     # The visitor's address, which the feature would refuse: no link to a page that answers 403.
+    plain = _without_the_feature(monkeypatch, f"/run/{RUN}")
+    assert "SOURCE_LOCATOR_LINK" in plain and LINK not in plain
     for host in ("academic-agent.cc", "www.locator.invalid", "locator.invalid:8443", "locator.invalid.evil.test"):
         elsewhere = _main_page(monkeypatch, runtime, host, f"/run/{RUN}")
         assert LINK not in elsewhere.text and "/source-locator" not in elsewhere.text, host
-        assert elsewhere.text == PLAIN, "Otherwise the page is the page as it is without the feature"
+        assert elsewhere.text == plain, "Otherwise the page is the page as it is without the feature"
     assert prepared.key_reads == prepared.requests == [] and count() == 0, "Deciding this does no locator work"
 
 

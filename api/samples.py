@@ -162,13 +162,23 @@ def _card_scores(sample: Sample) -> dict[str, float | None]:
             "trl_score": _score(scores.get("trl_score"), 1, 9)}
 
 
+def _summary(sample: Sample) -> dict[str, str | float | None]:
+    return {**{key: value for key, value in asdict(sample).items() if key != "file"}, **_card_scores(sample)}
+
+
 def list_samples() -> list[dict[str, str | float | None]]:
     """Every sample in display order: its entry without the file name, and
     the overall score and readiness level its run's scorecard holds."""
-    return [
-        {**{key: value for key, value in asdict(sample).items() if key != "file"}, **_card_scores(sample)}
-        for sample in SAMPLES
-    ]
+    return [_summary(sample) for sample in SAMPLES]
+
+
+def sample_summary(slug: str) -> dict[str, str | float | None] | None:
+    """One sample's line of `list_samples()`, or None for a name that is not
+    listed. For the head of /samples/<slug> (api/crawlers.py), which states
+    the same two numbers as the sample's card and must read them the same
+    way; it wants one sample, not six scorecards opened to keep one."""
+    sample = _BY_SLUG.get(slug)
+    return _summary(sample) if sample is not None else None
 
 
 def read_sample(slug: str) -> str:
