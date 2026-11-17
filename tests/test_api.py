@@ -967,12 +967,129 @@ class RateLimitTests(_ApiTestCase):
         self.assertEqual(spent.status_code, 429)
         self.assertEqual(fresh.status_code, 200)
 
+    def test_what_the_gate_refuses_is_counted_like_everything_else(self):
+        """The access gate answers a caller it refuses by itself, and the
+        limiter used to be declared before it, which put the limiter inside:
+        the 401 never reached it. Measured on 2026-11-17 with the address's
+        budget already spent, five anonymous requests to each of these were
+        all answered 401, and a thousand wrong codes sent to the check in
+        one instant took no token from any bucket. Nothing else counts the
+        guesses at an access code, which spends the operator's money.
+
+        Both ways a deployment can be gated, since the gate refuses the same
+        way for either and production uses the second.
+        """
+        gated_by = {
+            "codes": lambda: patch.object(access, "ACCESS_CODE", "the-real-code"),
+            "accounts": lambda: patch.dict("os.environ", {"ACCOUNTS_DB": str(self.tmp / "accounts.sqlite3")}),
+        }
+        asked = (
+            ("/api/runs", {}),
+            ("/api/access/check", {}),
+            ("/api/access/check", {"X-Access-Code": "a-guess"}),
+            ("/api/access/check", {"Authorization": "Bearer not-a-session"}),
+        )
+        for gate, turned_on in gated_by.items():
+            for path, headers in asked:
+                with self.subTest(gate=gate, path=path, headers=sorted(headers)), turned_on():
+                    self.main._rate_buckets.clear()
+                    self.main._RATE_LIMIT_REQUESTS = 3
+                    answers = [self.client.get(path, headers=headers) for _ in range(5)]
+                    self.assertEqual([r.status_code for r in answers], [401, 401, 401, 429, 429])
+                    self.assertEqual(answers[-1].headers["x-error-code"], "rate_limited")
+                    self.assertIn("retry-after", answers[-1].headers)
+
+    def test_a_changed_guess_does_not_buy_a_fresh_budget_at_the_gate(self):
+        """Every wrong code is the same nobody. If the header's text chose the
+        bucket, a guesser would get the whole budget again for each guess."""
+        self.main._RATE_LIMIT_REQUESTS = 2
+        with patch.object(access, "ACCESS_CODE", "the-real-code"):
+            codes = [self.client.get("/api/access/check", headers={"X-Access-Code": f"guess-{n}"}).status_code
+                     for n in range(4)]
+        self.assertEqual(codes, [401, 401, 429, 429])
+
+    def test_a_valid_identity_is_not_slowed_by_what_its_address_spent(self):
+        """Counting the gate's refusals charges them to the address, which
+        several people behind one NAT share. Someone holding a valid code or
+        signed in to an account must keep a budget of their own, or one
+        person's wrong guesses would lock out the colleague beside them."""
+        self.main._RATE_LIMIT_REQUESTS = 2
+        with patch.object(access, "ACCESS_CODE", "the-real-code"):
+            refused = [self.client.get("/api/access/check").status_code for _ in range(4)]
+            held = self.client.get("/api/access/check", headers={"X-Access-Code": "the-real-code"})
+        self.assertEqual(refused, [401, 401, 429, 429], "the address has nothing left")
+        self.assertEqual(held.status_code, 200)
+
+        self.main._rate_buckets.clear()
+        with patch.dict("os.environ", {"ACCOUNTS_DB": str(self.tmp / "accounts.sqlite3")}):
+            signed_up = self.client.post("/api/auth/register", json={
+                "email": "alice@example.com", "password": "a sufficiently long password"})
+            self.assertEqual(signed_up.status_code, 201, signed_up.text)
+            refused = [self.client.get("/api/access/check").status_code for _ in range(4)]
+            signed_in = self.client.get("/api/access/check",
+                                        headers={"Authorization": f"Bearer {signed_up.json()['token']}"})
+        self.assertEqual(refused[-2:], [429, 429], "the address has nothing left")
+        self.assertEqual(signed_in.status_code, 200)
+
+    def test_the_gate_still_decides_what_it_decided(self):
+        """Moving the limiter outside the gate must change who counts a
+        request, not who is let in or what a refused caller is told."""
+        self.main._RATE_LIMIT_REQUESTS = 50
+        with patch.object(access, "ACCESS_CODE", "the-real-code"):
+            refused = self.client.get("/api/runs")
+            allowed = self.client.get("/api/runs", headers={"X-Access-Code": "the-real-code"})
+            sample = self.client.get("/api/samples")
+            run_read = self.client.get("/api/runs/not-a-real-run")
+        self.assertEqual((refused.status_code, refused.json()), (401, {"detail": "Missing or invalid access code."}))
+        self.assertEqual(allowed.status_code, 200)
+        self.assertEqual(sample.status_code, 200, "an open path stays open to a visitor without a code")
+        self.assertEqual(run_read.status_code, 404, "a run id is still read without a code")
+
+    def test_the_limiter_is_declared_outside_the_gate(self):
+        """The rule the behaviour above rests on, said as a position so that
+        a middleware moved or added later fails here with the reason.
+
+        `app.user_middleware` lists the outermost first. The limiter has to
+        be outside the gate to see its refusals, and inside the two that put
+        headers on whatever is answered: the 429 is one more answer under
+        /api/ that must not become a search result, and it answers by itself,
+        so it gets the security headers only from a middleware outside it.
+        """
+        order = [getattr(m.kwargs.get("dispatch"), "__name__", m.cls.__name__) for m in app.user_middleware]
+        self.assertLess(order.index("_rate_limit"), order.index("_access_gate"), order)
+        self.assertLess(order.index("_keep_out_of_search"), order.index("_rate_limit"), order)
+        self.assertLess(order.index("_security_headers"), order.index("_rate_limit"), order)
+
+        self.main._RATE_LIMIT_REQUESTS = 1
+        with patch.object(access, "ACCESS_CODE", "the-real-code"):
+            self.client.get("/api/runs")
+            throttled = self.client.get("/api/runs")
+        self.assertEqual(throttled.status_code, 429)
+        self.assertIn("noindex", throttled.headers["x-robots-tag"])
+        self.assertIn("default-src 'self'", throttled.headers["content-security-policy"])
+        self.assertEqual(throttled.headers["x-content-type-options"], "nosniff")
+
+    def test_no_crawler_document_or_health_check_is_charged_at_a_gated_deployment(self):
+        """The exemptions were written when the limiter sat inside the gate.
+        Outside it they have to hold for a visitor the gate would refuse."""
+        self.main._RATE_LIMIT_REQUESTS = 1
+        with patch.object(access, "ACCESS_CODE", "the-real-code"):
+            self.client.get("/api/runs")
+            self.assertEqual(self.client.get("/api/runs").status_code, 429, "the budget is spent")
+            for path in ("/health", "/", "/static/js/app.js", "/samples", "/robots.txt", "/sitemap.xml"):
+                self.assertEqual(self.client.get(path).status_code, 200, path)
+            # Readiness answers 503 in a client that never ran the startup
+            # checks; what matters here is that the limiter did not answer.
+            self.assertNotEqual(self.client.get("/health/ready").status_code, 429)
+            self.assertEqual(self.client.get("/api/runs").status_code, 429, "...and none of them refilled it")
+
     def test_invalid_codes_cannot_mint_fresh_budgets(self):
         """A caller must not bypass the limiter by changing a wrong code.
 
         A capability URL deliberately bypasses the access gate, so its request
-        still reaches the limiter with whatever code header the caller chose.
-        The limiter must validate that value before using it as an identity;
+        reaches the endpoint with whatever code header the caller chose. The
+        limiter sees it first, as it sees every request, and
+        must validate that value before using it as an identity;
         hashing arbitrary text gives an attacker unlimited fresh buckets.
         """
         self.main._RATE_LIMIT_REQUESTS = 1

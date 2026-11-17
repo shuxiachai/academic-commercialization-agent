@@ -940,7 +940,10 @@ These are example policy values, not a cost/SLO guarantee.
 
 - `ACCESS_CODES` supports multiple comma-separated codes;
 - `API_RATE_LIMIT_PER_MINUTE` (default 300, 0 disables) bounds requests per
-  client: per validated code or account, else per address. `/health` and the
+  client: per validated code or account, else per address. A request the
+  access gate refuses is counted against the address like any other, so a
+  wrong code or a missing sign-in is answered 401 while the address has
+  budget and 429 after. `/health` and the
   page's own files (`/static/` and the documents that load them) are not
   counted: a page is seventeen modules confirmed with the server on every
   load, and one refused module leaves a visitor with a page that never ran

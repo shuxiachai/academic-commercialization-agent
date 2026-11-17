@@ -476,10 +476,29 @@ _SECURITY_HEADERS = {
 # since rejecting a wrong code is what it is for. Neither is expensive per
 # call, and both are unbounded without this.
 #
+# The second of those was not bounded until 2026-11-17. The limiter was
+# declared before the access gate, which put it inside the gate, and the gate
+# answers a caller it refuses by itself: its 401 never reached the limiter.
+# Measured with the address's budget already spent, every anonymous or
+# wrong-code request to a gated path was still answered 401, and 1000 wrong
+# codes sent to /api/access/check in one instant were answered 401 a thousand
+# times without one token leaving a bucket. Account sign-in has a lockout of
+# its own (api/accounts.py); an access code, which spends the operator's
+# money, had nothing counting the guesses. `_rate_limit` is now declared
+# after the gate, so it is outside it and counts a request before the gate
+# decides; tests/test_api.py holds the order and the behaviour.
+#
 # Generous on purpose. The client polls progress every 1.2-4s during a run and
 # capacity once a second, so a person with two tabs open is already near 100
 # requests/minute through normal use; this is sized to stop scripted abuse
-# without ever touching that.
+# without ever touching that. Capacity is read from /health, which is not
+# counted. Counting the gate's refusals costs a visitor without an identity
+# one request per page: measured in a browser over twelve seconds on each of
+# the eight documents, with codes and with accounts, the page asked a gated
+# path once (the boot's /api/access/check, or /api/auth/me on /admin) and
+# polled none. The landing page goes from two counted requests to three, so
+# one address's full budget is a hundred of those loads a minute instead of
+# a hundred and fifty.
 _RATE_LIMIT_REQUESTS = int(os.getenv("API_RATE_LIMIT_PER_MINUTE", "300"))
 _RATE_LIMIT_WINDOW = 60.0
 
@@ -499,8 +518,9 @@ def _client_key(request: Request) -> str:
     decision and let a direct caller choose a new address on every request.
     """
     # A malformed code or token is anonymous here (identity.resolve never
-    # raises): it still spends the IP bucket and reaches the endpoint's strict
-    # rejection. This is not an authenticated identity or a grant.
+    # raises): it spends the IP bucket and, while that has tokens, goes on to
+    # be refused by the gate or by the endpoint's own strict check. This is
+    # not an authenticated identity or a grant.
     who = identity.resolve(request)
     if who.kind == "code":
         return f"code:{who.tag}"
@@ -536,41 +556,6 @@ def _rate_limit_exceeded(key: str) -> bool:
                 if k != key and t + (now - seen) * rate >= full:
                     del _rate_buckets[k]
     return False
-
-
-@app.middleware("http")
-async def _rate_limit(request: Request, call_next):
-    """Bound request volume per client.
-
-    The /health endpoints are exempt: platform health checks poll them on
-    their own schedule and must never be throttled into reporting the service
-    as down. Matched by prefix so /health/ready is covered — it is the one the
-    container healthcheck actually polls, and a 429 there would restart a
-    perfectly healthy container.
-
-    So are the files a page is made of and the documents that load them
-    (_is_page_asset). A page is some seventeen modules that import one
-    another, each confirmed with the server before reuse, so one load is
-    seventeen requests and a reload is seventeen more; a person reloading
-    with a few tabs open, or several people behind one address, reached the
-    budget through the page alone. A 429 on one module stops the whole
-    module graph, and the visitor is left with a document that never ran
-    its script: no gate, no badge, nothing to say why. The files are cheap,
-    static and cacheable; a scripted abuser gains nothing from them, and
-    the API they would abuse stays behind the limit.
-
-    robots.txt and the sitemap are exempt with them. A crawler that is
-    answered 429 for robots.txt treats the whole site as closed until it can
-    read the file again, which is a long outage for a short burst.
-    """
-    path = request.url.path
-    if not (path.startswith("/health") or _is_page_asset(path)) and _rate_limit_exceeded(_client_key(request)):
-        return JSONResponse(
-            {"detail": "Too many requests. Slow down and retry shortly."},
-            status_code=429,
-            headers={"Retry-After": "10", "X-Error-Code": "rate_limited"},
-        )
-    return await call_next(request)
 
 
 def _is_page_asset(path: str) -> bool:
@@ -614,7 +599,12 @@ async def _access_gate(request: Request, call_next):
     """Reject ungated requests before they reach any endpoint.
 
     Runs ahead of routing, so a missing/wrong code never gets as far as
-    starting a worker or spending a search-API call. Three exceptions:
+    starting a worker or spending a search-API call. The refusal is answered
+    here, without calling on, so only a middleware declared after this one
+    sees it. `_rate_limit` is one of those on purpose: a refused request has
+    already spent a token of the caller's address by the time it arrives
+    here, and a caller whose bucket is empty is answered 429 by the limiter
+    and never reaches this function. The exceptions:
 
     - /health — costs nothing; platform load balancers poll it without a header.
     - POST /api/runs and POST /api/papers — both authorize themselves with
@@ -681,6 +671,66 @@ async def _access_gate(request: Request, call_next):
 
 
 @app.middleware("http")
+async def _rate_limit(request: Request, call_next):
+    """Bound request volume per client, whoever ends up answering.
+
+    Declared after the access gate, and it has to stay after it. With
+    `@app.middleware` the one declared later is the outer one, and the gate
+    answers a caller it refuses by itself instead of calling on, so a limiter
+    inside the gate never sees those requests. That was the order until
+    2026-11-17: a gated path could be asked without a credential, or with a
+    wrong one, any number of times, and none of it was counted (the figures
+    are in the comment above _RATE_LIMIT_REQUESTS). Out here a request spends
+    a token first and is judged by the gate second. What the gate decides is
+    unchanged; a refused caller is answered 401 while its bucket has tokens
+    and 429 once it has none.
+
+    One cost, measured in a browser and left as it is. The page takes only a
+    401 from its boot request as "show the landing or the sign-in card"
+    (web/static/js/app.js rethrows anything else). A visitor without an
+    identity whose address has no token at that moment used to get the 401
+    and the card; now they get the 429 and neither, with nothing said, until
+    a reload finds a token, and five are added a second. A code holder or an
+    account past its own budget already met the same thing. The page saying
+    so is its own change.
+
+    Which bucket is _client_key's choice, and it is the same choice as
+    before: a valid code or a signed-in account spends its own, so a person
+    with an identity is not slowed by what their address has spent, and
+    everything else spends the address's.
+
+    The /health endpoints are exempt: platform health checks poll them on
+    their own schedule and must never be throttled into reporting the service
+    as down. Matched by prefix so /health/ready is covered — it is the one the
+    container healthcheck actually polls, and a 429 there would restart a
+    perfectly healthy container.
+
+    So are the files a page is made of and the documents that load them
+    (_is_page_asset). A page is some seventeen modules that import one
+    another, each confirmed with the server before reuse, so one load is
+    seventeen requests and a reload is seventeen more; a person reloading
+    with a few tabs open, or several people behind one address, reached the
+    budget through the page alone. A 429 on one module stops the whole
+    module graph, and the visitor is left with a document that never ran
+    its script: no gate, no badge, nothing to say why. The files are cheap,
+    static and cacheable; a scripted abuser gains nothing from them, and
+    the API they would abuse stays behind the limit.
+
+    robots.txt and the sitemap are exempt with them. A crawler that is
+    answered 429 for robots.txt treats the whole site as closed until it can
+    read the file again, which is a long outage for a short burst.
+    """
+    path = request.url.path
+    if not (path.startswith("/health") or _is_page_asset(path)) and _rate_limit_exceeded(_client_key(request)):
+        return JSONResponse(
+            {"detail": "Too many requests. Slow down and retry shortly."},
+            status_code=429,
+            headers={"Retry-After": "10", "X-Error-Code": "rate_limited"},
+        )
+    return await call_next(request)
+
+
+@app.middleware("http")
 async def _keep_out_of_search(request: Request, call_next):
     """Say noindex on every response but the pages meant to be found.
 
@@ -699,7 +749,9 @@ async def _keep_out_of_search(request: Request, call_next):
     Declared after the access gate, which makes it the outer of the two.
     The gate answers a visitor without a code itself, and a middleware
     declared before it never sees that 401; on a gated deployment that is
-    most of what a crawler would be answered under /api/.
+    most of what a crawler would be answered under /api/. The rate limiter
+    is declared between the two and answers by itself as well, so its 429
+    carries the header too.
     """
     response = await call_next(request)
     if not crawlers.indexable(request.url.path):
