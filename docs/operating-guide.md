@@ -468,6 +468,40 @@ semantic correctness of all report prose; see the
 The browser reader for these samples is `/samples`. It is a separate page
 from `/` so that it renders on a gated deployment without the access gate.
 
+### What a search engine is told
+
+`api/crawlers.py` holds the rules and the reasons; this is the summary.
+
+| Address | Indexable | How it is said |
+|---|---|---|
+| `/`, `/samples`, `/samples/{listed slug}`, `/privacy` | yes | Listed in `/sitemap.xml`; no robots header or tag |
+| `/run/…`, `/compare/…` | no | `X-Robots-Tag: noindex, nofollow`, and the same tag in the page. **Not** disallowed in `/robots.txt` |
+| `/history`, `/verify`, `/reset`, an unlisted `/samples/{name}` | no | Header and tag, as above |
+| `/api/` (run reads under `/api/runs/` included), `/admin`, `/source-locator` | no | Header, and `Disallow` in `/robots.txt` |
+
+What may be indexed is one list (`crawlers.public_paths()`); the sitemap is
+that list, and every response for an address not on it carries the header. A
+new route is closed until it is added there.
+
+A run address is the permission to read the run, so the run pages are left
+fetchable on purpose: a crawler that is told not to fetch a page never reads
+its noindex, and may then list the bare address once someone links to it. Do
+not "tidy" `/run/` into the `Disallow` lines. The page a crawler fetches
+there is a shell with no report in it; the report itself is under
+`/api/runs/`, which is disallowed so that a crawler that keeps what it
+fetches does not copy it. `/robots.txt` also allows
+`/api/samples`, `/api/site` and `/api/access/check`, which the public pages
+are drawn from by script; closing them leaves a rendering crawler with empty
+pages.
+
+The sitemap, the `Sitemap:` line and each sample's `og:url` use the address
+the shipped pages name in their own `og:url` (`https://academic-agent.cc`). A
+self-hosted copy changes that tag in `web/index.html` and `web/samples.html`,
+and the rest follows; with no such tag, `/sitemap.xml` answers 404 and
+`/robots.txt` names no sitemap. `/samples/{slug}` is served with the sample's
+own title, description and address, in the language of its report; a shared
+run keeps the site's general card.
+
 Readiness performs an isolated real-file write per request; concurrent probes
 do not share a filename. A cleanup-only failure is named separately from a
 write failure. This is local readiness, not provider connectivity or model

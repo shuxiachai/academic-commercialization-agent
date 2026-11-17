@@ -58,7 +58,7 @@ from academic_agent.pdf_extractor import (  # noqa: E402
     extract_paper_contribution,
 )
 from api import access, accounts, identity, papers, receipts, runs  # noqa: E402  — must follow load_dotenv
-from api import account_backup, account_keys, admin, alerts, mail, auxiliary_usage, key_check, link_probe, notices, plan_preview, retrieval_health, samples
+from api import account_backup, account_keys, admin, alerts, crawlers, mail, auxiliary_usage, key_check, link_probe, notices, plan_preview, retrieval_health, samples
 from api.cleanup import CleanupAudit  # noqa: E402
 from api.maintenance import MaintenanceDeferred  # noqa: E402
 from api.upload_boundary import PaperUploadBoundary, release_upload_slot  # noqa: E402
@@ -552,6 +552,10 @@ async def _rate_limit(request: Request, call_next):
     its script: no gate, no badge, nothing to say why. The files are cheap,
     static and cacheable; a scripted abuser gains nothing from them, and
     the API they would abuse stays behind the limit.
+
+    robots.txt and the sitemap are exempt with them. A crawler that is
+    answered 429 for robots.txt treats the whole site as closed until it can
+    read the file again, which is a long outage for a short burst.
     """
     path = request.url.path
     if not (path.startswith("/health") or _is_page_asset(path)) and _rate_limit_exceeded(_client_key(request)):
@@ -564,8 +568,10 @@ async def _rate_limit(request: Request, call_next):
 
 
 def _is_page_asset(path: str) -> bool:
-    """The files a page is made of, and the documents that load them."""
-    return (path.startswith("/static/") or path in ("/", "/history", "/privacy", "/samples", "/admin", "/verify", "/reset")
+    """The files a page is made of, the documents that load them, and the two
+    documents a crawler reads before any of those (api/crawlers.py)."""
+    return (path.startswith("/static/")
+            or path in ("/", "/history", "/privacy", "/samples", "/admin", "/verify", "/reset", "/robots.txt", "/sitemap.xml")
             or path.startswith(("/run/", "/compare/", "/samples/")))
 
 
@@ -681,6 +687,33 @@ async def _access_gate(request: Request, call_next):
     request.state.is_admin = who.is_admin
     request.state.owner = who.owner
     return await call_next(request)
+
+
+@app.middleware("http")
+async def _keep_out_of_search(request: Request, call_next):
+    """Say noindex on every response but the pages meant to be found.
+
+    A run's address is the permission to read it, so a share link pasted on
+    a public page must not turn into a search result. The header goes on
+    whatever answers under /run/, /compare/ and /api/ (a report, a PDF, a
+    refusal alike), and on everything else that is not on the list in
+    api/crawlers.py: the allowlist is what may be indexed, so a route added
+    later starts closed.
+
+    A header rather than only a tag in the page, because most of these
+    responses are not pages (JSON, Markdown, a PDF), and because it holds
+    whichever branch built the response. The pages carry the tag as well
+    (`crawlers.unlisted_page`).
+
+    Declared after the access gate, which makes it the outer of the two.
+    The gate answers a visitor without a code itself, and a middleware
+    declared before it never sees that 401; on a gated deployment that is
+    most of what a crawler would be answered under /api/.
+    """
+    response = await call_next(request)
+    if not crawlers.indexable(request.url.path):
+        response.headers.setdefault("X-Robots-Tag", crawlers.NOINDEX)
+    return response
 
 
 _AUTH_OPEN_PATHS = {
@@ -1721,21 +1754,38 @@ if _WEB_ROOT.is_dir():
         The link to the saved-source locator is added only where the locator
         would open: it accepts one configured public origin, and until
         2026-11-15 a page read at any other address linked to a 403.
+
+        Only "/" is the home page a search engine may index. At every other
+        address the same document says noindex in its head and drops the
+        og:url that names the home page (`crawlers.unlisted_page`); the
+        header that says the same is the middleware's. "/" itself stays the
+        committed file. A plain file was no cheaper to reload: measured on
+        the deployment on 2026-11-17, a request for "/" carrying its own
+        ETag was answered 200 with the whole body, since a file returned
+        from a route (unlike one under /static) is never compared.
         """
-        if _source_locator is None or not _source_locator.page_reachable(http_request):
+        home = http_request.url.path == "/"
+        locator = _source_locator is not None and _source_locator.page_reachable(http_request)
+        if home and not locator:
             return FileResponse(_WEB_ROOT / "index.html", media_type="text/html")
-        from academic_agent.saved_source_loader import valid_run_id
-        marker = "<!-- SOURCE_LOCATOR_LINK -->"
         page = (_WEB_ROOT / "index.html").read_text(encoding="utf-8")
-        if page.count(marker) != 1:
-            raise HTTPException(status_code=503, detail="Page navigation is unavailable.")
-        fragment = "#" + run_id if valid_run_id(run_id) else ""
-        link = '<a id="source-locator-link" href="/source-locator' + fragment + '">Saved-source locator</a>'
-        return Response(page.replace(marker, link, 1), media_type="text/html", headers={"Cache-Control": "no-store"})
+        headers = {}
+        if locator:
+            from academic_agent.saved_source_loader import valid_run_id
+            marker = "<!-- SOURCE_LOCATOR_LINK -->"
+            if page.count(marker) != 1:
+                raise HTTPException(status_code=503, detail="Page navigation is unavailable.")
+            fragment = "#" + run_id if valid_run_id(run_id) else ""
+            link = '<a id="source-locator-link" href="/source-locator' + fragment + '">Saved-source locator</a>'
+            page = page.replace(marker, link, 1)
+            headers["Cache-Control"] = "no-store"
+        if not home:
+            page = crawlers.unlisted_page(page)
+        return Response(page, media_type="text/html", headers=headers)
 
     @app.get("/samples", include_in_schema=False)
     @app.get("/samples/{slug}", include_in_schema=False)
-    def _samples_page(slug: str = "") -> FileResponse:
+    def _samples_page(http_request: Request, slug: str = "") -> Response:
         """Serve the sample-report reader for the list and every deep link.
 
         A separate document rather than a route inside the main page: the main
@@ -1743,8 +1793,40 @@ if _WEB_ROOT.is_dir():
         deployment with accounts, shows its landing page, which links here),
         and the point of this one is to be readable by someone who has no
         account and no code.
+
+        The list is the committed file. A listed sample gets the same reader
+        under its own title, description and address (`crawlers.sample_page`):
+        a crawler that runs no script read six pages as one before. A name
+        that is not listed, a removed sample's old address for one, still
+        opens the reader, which says there is no such sample, and is marked
+        noindex so that it is not kept as a copy of the list.
         """
-        return FileResponse(_WEB_ROOT / "samples.html", media_type="text/html")
+        if http_request.url.path == "/samples":
+            return FileResponse(_WEB_ROOT / "samples.html", media_type="text/html")
+        page = (_WEB_ROOT / "samples.html").read_text(encoding="utf-8")
+        entry = samples.sample_summary(slug)
+        page = crawlers.sample_page(page, entry) if entry is not None else crawlers.unlisted_page(page)
+        return Response(page, media_type="text/html")
+
+    @app.get("/robots.txt", include_in_schema=False)
+    def _robots_txt() -> PlainTextResponse:
+        """What a crawler may fetch, and where the sitemap is (api/crawlers.py)."""
+        return PlainTextResponse(crawlers.robots_txt(_public_origin()))
+
+    @app.get("/sitemap.xml", include_in_schema=False)
+    def _sitemap_xml() -> Response:
+        """The pages meant to be found, on the address the pages name."""
+        origin = _public_origin()
+        if origin is None:
+            raise HTTPException(status_code=404, detail="This deployment's pages name no public address.")
+        return Response(crawlers.sitemap_xml(origin), media_type="application/xml")
+
+    def _public_origin() -> str | None:
+        """The address the home page's own og:url names; None when it names none."""
+        try:
+            return crawlers.origin_of((_WEB_ROOT / "index.html").read_text(encoding="utf-8"))
+        except OSError:
+            return None
 
     @app.get("/privacy", include_in_schema=False)
     def _privacy_page() -> FileResponse:
