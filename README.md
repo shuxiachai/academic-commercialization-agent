@@ -21,7 +21,7 @@ included.
 | Way in | What you need | |
 |---|---|---|
 | **Read sample reports** | Nothing. Six finished assessments, one in Chinese; opening one makes no model or search request | [Open samples](https://academic-agent.cc/samples) |
-| **Run a new analysis online** | A free account (email and password; sign-up is open) with your own LLM API key and model plus a Tavily or Serper search key, which your runs are billed to. Incurs provider usage | [Open the app](https://academic-agent.cc) |
+| **Run a new analysis online** | A free account (email and password; sign-up is open) with your own LLM API key and model plus a SpecStream, Tavily or Serper search key, which your runs are billed to. Incurs provider usage | [Open the app](https://academic-agent.cc) |
 | **Run it on your machine** | Python 3.11 or 3.12, [uv](https://docs.astral.sh/uv/) and your own keys | [Quick start](#quick-start) |
 
 The samples are also in [examples/](examples/README.md): five runs of
@@ -216,14 +216,16 @@ LLM_PROVIDER=qwen
 DASHSCOPE_API_KEY=your-key
 QWEN_MODEL=qwen3.8-27b
 QWEN_API_BASE=https://dashscope.aliyuncs.com/compatible-mode/v1
-TAVILY_API_KEY=your-search-key
+# TAVILY_API_KEY=your-search-key
+SPECSTREAM_API_KEY=your-search-key
 ```
 
 Choose the endpoint matching your operator account/region. This project's
 browser BYOK default uses the China-region endpoint. With multiple LLM keys
 present, set `LLM_PROVIDER` explicitly; otherwise auto-selection is
-DeepSeek → Qwen → Anthropic → OpenAI. Tavily takes precedence over Serper
-when both search keys are present. Remove unused placeholder keys.
+DeepSeek → Qwen → Anthropic → OpenAI. SpecStream takes precedence over Tavily, 
+which takes precedence over Serper when multiple search keys are present. 
+Remove unused placeholder keys.
 
 ```bash
 uv run uvicorn api.main:app --reload

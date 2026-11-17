@@ -659,13 +659,85 @@ class TavilyClient:
         return {"organic": organic}
 
 
-def default_web_search_client(*, gl: str = "us", hl: str = "en") -> "SerperClient | TavilyClient":
-    """The web search client to use when the caller hasn't injected one.
-
-    Prefers Tavily when configured: see TavilyClient for why. Falls back to
-    Serper so a deployment that has only ever set SERPER_API_KEY (the
-    original, still-default setup) keeps working unchanged.
+class SpecStreamClient:
+    """Drop-in alternative to SerperClient/TavilyClient, same search(query) -> dict shape.
+    SpecStream supports standard Tavily/Serper-compatible requests on https://api.specstream.ai.
     """
+
+    _SITE_TOKEN = re.compile(r"\bsite:(\S+)")
+
+    def __init__(
+        self,
+        api_key: str | None = None,
+        *,
+        n_results: int = 10,
+        timeout: int = 20,
+        gl: str = "us",
+        hl: str = "en",
+    ) -> None:
+        self.api_key = api_key or os.getenv("SPECSTREAM_API_KEY")
+        if not self.api_key:
+            raise SourceCollectionError("SPECSTREAM_API_KEY is required for source retrieval.")
+        self.n_results = n_results
+        self.timeout = timeout
+        self.gl = gl
+        self.hl = hl
+
+    def search(self, query: str) -> dict[str, Any]:
+        # SpecStream accepts standard Tavily-compatible JSON requests.
+        domains = self._SITE_TOKEN.findall(query)
+        text = self._SITE_TOKEN.sub("", query).strip()
+        body: dict[str, Any] = {"query": text, "max_results": min(self.n_results, 20)}
+        if domains:
+            body["include_domains"] = domains
+
+        request = Request(
+            "https://api.specstream.ai/v1/web-search",
+            data=json.dumps(body).encode("utf-8"),
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                "User-Agent": "AcademicAgentSourceCollector/1.0",
+            },
+            method="POST",
+        )
+        last_exc: Exception | None = None
+        for attempt in range(3):
+            try:
+                with urlopen(request, timeout=self.timeout) as response:
+                    payload = json.loads(response.read().decode("utf-8"))
+                if not isinstance(payload, dict):
+                    raise SourceCollectionError("SpecStream returned a non-object response.")
+                return self._to_organic_shape(payload)
+            except HTTPError as exc:
+                if exc.code in {429, 500, 502, 503, 504}:
+                    last_exc = exc
+                    time.sleep(2 ** attempt)
+                else:
+                    raise SourceCollectionError(
+                        f"SpecStream search failed for {query!r}: {exc}"
+                    ) from exc
+            except (URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+                last_exc = exc
+                time.sleep(2 ** attempt)
+        raise SourceCollectionError(
+            f"SpecStream search failed for {query!r} after 3 attempts: {last_exc}"
+        ) from last_exc
+
+    @staticmethod
+    def _to_organic_shape(payload: dict[str, Any]) -> dict[str, Any]:
+        # SpecStream matches the Tavily result shape (results: [{title,url,content}]),
+        # so we can reuse TavilyClient's shape mapper.
+        return TavilyClient._to_organic_shape(payload)
+
+
+def default_web_search_client(*, gl: str = "us", hl: str = "en") -> "SerperClient | TavilyClient | SpecStreamClient":
+    """The web search client to use when the caller hasn't injected one.
+    
+    Prefers SpecStream if configured, then Tavily, then Serper.
+    """
+    if os.getenv("SPECSTREAM_API_KEY"):
+        return SpecStreamClient(gl=gl, hl=hl)
     if os.getenv("TAVILY_API_KEY"):
         return TavilyClient(gl=gl, hl=hl)
     return SerperClient(gl=gl, hl=hl)
