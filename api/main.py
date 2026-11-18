@@ -1829,12 +1829,25 @@ _WEB_ROOT = Path(__file__).resolve().parents[1] / "web"
 if _WEB_ROOT.is_dir():
     app.mount("/static", StaticFiles(directory=_WEB_ROOT / "static"), name="static")
 
-    @app.get("/", include_in_schema=False)
-    @app.get("/history", include_in_schema=False)
-    @app.get("/run/{run_id}", include_in_schema=False)
-    @app.get("/compare/{run_id}/{other_run_id}", include_in_schema=False)
-    @app.get("/verify", include_in_schema=False)
-    @app.get("/reset", include_in_schema=False)
+    # Every document below answers HEAD as well as GET. `@app.get` takes GET
+    # and nothing else, so until 2026-11-18 a HEAD for any page, for
+    # /robots.txt or for /sitemap.xml was answered 405 on the deployment,
+    # while the files under /static, which Starlette serves, answered it.
+    # Search engines fetch with GET; link checkers, uptime monitors and
+    # sitemap validators ask with HEAD first, and to them a 405 is a broken
+    # link. The handler runs as for a GET, so the status and every header,
+    # Content-Length and X-Robots-Tag among them, are the GET's. A committed
+    # file is sent without its body by FileResponse; for a page built per
+    # request the body is dropped by the server (uvicorn sends none for a
+    # HEAD), which is how Starlette's own routes answer HEAD too.
+    _DOCUMENT_METHODS = ["GET", "HEAD"]
+
+    @app.api_route("/", methods=_DOCUMENT_METHODS, include_in_schema=False)
+    @app.api_route("/history", methods=_DOCUMENT_METHODS, include_in_schema=False)
+    @app.api_route("/run/{run_id}", methods=_DOCUMENT_METHODS, include_in_schema=False)
+    @app.api_route("/compare/{run_id}/{other_run_id}", methods=_DOCUMENT_METHODS, include_in_schema=False)
+    @app.api_route("/verify", methods=_DOCUMENT_METHODS, include_in_schema=False)
+    @app.api_route("/reset", methods=_DOCUMENT_METHODS, include_in_schema=False)
     def _spa(http_request: Request, run_id: str = "", other_run_id: str = "") -> Response:
         """Serve the single page for every client-side route.
 
@@ -1848,9 +1861,10 @@ if _WEB_ROOT.is_dir():
 
         Only "/" is the home page a search engine may index. At every other
         address the same document says noindex in its head and drops the
-        og:url that names the home page (`crawlers.unlisted_page`); the
-        header that says the same is the middleware's. "/" itself stays the
-        committed file. A plain file was no cheaper to reload: measured on
+        og:url and the canonical link, which name the home page
+        (`crawlers.unlisted_page`); the header that says the same is the
+        middleware's. "/" itself stays the committed file, canonical link
+        included. A plain file was no cheaper to reload: measured on
         the deployment on 2026-11-17, a request for "/" carrying its own
         ETag was answered 200 with the whole body, since a file returned
         from a route (unlike one under /static) is never compared.
@@ -1874,8 +1888,8 @@ if _WEB_ROOT.is_dir():
             page = crawlers.unlisted_page(page)
         return Response(page, media_type="text/html", headers=headers)
 
-    @app.get("/samples", include_in_schema=False)
-    @app.get("/samples/{slug}", include_in_schema=False)
+    @app.api_route("/samples", methods=_DOCUMENT_METHODS, include_in_schema=False)
+    @app.api_route("/samples/{slug}", methods=_DOCUMENT_METHODS, include_in_schema=False)
     def _samples_page(http_request: Request, slug: str = "") -> Response:
         """Serve the sample-report reader for the list and every deep link.
 
@@ -1899,12 +1913,12 @@ if _WEB_ROOT.is_dir():
         page = crawlers.sample_page(page, entry) if entry is not None else crawlers.unlisted_page(page)
         return Response(page, media_type="text/html")
 
-    @app.get("/robots.txt", include_in_schema=False)
+    @app.api_route("/robots.txt", methods=_DOCUMENT_METHODS, include_in_schema=False)
     def _robots_txt() -> PlainTextResponse:
         """What a crawler may fetch, and where the sitemap is (api/crawlers.py)."""
         return PlainTextResponse(crawlers.robots_txt(_public_origin()))
 
-    @app.get("/sitemap.xml", include_in_schema=False)
+    @app.api_route("/sitemap.xml", methods=_DOCUMENT_METHODS, include_in_schema=False)
     def _sitemap_xml() -> Response:
         """The pages meant to be found, on the address the pages name."""
         origin = _public_origin()
@@ -1919,7 +1933,7 @@ if _WEB_ROOT.is_dir():
         except OSError:
             return None
 
-    @app.get("/privacy", include_in_schema=False)
+    @app.api_route("/privacy", methods=_DOCUMENT_METHODS, include_in_schema=False)
     def _privacy_page() -> FileResponse:
         """Serve the privacy and terms page.
 
@@ -1929,7 +1943,7 @@ if _WEB_ROOT.is_dir():
         """
         return FileResponse(_WEB_ROOT / "privacy.html", media_type="text/html")
 
-    @app.get("/admin", include_in_schema=False)
+    @app.api_route("/admin", methods=_DOCUMENT_METHODS, include_in_schema=False)
     def _admin_page() -> FileResponse:
         """Serve the operator's console.
 

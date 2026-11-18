@@ -130,7 +130,12 @@ class PageMatchesTheCodeTests(unittest.TestCase):
             self.assertNotIn("set_cookie", text, path.name)
             self.assertNotIn("document.cookie", text, path.name)
         self.assertNotIn("<script src=\"http", _PAGE)
-        self.assertEqual(re.findall(r'<link[^>]+href="(?!/static/)', _PAGE), [])
+        # Every <link> that makes the browser fetch something fetches it from
+        # this site. The canonical link is the one that fetches nothing: it
+        # states the page's own public address for a search engine, and is
+        # held to that address by tests/test_search_indexing.py.
+        self.assertEqual(re.findall(r'<link(?! rel="canonical" href="https://academic-agent\.cc/privacy">)[^>]+href="(?!/static/)', _PAGE), [])
+        self.assertEqual(_PAGE.count('<link rel="canonical"'), 1)
 
     def test_the_contact_line_is_written_as_text_not_markup(self):
         self.assertIn("node.textContent = site.contact.trim()", _SCRIPT)

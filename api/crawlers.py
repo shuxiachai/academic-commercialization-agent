@@ -47,6 +47,19 @@ candidate; it is set only where mail is configured, and it would let the
 sitemap name one host while the cards on the same pages name another. A
 self-hosted copy points its cards at its own address by editing that tag
 (the comment in web/index.html), and these follow.
+
+Each page on the list also says which address is the one to keep, in a
+`<link rel="canonical">`. The deployment answers at two hosts: the public
+one, and the one Railway issued, which the deploy checks read on purpose
+(AGENTS.md). Without the link a search engine that finds the second host has
+a second copy of every public page and picks one itself. Measured on
+2026-11-17: none of the four kinds of public page carried one. The link is
+written in the page beside og:url and says the same address; a sample's is
+derived from the list's exactly as its og:url is. The privacy page has no
+card and so no og:url, and names its address in that link alone. Where a
+document is served at an address that is not on the list, the link is taken
+out with og:url (`unlisted_page`): a run page that named the home page as
+its canonical address would be telling a search engine something false.
 """
 
 from __future__ import annotations
@@ -73,6 +86,9 @@ _CLOSED = ("/api/", "/admin", "/source-locator")
 
 _OG_URL = re.compile(r'(<meta property="og:url" content=")([^"]*)(">)')
 _OG_URL_LINE = re.compile(r'[ \t]*<meta property="og:url" content="[^"]*">\r?\n?')
+# Same three groups as _OG_URL, so one function rewrites either address.
+_CANONICAL = re.compile(r'(<link rel="canonical" href=")([^"]*)(">)')
+_CANONICAL_LINE = re.compile(r'[ \t]*<link rel="canonical" href="[^"]*">\r?\n?')
 _CHARSET_LINE = re.compile(r'(<meta charset="utf-8">\r?\n)')
 _TITLE = re.compile(r"(<title>)[^<]*(</title>)")
 
@@ -156,20 +172,26 @@ def sitemap_xml(origin: str) -> str:
 def unlisted_page(page: str) -> str:
     """A shipped page as it is served at an address that must not be indexed.
 
-    Two changes to the head. A robots tag, for a crawler that reads the page
-    and not the header. And og:url removed: it names the page the file was
-    written for (the home page, or the sample list), and a site that builds a
-    link card treats og:url as the address the card is about, so a shared run
-    could open the home page instead. Without the tag the card is about the
-    address that was shared. The run's own address is not written in its
-    place: nothing needs it there, and a page that echoes part of its request
-    is one more thing to get wrong.
+    Three changes to the head. A robots tag, for a crawler that reads the
+    page and not the header. And og:url removed: it names the page the file
+    was written for (the home page, or the sample list), and a site that
+    builds a link card treats og:url as the address the card is about, so a
+    shared run could open the home page instead. Without the tag the card is
+    about the address that was shared. The run's own address is not written
+    in its place: nothing needs it there, and a page that echoes part of its
+    request is one more thing to get wrong.
+
+    The canonical link goes for the same reason, said to a search engine
+    instead of a card: it would name the home page as the address of a run.
+    Beside a noindex it is also a contradiction, one tag saying "keep that
+    page for this one" and the other "keep nothing".
 
     The rest of the card (title, description, picture) stays the site's
     general one. Whether a shared run's card should name its topic and score
     is the deployment owner's decision, not made here.
     """
     page = _OG_URL_LINE.sub("", page, count=1)
+    page = _CANONICAL_LINE.sub("", page, count=1)
     return _CHARSET_LINE.sub(lambda match: f'{match[1]}<meta name="robots" content="{NOINDEX}">\n', page, count=1)
 
 
@@ -237,8 +259,10 @@ def sample_page(page: str, entry: dict) -> str:
     `entry` is the sample's line of `samples.list_samples()`: the allowlist
     entry and the two numbers its card shows, so the head states what the
     list states. The title, the description, og:title and og:description
-    become the sample's own, and og:url gains the sample's name after the
-    list's address. Everything below the head is the reader as committed.
+    become the sample's own, and og:url and the canonical link each gain the
+    sample's name after the list's address, by one function, so the two say
+    the same address for a sample whenever they do for the list. Everything
+    below the head is the reader as committed.
 
     A crawler that runs no script (every link-preview crawler, and several
     search engines) read six pages with one title and one address before
@@ -249,5 +273,10 @@ def sample_page(page: str, entry: dict) -> str:
     page = _set_meta(page, "name", "description", description)
     page = _set_meta(page, "property", "og:title", card)
     page = _set_meta(page, "property", "og:description", description)
-    slug = quote(entry["slug"], safe="")
-    return _OG_URL.sub(lambda match: f"{match[1]}{match[2].rstrip('/')}/{html.escape(slug, quote=True)}{match[3]}", page, count=1)
+    slug = html.escape(quote(entry["slug"], safe=""), quote=True)
+
+    def under_the_list(match: re.Match[str]) -> str:
+        return f"{match[1]}{match[2].rstrip('/')}/{slug}{match[3]}"
+
+    page = _OG_URL.sub(under_the_list, page, count=1)
+    return _CANONICAL.sub(under_the_list, page, count=1)

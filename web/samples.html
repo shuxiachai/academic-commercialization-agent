@@ -8,11 +8,11 @@
 <meta name="description" content="Read finished commercialization assessment reports without an account or API keys.">
 <!-- Link previews; see the same block in index.html. As committed, this is
      the head of the list page, /samples. For /samples/<slug> the server
-     rewrites the title, the two descriptions, og:title and og:url to the
-     sample's own (api/crawlers.py), because a crawler runs no script and
-     would otherwise read every sample as this one page. It finds each tag
-     by the exact form written here: one tag per line, attributes in this
-     order. -->
+     rewrites the title, the two descriptions, og:title, og:url and the
+     canonical link to the sample's own (api/crawlers.py), because a crawler
+     runs no script and would otherwise read every sample as this one page.
+     It finds each tag by the exact form written here: one tag per line,
+     attributes in this order. -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Academic Commercialization Assessment">
 <meta property="og:title" content="Sample reports · Academic Commercialization Assessment">
@@ -23,6 +23,9 @@
 <meta property="og:image:height" content="640">
 <meta property="og:image:alt" content="From a paper or research topic to a cited assessment draft, beside a real historical scorecard">
 <meta name="twitter:card" content="summary_large_image">
+<!-- For a search engine: the one address this page has, whichever host it
+     was read at; the address og:url gives. -->
+<link rel="canonical" href="https://academic-agent.cc/samples">
 <link rel="icon" type="image/svg+xml" href="/static/brand/aca-mark.svg">
 <link rel="stylesheet" href="/static/css/tokens.css">
 <link rel="stylesheet" href="/static/css/base.css">

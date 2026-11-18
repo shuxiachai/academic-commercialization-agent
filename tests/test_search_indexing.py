@@ -1,4 +1,5 @@
-"""What a search engine is told: robots.txt, the sitemap, noindex, sample heads.
+"""What a search engine is told: robots.txt, the sitemap, noindex, sample heads,
+and which address of a page is the one to keep.
 
 Until 2026-11-17 the deployment answered 404 to /robots.txt and /sitemap.xml,
 every /samples/<slug> was served with the list's title and og:url, and a run
@@ -11,6 +12,12 @@ wrongly indexable still renders, and a page a crawler cannot render still
 opens in a browser. So the tests fetch through the app as a crawler would,
 with the gate on and no code, and read robots.txt with two independent
 readers, because crawlers do not agree on how to read it.
+
+The deployment answers at two hosts, the public one and the one Railway
+issued, which the deploy checks read. Until the canonical links were added a
+search engine that found the second host had a second copy of every public
+page; fetched on 2026-11-17, none of the four kinds of public page said
+which address was its own.
 """
 
 from __future__ import annotations
@@ -39,6 +46,10 @@ _OTHER = "20261107T000000Z-" + "b" * 32
 _NOINDEX = "noindex, nofollow"
 # The same document as "/", at addresses that are not the home page.
 _UNLISTED_DOCUMENTS = (f"/run/{_RUN}", f"/compare/{_RUN}/{_OTHER}", "/history", "/verify", "/reset")
+# The sample reader at a name that is not listed: a removed sample, and one that never was.
+_UNLISTED_SAMPLES = ("/samples/solid-state-batteries-ev", "/samples/no-such-sample")
+# The second host the deployment answers at (AGENTS.md).
+_RAILWAY = "https://academic-commercialization-agent.up.railway.app"
 _SITEMAP_NS = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
 _CARD_TAGS = ("description", "og:type", "og:site_name", "og:title", "og:description", "og:url",
               "og:image", "og:image:width", "og:image:height", "og:image:alt", "twitter:card")
@@ -46,21 +57,27 @@ _CJK = re.compile(r"[一-鿿]")
 
 
 class _Head(HTMLParser):
-    """The title and the meta tags of a served document, as a crawler reads them."""
+    """The title, the meta tags and the canonical links of a served document,
+    as a crawler reads them."""
 
     def __init__(self) -> None:
         super().__init__()
         self.tags: dict[str, list[str]] = {}
         self.titles: list[str] = []
+        self.canonical: list[str | None] = []
         self._in_title = False
 
     def handle_starttag(self, tag, attrs):
         if tag == "title":
             self._in_title = True
             self.titles.append("")
+        attributes = dict(attrs)
+        # rel is a list of words and is matched without regard to case; a
+        # link with no href is still counted, as None, so it cannot pass as absent.
+        if tag == "link" and "canonical" in (attributes.get("rel") or "").lower().split():
+            self.canonical.append(attributes.get("href"))
         if tag != "meta":
             return
-        attributes = dict(attrs)
         key = attributes.get("property") or attributes.get("name")
         if key and attributes.get("content") is not None:
             self.tags.setdefault(key, []).append(attributes["content"])
@@ -284,10 +301,11 @@ class NoindexTests(_Case):
         self.assertEqual(response.content, (_WEB / "index.html").read_bytes())
         self.assertNotIn("robots", _head(response.text).tags)
 
-    def test_a_run_page_is_the_home_page_but_for_the_two_tags(self):
+    def test_a_run_page_is_the_home_page_but_for_three_lines(self):
         """The card of a shared run stays the site's general one until the
         owner of the deployment decides otherwise; og:url, which named the
-        home page and made some sites open that instead of the run, is gone."""
+        home page and made some sites open that instead of the run, is gone,
+        and so is the canonical link, which named it to a search engine."""
         home = self.client.get("/").text
         for path in _UNLISTED_DOCUMENTS:
             with self.subTest(path=path):
@@ -298,10 +316,14 @@ class NoindexTests(_Case):
                 for key in ("og:title", "og:description", "og:image", "description"):
                     self.assertEqual(head.tags[key], _head(home).tags[key])
                 self.assertNotIn(_RUN, served, "the run's address is not written into the page")
-                # Exactly that: the robots tag after the charset, the address line gone.
-                expected = home.replace(f'<meta property="og:url" content="{self.origin}/">\n', "", 1).replace(
+                # Exactly that: the robots tag after the charset, the two address lines gone.
+                address_lines = (f'<meta property="og:url" content="{self.origin}/">\n',
+                                 f'<link rel="canonical" href="{self.origin}/">\n')
+                expected = home.replace(
                     '<meta charset="utf-8">\n', f'<meta charset="utf-8">\n<meta name="robots" content="{_NOINDEX}">\n', 1)
-                self.assertNotEqual(expected, home)
+                for line in address_lines:
+                    self.assertEqual(home.count(line), 1, line)
+                    expected = expected.replace(line, "", 1)
                 self.assertEqual(served, expected)
 
     def test_it_holds_where_the_saved_source_locator_rewrites_the_page(self):
@@ -387,6 +409,7 @@ class SampleHeadTests(_Case):
                 for key in _CARD_TAGS:
                     self.assertEqual(len(head.tags.get(key, [])), 1, key)
                 self.assertEqual(head.tags["og:url"], [f"{self.origin}/samples/{sample.slug}"])
+                self.assertEqual(head.canonical, head.tags["og:url"])
                 self.assertEqual(head.tags["description"], head.tags["og:description"])
                 description, card_title = head.tags["description"][0], head.tags["og:title"][0]
                 for text in (description, card_title):
@@ -458,6 +481,7 @@ class SampleHeadTests(_Case):
                 self.assertEqual(head.titles, [f"Title of {name} · Sample reports"])
                 self.assertIn(f"topic of {name}", head.tags["description"][0])
                 self.assertEqual(head.tags["og:url"], [f"{self.origin}/samples/{name}"])
+                self.assertEqual(head.canonical, [f"{self.origin}/samples/{name}"])
         self.assertIn("48.6 / 100", heads["half"].tags["description"][0])
         self.assertNotIn("TRL", heads["half"].tags["description"][0])
         self.assertIn("61.0 / 100", heads["whole"].tags["description"][0])
@@ -488,6 +512,147 @@ class SampleHeadTests(_Case):
         page = (_WEB / "samples.html").read_text(encoding="utf-8")
         self.assertNotIn("rather than\n     whichever sample a shared link opens", page)
         self.assertIn("api/crawlers.py", page)
+
+
+class CanonicalTests(_Case):
+    """Which address of a page a search engine is told to keep.
+
+    A canonical link that is missing, doubled, or naming another page changes
+    nothing a visitor sees, so each of these is read from the served page."""
+
+    def _served(self, path: str, client: TestClient | None = None) -> tuple[str, _Head]:
+        response = (client or self.client).get(path)
+        self.assertEqual(response.status_code, 200, path)
+        return response.text, _head(response.text)
+
+    def test_every_listed_address_is_served_with_its_own_address_once(self):
+        """The rule, over the list the sitemap is made from: one canonical
+        link, in the head, saying the public origin and this page's path."""
+        paths = [path for path, _ in crawlers.public_paths()]
+        self.assertEqual(len(paths), 3 + len(samples.SAMPLES))
+        self.assertEqual(len(samples.SAMPLES), 6, "the walk must reach the samples")
+        self.assertEqual(self.origin, "https://academic-agent.cc")
+        for path in paths:
+            with self.subTest(path=path):
+                text, head = self._served(path)
+                self.assertEqual(head.canonical, [self.origin + path])
+                # Once in the text too, however the tag is spelled.
+                self.assertEqual(len(re.findall(r"rel\s*=\s*[\"']?canonical", text, flags=re.I)), 1)
+                self.assertLess(text.index('rel="canonical"'), text.index("</head>"))
+
+    def test_it_is_the_address_the_card_names(self):
+        """One address per page, said twice. A page whose og:url and canonical
+        link disagree leaves a search engine to pick, which is the state the
+        link is there to end. The privacy page has no card today and so no
+        og:url; it names its address in the canonical link alone. Should it
+        be given a card, the same rule holds for it."""
+        compared = []
+        for path, _ in crawlers.public_paths():
+            with self.subTest(path=path):
+                _, head = self._served(path)
+                named = head.tags.get("og:url", [])
+                if named:
+                    self.assertEqual(named, head.canonical)
+                    compared.append(path)
+        # Silence is not a pass: every page that has a card was compared.
+        self.assertEqual(compared, [path for path, _ in crawlers.public_paths() if path != "/privacy"])
+
+    def test_a_page_read_at_the_other_host_is_told_the_public_address(self):
+        """What the link is for. The deploy checks keep the Railway address
+        answering, so a search engine can find it; the page it reads there
+        must name the public address and not the host it was asked at."""
+        with TestClient(app, base_url=_RAILWAY) as other:
+            for path, _ in crawlers.public_paths():
+                with self.subTest(path=path):
+                    text, head = self._served(path, other)
+                    self.assertEqual(head.canonical, [self.origin + path])
+                    self.assertNotIn("railway", text.lower())
+
+    def test_a_sample_added_to_the_allowlist_gets_its_own(self):
+        added = samples.Sample("a-new-one", "a-new-one.md", "A new one", "a new one", "2026-11-17", "0000000", "model-x")
+        listed = (*samples.SAMPLES, added)
+        with patch.object(samples, "SAMPLES", listed), \
+                patch.object(samples, "_BY_SLUG", {sample.slug: sample for sample in listed}):
+            self.assertIn("/samples/a-new-one", [path for path, _ in crawlers.public_paths()])
+            _, head = self._served("/samples/a-new-one")
+        self.assertEqual(head.canonical, [f"{self.origin}/samples/a-new-one"])
+        # ...and once it is taken off again the same address has none.
+        _, head = self._served("/samples/a-new-one")
+        self.assertEqual(head.canonical, [])
+
+    def test_no_document_at_an_unlisted_address_has_one(self):
+        """A run page that named the home page as its canonical address would
+        tell a search engine the run IS the home page, and it says noindex
+        besides. Same for the reader at a name that is not a listed sample,
+        which would otherwise be filed as the list."""
+        for path in (*_UNLISTED_DOCUMENTS, *_UNLISTED_SAMPLES):
+            with self.subTest(path=path):
+                text, head = self._served(path)
+                self.assertEqual(head.canonical, [])
+                self.assertNotRegex(text.lower(), r"rel\s*=\s*[\"']?canonical")
+                self.assertEqual(head.tags.get("robots"), [_NOINDEX])
+        # The source the two are made from does carry one, so the absence
+        # above is a removal and not a page that never had it.
+        for name in ("index.html", "samples.html"):
+            self.assertEqual(len(_head((_WEB / name).read_text(encoding="utf-8")).canonical), 1, name)
+
+    def test_it_holds_where_the_saved_source_locator_rewrites_the_page(self):
+        """With the locator reachable the home page is no longer the file as
+        committed; it keeps its link, and the run page still has none."""
+        registered = type("Registered", (), {"page_reachable": staticmethod(lambda _request: True)})()
+        with patch.object(api_main, "_source_locator", registered):
+            _, home = self._served("/")
+            _, run = self._served(f"/run/{_RUN}")
+        self.assertEqual(home.canonical, [f"{self.origin}/"])
+        self.assertEqual(home.tags["og:url"], home.canonical)
+        self.assertEqual(run.canonical, [])
+
+    def test_nothing_that_says_noindex_also_names_a_canonical_address(self):
+        """The rule, not the instances: every route that is not on the list
+        answers noindex, and an answer that says noindex names no page to be
+        kept in its place."""
+        public = {path for path, _ in crawlers.public_paths()} | {"/robots.txt", "/sitemap.xml"}
+        asked = 0
+        for route in app.routes:
+            if "GET" not in (getattr(route, "methods", None) or ()):
+                continue
+            path = re.sub(r"\{[^}]*\}", "x", route.path)
+            if path in public:
+                continue
+            asked += 1
+            with self.subTest(path=path):
+                answer = self.client.get(path)
+                self.assertEqual(answer.headers.get("x-robots-tag"), _NOINDEX)
+                self.assertNotRegex(answer.text.lower(), r"rel\s*=\s*[\"']?canonical")
+                self.assertNotIn("rel=\"canonical\"", answer.headers.get("link", ""))
+        self.assertGreater(asked, 30, "the walk must reach the API")
+
+    def test_a_sample_name_is_written_into_both_addresses_the_same_way(self):
+        """One function writes the sample's name after the list's address in
+        og:url and in the canonical link, so a name that needs escaping
+        cannot come out differently in the two, or as markup in either."""
+        listing = (_WEB / "samples.html").read_text(encoding="utf-8")
+        for slug, written in (("plain", "plain"), ('a b"<x>&', "a%20b%22%3Cx%3E%26"), ("\\1/\\g<0>", "%5C1%2F%5Cg%3C0%3E")):
+            with self.subTest(slug=slug):
+                page = crawlers.sample_page(listing, {
+                    "slug": slug, "title": "T", "topic": "t", "committed": "2026-01-01", "model": "m",
+                    "language": "English", "overall_score": None, "trl_score": None})
+                head = _head(page)
+                self.assertEqual(head.canonical, [f"{self.origin}/samples/{written}"])
+                self.assertEqual(head.tags["og:url"], head.canonical)
+                self.assertEqual(page.count("<link"), listing.count("<link"))
+
+    def test_a_page_without_the_link_is_served_without_one_and_not_broken(self):
+        """A self-hosted copy may delete the line. Then no page claims an
+        address, the sample head is still the sample's, and nothing raises."""
+        listing = (_WEB / "samples.html").read_text(encoding="utf-8")
+        without = re.sub(r'<link rel="canonical"[^>]*>\n', "", listing)
+        self.assertNotEqual(without, listing)
+        entry = samples.sample_summary(samples.SAMPLES[0].slug)
+        head = _head(crawlers.sample_page(without, entry))
+        self.assertEqual(head.canonical, [])
+        self.assertEqual(head.tags["og:url"], [f"{self.origin}/samples/{samples.SAMPLES[0].slug}"])
+        self.assertEqual(_head(crawlers.unlisted_page(without)).canonical, [])
 
 
 if __name__ == "__main__":
