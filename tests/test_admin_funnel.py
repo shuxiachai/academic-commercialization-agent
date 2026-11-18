@@ -218,6 +218,20 @@ class WhatIsNotThereTests(_Case):
 class EndpointTests(_Case):
     def setUp(self):
         super().setUp()
+        # The endpoint counts "the last N days" back from the clock, and the
+        # fixtures are dated from NOW, a fixed day. With nothing tying the
+        # two together the 7-day test passed only while the real date was
+        # within a week of the account it counts (created 2026-11-10 12:00
+        # UTC): from 2026-11-17 12:00 UTC it failed on every machine, with
+        # no change to any code, and main's CI went red on the next push.
+        # So the endpoint is given the fixtures' clock. Only the clock: the
+        # call still goes through the route, its admin check and the
+        # response model, which is what these tests are about.
+        counted = admin.funnel
+        self._clock = patch.object(
+            admin, "funnel", lambda days, now=None: counted(days, now=NOW.timestamp() if now is None else now))
+        self._clock.start()
+        self.addCleanup(self._clock.stop)
         self.client = TestClient(app)
         self._account("ops", admin=True)
         self._account("ann")
