@@ -122,12 +122,10 @@ _STATEMENT = re.compile(
     r"\b(?:is|was|remains|stands at|is therefore|is thus|is to|is a|is an)\s+(?P<rest>.+)$",
     re.IGNORECASE,
 )
-_VERB = re.compile(
-    r"\b(?:conclud(?:e|es|ed)|recommend(?:s|ed)?|advis(?:e|es|ed))\b"
-    r"(?P<rest>.+)$",
-    re.IGNORECASE,
-)
-_CHINESE_STATEMENT = re.compile(r"(?:结论|建议|判定|裁定|决策)(?:[一-鿿]{0,6})?(?:为|是)(?P<rest>.+)$")
+_TIE_NOUN = re.compile(rf"\b{_CONCLUSION_NOUN}\b", re.IGNORECASE)
+# The two below match the tie alone; what follows it is read by the caller.
+_VERB = re.compile(r"\b(?:conclud(?:e|es|ed)|recommend(?:s|ed)?|advis(?:e|es|ed))\b", re.IGNORECASE)
+_CHINESE_STATEMENT = re.compile(r"(?:结论|建议|判定|裁定|决策)(?:[一-鿿]{0,6})?(?:为|是)")
 # How far past the tie the word may stand: "is a clear, evidence-conditioned DEFER".
 _REACH = 48
 # Between the tie and the word, any of these means the sentence says something else.
@@ -237,8 +235,9 @@ def _bound_verdict(rest: str, *, labelled: bool) -> str | None:
     return code
 
 
-def _verdict_in(sentence: str, *, heads_block: bool) -> str | None:
-    """The conclusion this one sentence states, or None."""
+def _verdict_in(sentence: str, *, heads_block: bool) -> tuple[str, bool] | None:
+    """The conclusion this one sentence states and whether the sentence is the
+    report's own conclusion line (a label, or the word alone), or None."""
     plain = _plain(_CITATION.sub("", sentence))
     plain = _LIST_ITEM.sub("", plain)
     if _NOT_A_CONCLUSION.search(plain):
@@ -248,20 +247,25 @@ def _verdict_in(sentence: str, *, heads_block: bool) -> str | None:
         if match:
             code = _bound_verdict(match["rest"], labelled=True)
             if code:
-                return code
-    statement = _STATEMENT.search(plain)
-    # "The conclusion is that GO inks are closer to market" goes on to a clause.
-    if (statement and not _UNSAID.search(statement["between"])
-            and not re.match(r"that\b", statement["rest"], re.IGNORECASE)):
-        code = _bound_verdict(statement["rest"], labelled=False)
-        if code:
-            return code
-    for tie in (_VERB, _CHINESE_STATEMENT):
-        match = tie.search(plain)
-        if match:
-            code = _bound_verdict(match["rest"], labelled=False)
+                return code, True
+    # Every tie in the sentence is tried, not only the first. "In
+    # decision-support mode the preferred route is a licence; however, the
+    # conclusion is DEFER because..." has two such nouns before an "is", and
+    # the first leads nowhere. The production report that shaped this wrote
+    # "decision_support", which is one word, and so hid the miss.
+    for noun in _TIE_NOUN.finditer(plain):
+        statement = _STATEMENT.match(plain, noun.start())
+        # "The conclusion is that GO inks are closer to market" goes on to a clause.
+        if (statement and not _UNSAID.search(statement["between"])
+                and not re.match(r"that\b", statement["rest"], re.IGNORECASE)):
+            code = _bound_verdict(statement["rest"], labelled=False)
             if code:
-                return code
+                return code, False
+    for tie in (_VERB, _CHINESE_STATEMENT):
+        for match in tie.finditer(plain):
+            code = _bound_verdict(plain[match.end():], labelled=False)
+            if code:
+                return code, False
     if heads_block:
         # "**DEFER.** Module-scale validation is not yet..." at the head of a
         # paragraph or a list item: the word alone, then its punctuation.
@@ -269,7 +273,7 @@ def _verdict_in(sentence: str, *, heads_block: bool) -> str | None:
         found = _first_token(plain, _TOKEN)
         if (found and found[0] != "go" and found[1].start() == 0
                 and re.match(r"\s*(?:[.。:：—–]|-\s|$)", plain[found[1].end():])):
-            return found[0]
+            return found[0], True
     return None
 
 
@@ -421,20 +425,25 @@ def find_verdict(report: str) -> dict[str, Any]:
 
     `status` is "stated" (one conclusion, wherever it is repeated),
     "conflicting" (statements that name different conclusions) or
-    "not_stated". For a stated one: `verdict`, the `statement` as written,
-    the `section` it stands in, up to two sentences that follow it in the same
+    "not_stated". For a stated one: `verdict`, the `statement` as written
+    (the report's own conclusion line where it has one, else the first place
+    it is said), the `section` it stands in, up to two sentences that follow it in the same
     paragraph (`follows`: the reasons and conditions the writer put next to
     it), and a `needle`, text a page can find the paragraph by. `statements`
     lists every one found, so a disagreement can be shown rather than hidden.
     """
     text = _OWNED_BLOCK.sub("", report or "")
     statements: list[dict[str, Any]] = []
+    own_lines: list[int] = []
     for section, block in _blocks(text):
         sentences = _sentences(block)
         for index, sentence in enumerate(sentences):
-            code = _verdict_in(sentence, heads_block=index == 0)
-            if code is None:
+            stated = _verdict_in(sentence, heads_block=index == 0)
+            if stated is None:
                 continue
+            code, own_line = stated
+            if own_line:
+                own_lines.append(len(statements))
             shown = _plain(_LIST_ITEM.sub("", sentence))
             statements.append({
                 "verdict": code,
@@ -450,5 +459,12 @@ def find_verdict(report: str) -> dict[str, Any]:
     if len(codes) > 1:
         return {"status": CONFLICTING, "verdict": None, "statement": None, "section": None,
                 "follows": [], "needle": None, "statements": statements}
-    first = statements[0]
-    return {"status": STATED, **first, "statements": statements}
+    # Which of several agreeing statements to quote. The report's own
+    # conclusion line where it has one ("Conclusion: DEFER."), else the first.
+    # The one production report read for this (2026-11-18) says DEFER twice:
+    # in passing, at the end of a long sentence about the preferred route in
+    # its summary, and as a labelled line in its recommendations, followed by
+    # the reasons and by what would reopen the decision. The second is what a
+    # reader of the card is after, and the contract puts the conclusion there.
+    shown = statements[own_lines[0]] if own_lines else statements[0]
+    return {"status": STATED, **shown, "statements": statements}

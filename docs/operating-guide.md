@@ -165,10 +165,12 @@ card saying the report states no clear conclusion; statements that disagree
 are each quoted and none is chosen; a read that failed says so. Nothing is
 inferred, no score changes, and the code-owned applicability paragraph is
 left out of the reading. Runs in the other two modes, and runs that did not
-complete, have no card. The rule was written against 1,797 saved reports of
-the other modes, where it finds no conclusion, and one production sentence;
-it has not been measured on a set of decision-support reports, because none
-is saved outside production.
+complete, have no card. Where a report says its conclusion more than once,
+the card quotes the report's own conclusion line if it has one ("Conclusion:
+DEFER."), else the first place. The rule was written against 1,797 saved
+reports of the other modes, where it finds no conclusion, and then checked on
+the one decision-support report that exists, read from production; it has not
+been measured on a set of them.
 
 Web-search patents are dated from their own Google Patents page, the one
 already read for the applicant: the header's publication date replaces the

@@ -65,6 +65,11 @@ def _one(sentence: str) -> dict:
     ("defer", "- **Conclusion for the technology transfer office:** DEFER until reliability data exist."),
     ("defer", "This report concludes DEFER for the licensing decision."),
     ("defer", "The actor-specific GO/NO_GO conclusion is DEFER."),
+    # Two ties in one sentence, and the first leads nowhere.
+    ("defer", "In decision-support mode the preferred route is a field-limited licence; however, the "
+              "actor-specific conclusion is DEFER because module-scale evidence is missing [A2]."),
+    ("no_go", "We recommend a field trial for the sensor line and conclude NO_GO for the licensing decision [M1]."),
+    ("defer", "建议优先考虑技术许可路线，但针对该决策的结论是暂缓，原因是证据不足 [A2]。"),
     ("defer", "Accordingly, the evidence-conditioned verdict for the committee is a clear DEFER."),
     ("no_go", "We recommend a NO_GO on licensing at this stage [M1]."),
     ("no_go", "The recommendation is NO-GO."),
@@ -207,11 +212,36 @@ def test_emphasis_is_dropped_and_a_decimal_or_an_abbreviation_does_not_end_the_s
     assert found["follows"] == ["Next sentence."]
 
 
-def test_a_conclusion_repeated_is_one_conclusion_and_the_first_place_is_shown():
-    report = _report(_DEFER) + "\n## 5. Recommendations\n\n**Decision:** DEFER.\n"
+def test_a_conclusion_repeated_is_one_conclusion_and_its_own_line_is_the_one_quoted():
+    """The shape of the one production report read for this, in other words:
+    DEFER in passing at the end of a summary sentence about the route, then a
+    labelled line in the recommendations with the reasons and what would
+    reopen the decision. The card quotes the second, where a reader finds why
+    and under what condition."""
+    report = _report(
+        "Tandem cells are efficient in the laboratory [A1].",
+        "In decision-support mode the preferred route is a field-limited licence to a module maker; however, "
+        "the actor-specific conclusion is DEFER because module-scale evidence is missing [A2][P1].",
+    ) + ("\n## 5. Recommendations\n\n- **Gate 1 — module transfer:** obtain module-level evidence [A2].\n\n"
+         "**Conclusion: DEFER.** The office should defer a full licence until module transfer and legal diligence "
+         "are evidenced [A2][P1, P2]. If the gates above are met within the decision window, the office may "
+         "revisit a field-limited licence [M2]. A third sentence.\n")
     found = find_verdict(report)
-    assert (found["status"], found["verdict"], found["section"]) == ("stated", "defer", "Executive Summary")
+    assert (found["status"], found["verdict"]) == ("stated", "defer")
+    assert (found["statement"], found["section"]) == ("Conclusion: DEFER.", "5. Recommendations")
+    assert found["follows"] == [
+        "The office should defer a full licence until module transfer and legal diligence are evidenced [A2][P1, P2].",
+        "If the gates above are met within the decision window, the office may revisit a field-limited licence [M2].",
+    ]
+    assert found["needle"] == "Conclusion: DEFER."
+    # Every place is still listed, in the report's order.
     assert [item["section"] for item in found["statements"]] == ["Executive Summary", "5. Recommendations"]
+    # With no line of its own, the first place it is said.
+    twice = find_verdict(_report(_DEFER) + "\n## 5. Recommendations\n\nWe recommend DEFER for now [A2].\n")
+    assert (twice["section"], twice["statement"]) == ("Executive Summary", _DEFER)
+    # The word alone at the head of a paragraph is such a line too.
+    headed = find_verdict(_report(_DEFER) + "\n## 5. Recommendations\n\n**DEFER.** Module data are missing [A2].\n")
+    assert (headed["section"], headed["statement"]) == ("5. Recommendations", "DEFER.")
 
 
 def test_statements_that_disagree_are_reported_as_disagreeing_and_none_is_chosen():

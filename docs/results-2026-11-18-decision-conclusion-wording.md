@@ -1,9 +1,10 @@
 # The conclusion a decision-support report states: what the saved reports show
 
 **Date:** 2026-11-18 (UTC).
-**Status:** offline measurement on saved reports. No search or model request
-was made, and no production report was read: the one production sentence used
-below was quoted to the maintainer from the run's page.
+**Status:** offline measurement on saved reports, plus the one production
+report that prompted it, read back from the deployment with the maintainer's
+consent (two GET requests; its text is kept out of the repository and no test
+quotes it). No search or model request was made.
 **Production:** the card, the comparison rows and the PDF card are in the
 change that carries this file. No prompt, score or applicability rule changed.
 
@@ -40,11 +41,11 @@ these figures only on the maintainer's machine.
 mode.** Three record `orientation` (two in the run's status, one more in its
 delivered applicability paragraph); 1,794 record no mode, because they predate
 the gate (2026-08-26) or were made from the command line, which sets none. The
-three decision-context canaries of 2026-08-26 and the run above exist only on
-the deployment.
+run above exists only on the deployment. The three decision-context canaries
+of 2026-08-26 no longer exist there: each answered 404 on 2026-11-18.
 
 So the saved reports can say what a conclusion is **not**, and nothing about
-how decision-support reports word one.
+how decision-support reports word one. For that there is one report, below.
 
 **Lines that use the words.** 400 lines use `GO`, `NO_GO`/`NO-GO` or `DEFER`
 in capitals:
@@ -132,19 +133,49 @@ criterion. "Until", "unless" and "because" are not triggers: "DEFER until
 module data exist" and "NO_GO unless freedom to operate is confirmed"
 conclude now. A table's rows are not read as sentences at all.
 
-`tests/test_decision_verdict.py` now holds 24 sentences that state a
-conclusion and 37 that do not, and all 61 are read as intended, with one
-whole report whose gated plan stands beside its conclusion. The rule still
-finds a conclusion in 0 of the 1,797 saved reports.
+## The one production report
+
+The run that prompted this (38,089 bytes, decision-support, completed) was
+read once the rule was written, so it tested the rule rather than shaped it.
+
+| | |
+|---|---|
+| The rule's reading | **stated, DEFER** |
+| Places it is said | 2, both DEFER: at the end of a long summary sentence about the preferred route, and as a labelled line ("Conclusion: DEFER.") opening the last paragraph of the recommendations |
+| What follows the labelled line | one sentence of reasons, one naming what would reopen the decision ("If the owner-confirmed gates above are met…") |
+| Its gated plan | six gates as list items ("Gate N — name: obtain…") and a stop-criteria paragraph; none uses a verdict word, none was read |
+| Other lines with a verdict word | the code-owned applicability paragraph only |
+
+Two things changed because of it:
+
+- **Which statement is quoted.** The card showed the first place the
+  conclusion is said, which here is the summary's sentence about the route.
+  The labelled line carries what the reader is after, the reasons and the
+  condition, and the contract puts the conclusion in that section. Where a
+  report has a line of its own for the conclusion (a label, or the word alone
+  at the head of a paragraph), that line is now the one quoted; otherwise the
+  first place. Every place is still listed.
+- **A miss it nearly had.** Writing that report's shape in other words for a
+  test ("In decision-support mode the preferred route is…; however, the
+  conclusion is DEFER…") stated nothing: the rule tried only the first
+  noun-and-"is" in a sentence, and "decision" in "decision-support" came
+  first. The report itself writes "decision_support", one word, and so was
+  read. Every tie in a sentence is now tried.
+
+`tests/test_decision_verdict.py` now holds 27 sentences that state a
+conclusion and 37 that do not, and all 64 are read as intended, with whole
+reports for a gated plan beside its conclusion and for a conclusion said
+twice. The rule still finds a conclusion in 0 of the 1,797 saved reports.
 
 ## What this does not show
 
-- **Recall is unmeasured.** There is no saved decision-support report, so
-  how often real reports word their conclusion in a form the rule takes is
-  unknown. One production sentence is known, and the rule takes it. A report
-  that argues its way to waiting without one of the words ("the office should
-  wait for module data") is shown as stating no conclusion. That is the
-  intended side to err on, and the card says so rather than staying empty.
+- **Recall is one for one, which is not a measurement.** A single
+  decision-support report exists to read, from one model, and the rule takes
+  its conclusion. How other models and other reports word theirs is unknown.
+  A report that argues its way to waiting without one of the words ("the
+  office should wait for module data") is shown as stating no conclusion.
+  That is the intended side to err on, and the card says so rather than
+  staying empty.
 - **Languages.** English and Chinese forms only. A report in another language
   that translates the verdict word is shown as stating none.
 - **The conclusion is not checked.** The card quotes what the report says. It
