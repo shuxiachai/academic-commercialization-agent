@@ -35,6 +35,20 @@
 </head>
 <body>
 
+<!-- ═══ A boot that got no answer ═════════════════════════════════════
+     The page's first request asks the server who the visitor is. When it
+     is told to wait (429 from the request limiter), reaches nothing, or is
+     answered with a failure, there is no landing to offer and no workbench
+     to let anyone into, so app.js shows this instead and says which of the
+     three it was (ensureAccess, paintBootFailure). The button loads the
+     page again. Outside #landing, #workbench and #gate, which stay hidden
+     behind it. -->
+<section class="boot-failure" id="boot-failure" role="alert" hidden>
+  <h1 class="boot-failure__title" id="boot-failure-title"></h1>
+  <p class="boot-failure__text" id="boot-failure-text"></p>
+  <button type="button" class="btn btn--primary" id="boot-failure-retry" data-i18n="boot_failure_retry">Try again</button>
+</section>
+
 <!-- ═══ Landing ═══════════════════════════════════════════════════
      What an anonymous visitor to "/" sees on a deployment with accounts,
      before anything else: what the tool is, how a run goes, what a finished

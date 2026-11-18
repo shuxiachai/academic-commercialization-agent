@@ -685,14 +685,17 @@ async def _rate_limit(request: Request, call_next):
     unchanged; a refused caller is answered 401 while its bucket has tokens
     and 429 once it has none.
 
-    One cost, measured in a browser and left as it is. The page takes only a
-    401 from its boot request as "show the landing or the sign-in card"
-    (web/static/js/app.js rethrows anything else). A visitor without an
+    One cost, measured in a browser. The page takes only a 401 from its boot
+    request as "show the landing or the sign-in card". A visitor without an
     identity whose address has no token at that moment used to get the 401
-    and the card; now they get the 429 and neither, with nothing said, until
-    a reload finds a token, and five are added a second. A code holder or an
-    account past its own budget already met the same thing. The page saying
-    so is its own change.
+    and the card; now they get the 429 and neither, until a reload finds a
+    token, and five are added a second. A code holder or an account past its
+    own budget already met the same thing. For a day the page said nothing
+    when that happened and showed an empty workbench; since 2026-11-18 it
+    shows a notice that says the server asked it to wait, with a button that
+    loads the page again (web/static/js/app.js paintBootFailure,
+    tests/test_boot_failure_notice.py). The answer below is copied into that
+    test's fixtures, so changing its status or headers fails there.
 
     Which bucket is _client_key's choice, and it is the same choice as
     before: a valid code or a signed-in account spends its own, so a person

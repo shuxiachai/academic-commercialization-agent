@@ -1184,6 +1184,33 @@
 .btn--primary:hover:not(:disabled) { background: var(--accent-hover); color: var(--on-accent); }
 .btn--primary:disabled { opacity: 0.6; cursor: not-allowed; }
 
+/* ═══ A boot that got no answer ════════════════════════════════════════
+   Alone on the page: the landing, the workbench and the gate are hidden
+   behind it (app.js paintBootFailure). */
+
+.boot-failure {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--space-4);
+  width: min(480px, calc(100vw - var(--space-8)));
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0 auto;
+}
+.boot-failure__title {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.boot-failure__text {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+/* The one thing on the page to press, on a phone as on a desk. */
+.boot-failure .btn { min-height: 44px; }
+
 /* ═══ Access gate ══════════════════════════════════════════════════════ */
 
 .gate {

@@ -49,7 +49,9 @@ if (scenario === "keys_in_this_tab_never_see_the_landing") {
     model: "deepseek-chat", search: "tavily", searchKey: "tvly-fixture-000000000000" }));
 }
 if (scenario === "unreadable_keys_never_see_the_landing") tab.set("byok-credentials", "{not json");
-if (scenario === "signed_in" || scenario === "logout_goes_home") disk.set("session-token", "fixture-token");
+if (["signed_in", "logout_goes_home", "a_signed_in_boot_told_to_wait_keeps_the_session"].includes(scenario)) {
+  disk.set("session-token", "fixture-token");
+}
 if (scenario === "logout_without_accounts_reloads") disk.set("access-code", "fixture-code");
 
 const api = await import("../../web/static/js/api.js");
@@ -97,8 +99,10 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
   };
   for (const id of hiddenAtStart) get(`#${id}`).hidden = true;
   const requests = [], navigations = [], reloads = [], sidebarRefreshes = [], replaced = [], summaries = [];
-  const reply = (body, status = 200) => Promise.resolve(new Response(JSON.stringify(body), {
-    status, headers: { "Content-Type": "application/json" } }));
+  // Where app.js writes how far its boot got (markBoot), for whoever reads a failed smoke.
+  const documentElement = { dataset: {} };
+  const reply = (body, status = 200, headers = {}) => Promise.resolve(new Response(JSON.stringify(body), {
+    status, headers: { "Content-Type": "application/json", ...headers } }));
   let answer = () => {};
   let deliver = () => {};
   globalThis.fetch = (url, options = {}) => {
@@ -109,10 +113,13 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
       // Answered when the scenario says so, with the usual scores.
       if (given === "late") return new Promise((resolve) => { deliver = () => resolve(reply(SCORES)); });
       if (given === "unreachable") return Promise.reject(new TypeError("Failed to fetch"));
-      return given?.status ? reply(given.body, given.status) : reply(given);
+      // Answered 200 with a body that is not the JSON its header says it is.
+      if (given === "garbled") return Promise.resolve(new Response("<html>", {
+        status: 200, headers: { "Content-Type": "application/json" } }));
+      return given?.status ? reply(given.body, given.status, given.headers) : reply(given);
     }
     if (url === "/api/access/check") {
-      if (!hold) return reply(access.body, access.status);
+      if (!hold) return reply(access.body, access.status, access.headers);
       return new Promise((resolve) => { answer = () => resolve(reply(access.body, access.status)); });
     }
     if (url === "/api/samples") return reply(SAMPLES);
@@ -140,7 +147,7 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
     i18n: { t: (key) => key, language: () => "English", apply: () => {}, setLanguage: () => {},
             pageTitle: (name = "") => (name ? `${name} · brand_full` : "brand_full") },
     document: { querySelector: get, querySelectorAll: () => [], createElement: () => new Element(),
-      addEventListener: () => {}, hidden: false },
+      addEventListener: () => {}, hidden: false, documentElement },
     window: { matchMedia: () => ({ matches: false }), addEventListener: () => {} },
     localStorage: globalThis.localStorage, Event, URLSearchParams,
     history: { pushState: () => {}, replaceState: (_state, _unused, url) => replaced.push(url) },
@@ -150,7 +157,7 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
   });
   vm.runInContext(source, context);
   return { get, requests, navigations, reloads, sidebarRefreshes, replaced, summaries, answer: () => answer(),
-    deliver: () => deliver(),
+    deliver: () => deliver(), boot: () => documentElement.dataset.boot,
     run: (text) => vm.runInContext(text, context) };
 }
 
@@ -158,6 +165,12 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
 const settle = async () => { for (let i = 0; i < 25; i++) await new Promise((resolve) => setImmediate(resolve)); };
 const shown = (f) => ({ landing: !f.get("#landing").hidden, workbench: !f.get("#workbench").hidden, gate: !f.get("#gate").hidden });
 const refused = (accounts) => ({ status: 401, body: { detail: "Sign in.", ...(accounts ? { accounts } : {}) } });
+// The limiter's answer once a caller's budget is spent, as api/main.py writes it (_rate_limit).
+const TOLD_TO_WAIT = { status: 429, body: { detail: "Too many requests. Slow down and retry shortly." },
+  headers: { "Retry-After": "10", "X-Error-Code": "rate_limited" } };
+// The notice a boot that got no usable answer puts where the page would have been.
+const failure = (f) => ({ shown: !f.get("#boot-failure").hidden, title: f.get("#boot-failure-title").textContent,
+  text: f.get("#boot-failure-text").textContent });
 const DEEP_LINK = "/run/20260926T121212Z-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const RUN_API = DEEP_LINK.replace("/run/", "/api/runs/");
 
@@ -341,16 +354,74 @@ const scenarios = {
     assert.deepEqual(shown(f), { landing: false, workbench: true, gate: true });
     assert.equal(f.get("#gate-form").hidden, false);
   },
-  async early_landing_gives_way_when_the_check_cannot_be_reached() {
-    // The boot stops on this error, as it always has; what is asserted is
-    // what it leaves on screen.
+  // The boot's one request can end three ways that are not "you may enter"
+  // and not "sign in": the limiter told the page to wait, nothing answered,
+  // or the server answered with a failure. Until 2026-11-18 all three left
+  // the visitor on an empty workbench that could do nothing, and said
+  // nothing. Each is now said, with a way to try again.
+  async a_boot_told_to_wait_says_so_and_can_be_tried_again() {
+    const stopped = [];
+    process.on("unhandledRejection", (error) => stopped.push(error.message));
+    const f = fixture({ access: TOLD_TO_WAIT });
+    await settle();
+    assert.deepEqual(shown(f), { landing: false, workbench: false, gate: false },
+      "Neither the landing, whose buttons could open nothing, nor a workbench nobody was let into");
+    assert.deepEqual(failure(f), { shown: true, title: "boot_failure_title", text: "boot_failure_rate_limited" });
+    assert.equal(f.boot(), "failed", "A smoke that stops here can read why");
+    assert.deepEqual(stopped, [], "Said on the page, not thrown past it");
+    assert.deepEqual(f.sidebarRefreshes, [], "Nothing of the workbench starts behind the notice");
+    assert.deepEqual(f.reloads, []);
+    assert.equal(f.get("#boot-failure-retry").focused, 1, "The one control on the page is where the keyboard already is");
+    f.get("#boot-failure-retry").onclick();
+    assert.deepEqual(f.reloads, [true], "Trying again is the page loaded again, so the boot runs whole");
+  },
+  async a_boot_that_cannot_reach_the_server_says_so() {
     const stopped = [];
     process.on("unhandledRejection", (error) => stopped.push(error.message));
     const f = fixture({ access: refused(ACCOUNTS), replies: { "/api/access/check": "unreachable" } });
     await settle();
-    assert.equal(shown(f).landing, false, "The page that promised a sign-in does not stay when nothing answered");
-    assert.equal(shown(f).workbench, true, "...and the visitor is where they were before this change");
-    assert.deepEqual(stopped, ["Cannot reach the server. Check your connection and try again."]);
+    assert.deepEqual(shown(f), { landing: false, workbench: false, gate: false },
+      "The page that promised a sign-in does not stay when nothing answered");
+    assert.deepEqual(failure(f), { shown: true, title: "boot_failure_title", text: "msg_network" });
+    assert.equal(f.boot(), "failed");
+    assert.deepEqual(stopped, []);
+  },
+  async a_boot_the_server_could_not_answer_says_so() {
+    const f = fixture({ access: { status: 503, body: { detail: "upstream connect error or disconnect/reset before headers" } } });
+    await settle();
+    assert.deepEqual(shown(f), { landing: false, workbench: false, gate: false });
+    assert.deepEqual(failure(f), { shown: true, title: "boot_failure_title", text: "boot_failure_server" },
+      "In the page's words: what a proxy wrote in the body is not shown to a visitor");
+  },
+  async a_signed_in_boot_told_to_wait_keeps_the_session() {
+    // An account spends its own budget, so this is the account's own page
+    // asking too fast. The session is not what was refused.
+    const f = fixture({ access: TOLD_TO_WAIT });
+    await settle();
+    assert.deepEqual(failure(f), { shown: true, title: "boot_failure_title", text: "boot_failure_rate_limited" });
+    assert.equal(shown(f).workbench, false, "A workbench with no history and no account in it would say they are signed out");
+    assert.equal(disk.get("session-token"), "fixture-token", "Trying again finds them still signed in");
+    assert.deepEqual(f.sidebarRefreshes, []);
+  },
+  async a_shared_link_whose_boot_was_told_to_wait_says_so() {
+    const f = fixture({ pathname: DEEP_LINK, access: TOLD_TO_WAIT });
+    await settle();
+    assert.deepEqual(failure(f), { shown: true, title: "boot_failure_title", text: "boot_failure_rate_limited" });
+    assert.deepEqual(shown(f), { landing: false, workbench: false, gate: false });
+    assert.equal(f.get("#viewer-bar").hidden, true, "Not the reader's bar over a report that was never asked for");
+    assert.ok(!f.requests.some((r) => r.url.startsWith(RUN_API)), "The run waits for a boot that answers");
+  },
+  async a_boot_that_broke_in_the_page_is_not_blamed_on_the_server() {
+    // A 200 the page cannot read is not an answer about the visitor, and not
+    // something a reload a few seconds later is known to cure. It stops the
+    // boot as it always has, where a maintainer's console shows it.
+    const stopped = [];
+    process.on("unhandledRejection", (error) => stopped.push(error.name));
+    const f = fixture({ access: refused(ACCOUNTS), replies: { "/api/access/check": "garbled" } });
+    await settle();
+    assert.equal(failure(f).shown, false, "No sentence about the server for what the server did not do");
+    assert.deepEqual(stopped, ["SyntaxError"]);
+    assert.equal(f.boot(), "scripts");
   },
   async keys_in_this_tab_never_see_the_landing() {
     // Keys alone boot without a request. The landing must not be painted
@@ -999,6 +1070,8 @@ const scenarios = {
     const f = fixture({ access: { status: 200, body: { ok: true } } });
     await settle();
     assert.deepEqual(shown(f), { landing: false, workbench: true, gate: false }, "No gate at all: the workbench, as always");
+    assert.equal(f.boot(), "ready");
+    assert.equal(f.get("#boot-failure").hidden, true, "The notice is for a boot that got no answer");
   },
   async logout_goes_home() {
     const f = fixture({ pathname: DEEP_LINK, access: { status: 200, body: { ok: true, account: ACCOUNT, accounts: ACCOUNTS } } });

@@ -2308,8 +2308,44 @@ async function ensureAccess() {
     await decideAccess();
   } finally {
     leaveLanding();
-    $("#workbench").hidden = false;
+    if (bootFailure) paintBootFailure(bootFailure);
+    else $("#workbench").hidden = false;
   }
+}
+
+/* The boot's access check, ended without an answer about the visitor.
+ *
+ * A 401 is an answer: sign in. Three things are not. The request limiter
+ * told this page to wait (429); nothing answered; or the server answered
+ * with a failure of its own. Until 2026-11-18 the boot threw all three past
+ * the page: the landing was put away, the workbench was shown to someone
+ * nobody had let in, with no history and no account in it, and nothing was
+ * said. Since the limiter counts what the access gate refuses (api/main.py,
+ * _rate_limit), a visitor without an identity whose address is out of
+ * budget meets exactly that.
+ *
+ * So the page says which it was, in its own words (a proxy's error body is
+ * not a visitor's business), and offers the page again. Again means a
+ * reload: the boot runs whole, and the files it is made of are not counted
+ * by the limiter. Nothing is retried on a timer; the limiter adds five
+ * requests a second, so the wait is the visitor's few seconds.
+ *
+ * Only what api.js reports as the server's answer or its absence is said
+ * this way. An error without a status came from the page itself; it is
+ * thrown as before, where a console shows it, not blamed on the server. */
+let bootFailure = null;
+
+function paintBootFailure(err) {
+  const key = err.status === 429 ? "boot_failure_rate_limited"
+    : err.code === "network_unreachable" ? "msg_network"
+    : "boot_failure_server";
+  $("#workbench").hidden = true;
+  $("#boot-failure-title").textContent = t("boot_failure_title");
+  $("#boot-failure-text").textContent = t(key);
+  $("#boot-failure-retry").onclick = () => location.reload();
+  $("#boot-failure").hidden = false;
+  $("#boot-failure-retry").focus();
+  markBoot("failed");
 }
 
 async function decideAccess() {
@@ -2371,7 +2407,11 @@ async function decideAccess() {
     refreshQuota();
     return;
   } catch (err) {
-    if (err.status !== 401) throw err;
+    if (err.status !== 401) {
+      if (typeof err?.status !== "number") throw err;
+      bootFailure = err;
+      return;
+    }
     // The refusal says what the gate may offer; no second request needed.
     authConfig = err.body?.accounts ?? null;
   }
@@ -3417,6 +3457,8 @@ document.addEventListener("visibilitychange", () => {
 });
 
 ensureAccess().then(() => {
+  // Nobody was let in: nothing of the workbench starts behind the notice.
+  if (bootFailure) return;
   if (api.storageDegraded()) showStorageNotice();
   routeFromLocation();
   refreshSidebar();

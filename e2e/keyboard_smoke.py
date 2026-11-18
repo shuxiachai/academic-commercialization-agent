@@ -230,6 +230,12 @@ def _context(browser, base: str, scheme: str, viewport: dict, log: dict):
         elif request.method != "GET":
             log["unexpected"].append(f"{request.method} {url.path}")
             route.abort()
+        elif url.path == "/api/access/check" and log.get("told_to_wait", 0) > 0:
+            # The request limiter's refusal, as api/main.py writes it (_rate_limit).
+            log["told_to_wait"] -= 1
+            route.fulfill(status=429, content_type="application/json",
+                          headers={"Retry-After": "10", "X-Error-Code": "rate_limited"},
+                          body=json.dumps({"detail": "Too many requests. Slow down and retry shortly."}))
         elif url.path == "/api/access/check":
             accepted = request.headers.get("x-access-code") == CODE
             _json(route, {"ok": True} if accepted else {"detail": "Fixture code required"},
@@ -392,6 +398,38 @@ def _phone_menu_journey(browser, scratch: Page, base: str, scheme: str, log: dic
         context.close()
 
 
+def _told_to_wait_journey(browser, scratch: Page, base: str, scheme: str, log: dict) -> dict:
+    """A boot the request limiter told to wait: the notice alone, and Enter loads the page again."""
+    context, page = _context(browser, base, scheme, WIDE, log)
+    keys = Keyboard(page)
+    audit = Audit(page, scratch, keys, f"waiting/{scheme}")
+    log["told_to_wait"] = 1
+    try:
+        page.goto(base)
+        expect(page.locator("#boot-failure")).to_be_visible()
+        expect(page.locator("#boot-failure-text")).to_contain_text("Try again in a few seconds")
+        # Nothing else is offered to someone the server has not answered about.
+        expect(page.locator("#workbench")).to_be_hidden()
+        expect(page.locator("#landing")).to_be_hidden()
+        expect(page.locator("#gate")).to_be_hidden()
+        expect(page.locator("html")).to_have_attribute("data-boot", "failed")
+        expect(page.locator("#boot-failure-retry")).to_be_focused()
+        audit.inspect()
+        stops = audit.cycle(inside="#boot-failure")
+
+        # The limiter has tokens again: the same page, loaded again, boots as usual.
+        keys.press("Enter")
+        expect(page.locator("#gate-input")).to_be_focused()
+        expect(page.locator("#boot-failure")).to_be_hidden()
+        assert log["told_to_wait"] == 0, "the boot asked once before the notice and once after"
+        return {"notice_stops": len(stops), "rings": audit.rings, "presses": dict(keys.presses)}
+    except Exception:  # noqa: BLE001 - keep one inspectable artifact, then propagate the real assertion
+        capture_failure(page)
+        raise
+    finally:
+        context.close()
+
+
 def main() -> None:
     app = FastAPI()
     reached_server: list[str] = []
@@ -419,6 +457,7 @@ def main() -> None:
             for scheme in ("light", "dark"):
                 results[f"desktop_{scheme}"] = _byok_journey(browser, scratch, base, scheme, log)
                 results[f"phone_{scheme}"] = _phone_menu_journey(browser, scratch, base, scheme, log)
+                results[f"waiting_{scheme}"] = _told_to_wait_journey(browser, scratch, base, scheme, log)
         finally:
             scratch_context.close()
             browser.close()
