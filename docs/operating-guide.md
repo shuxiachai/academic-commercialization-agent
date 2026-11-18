@@ -512,6 +512,11 @@ this deployment's. `tests/test_search_indexing.py` fails when the two name
 different addresses. A run page, and every other address that says
 `noindex`, is served without the link.
 
+Every page, `/robots.txt` and `/sitemap.xml` answer `HEAD` as they answer
+`GET`, with the same status and headers and no body, for the link checkers,
+uptime monitors and sitemap validators that ask that way first. The API and
+`/health` take `GET` only, as before.
+
 Readiness performs an isolated real-file write per request; concurrent probes
 do not share a filename. A cleanup-only failure is named separately from a
 write failure. This is local readiness, not provider connectivity or model
