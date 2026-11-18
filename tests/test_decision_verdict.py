@@ -59,6 +59,8 @@ def _one(sentence: str) -> dict:
     ("defer", "**GO/NO_GO Status:** DEFER"),
     ("defer", "**Decision:** Defer."),
     ("defer", "**Decision:** Defer until module-scale data are available [A2]."),
+    ("no_go", "**Decision:** NO_GO unless freedom to operate is confirmed [P1]."),
+    ("defer", "Recommendation: DEFER, and revisit when module data exist [A2]."),
     ("defer", "**DEFER.** Module-scale validation is not yet in the evidence [A1]."),
     ("defer", "- **Conclusion for the technology transfer office:** DEFER until reliability data exist."),
     ("defer", "This report concludes DEFER for the licensing decision."),
@@ -115,6 +117,11 @@ def test_a_sub_heading_states_it_as_well_as_a_paragraph():
     "The decision would be GO if the pilot passes its durability gate.",
     "A decision on whether to GO cannot be made from this report.",
     "The committee will conclude whether to DEFER after the pilot.",
+    # A gate of the action plan every report is asked for: the word with its trigger.
+    "**Gate 2 decision:** NO_GO if outdoor loss exceeds 3% a year [A2].",
+    "The decision is DEFER if the second-year data are not delivered by the licensee.",
+    "- Gate 1 decision: GO when certified module efficiency reaches 28% [A1].",
+    "**Decision:** NO_GO, should the freedom-to-operate opinion be adverse [P1].",
     "The conclusion is not GO.",
     "若18个月内未获得付费合同，则可能需暂缓商业化进程。",
     # The three that only one guard each stands against (found by putting the defects back).
@@ -214,6 +221,24 @@ def test_statements_that_disagree_are_reported_as_disagreeing_and_none_is_chosen
     assert found["verdict"] is None and found["statement"] is None and found["needle"] is None
     assert [(item["verdict"], item["section"]) for item in found["statements"]] == [
         ("defer", "Executive Summary"), ("conditional_go", "5. Recommendations")]
+
+
+def test_the_gates_of_the_action_plan_do_not_disagree_with_the_conclusion():
+    """The contract asks for a gated plan with pass thresholds and stop
+    criteria beside the conclusion. Read as conclusions, its gates would turn
+    the one DEFER into "the report states conclusions that disagree"."""
+    report = _report(_DEFER) + (
+        "\n## 5. Commercialization Opportunities & Recommendations\n\n"
+        "**Gated action plan (analyst proposals requiring owner confirmation):**\n\n"
+        "1. Gate 1 decision: GO if a second year of outdoor data shows less than 3% loss [A2].\n"
+        "2. **Gate 2 decision:** NO_GO if the freedom-to-operate opinion is adverse [P1].\n"
+        "3. Stop criterion: NO_GO when certified module efficiency stays below 28% [A1].\n\n"
+        # A table's cells are not prose: a row is never read as a sentence.
+        "| Gate | Decision |\n|---|---|\n| 3 | The decision is GO for the pilot line |\n"
+    )
+    found = find_verdict(report)
+    assert (found["status"], found["verdict"]) == ("stated", "defer")
+    assert [item["section"] for item in found["statements"]] == ["Executive Summary"]
 
 
 def test_windows_line_endings_and_an_empty_report_read_the_same():

@@ -136,6 +136,16 @@ _UNSAID = re.compile(
     r"|未|不(?!通过|予)|无法|是否|若|如果|除非",
     re.IGNORECASE,
 )
+# A verdict word followed by its trigger is a criterion, not a conclusion. The
+# writer's contract asks every report for a gated action plan with pass
+# thresholds and stop criteria, so "Gate 2 decision: NO_GO if outdoor loss
+# exceeds 3% a year" is a line to expect beside the real conclusion, and read
+# as one it would turn a DEFER into a disagreement. "Until", "unless" and
+# "because" are not here: "DEFER until module data exist" concludes now.
+_CRITERION_AFTER = re.compile(
+    r"\s*[,;(（]?\s*(?:(?:only\s+)?(?:if|when|whenever|where|should|in case|in the event|otherwise)\b|如果|若|当)",
+    re.IGNORECASE,
+)
 # Said of the report's mode or of a criterion, wherever the word stands.
 _NOT_A_CONCLUSION = re.compile(
     r"\bnot (?:been )?(?:assessed|issued|given|provided|rendered|made|offered|permitted|applicable)\b"
@@ -216,6 +226,8 @@ def _bound_verdict(rest: str, *, labelled: bool) -> str | None:
         return None
     code, match = found
     if match.start() > _REACH or _UNSAID.search(rest[:match.start()]):
+        return None
+    if _CRITERION_AFTER.match(rest[match.end():]):
         return None
     if labelled and match.re is _LABELLED_TOKEN and not match.group().isupper():
         if not _AFTER_A_LABELLED_WORD.match(rest[match.end():]) and code != "conditional_go":

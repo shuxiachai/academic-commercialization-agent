@@ -77,7 +77,7 @@ conclusion itself:
 
 and never from: the vocabulary named as a vocabulary ("GO, NO_GO, or DEFER");
 a negation ("is not GO", "not assessed"); a conditional or a criterion
-("NO_GO if…", "would be GO if…", "whether to DEFER"); the words in lower case
+("NO_GO if…", "would be GO if…", "whether to DEFER"); a table row; the words in lower case
 in prose; a bare `GO` followed by what it names ("GO inks"); the code-owned
 applicability paragraph; the reference list, the proofreading notes, a fenced
 block. `GO` alone at the head of a line is not taken either: "GO: graphene
@@ -119,9 +119,23 @@ until module-scale data are available" stated nothing. A labelled word may
 now be followed by its reason or its condition ("until", "because",
 "pending", "unless"…), not by "to".
 
-`tests/test_decision_verdict.py` now holds 22 sentences that state a
-conclusion and 33 that do not, and all 55 are read as intended. The rule
-still finds a conclusion in 0 of the 1,797 saved reports.
+**A gate is not a conclusion.** Reading the finished rule against the
+writer's contract found one more false positive that no saved report could
+show, because none has a conclusion to disagree with. The contract asks every
+report for "a gated action plan that names the evidence needed and its
+decision criteria", with pass thresholds and stop criteria. A gate written
+as "**Gate 2 decision:** NO_GO if outdoor loss exceeds 3% a year" was read as
+a NO_GO, and beside the summary's DEFER the card would have said the report
+states conclusions that disagree. A verdict word followed by its trigger
+("if", "when", "should", "in case", "otherwise", "若", "如果") is now a
+criterion. "Until", "unless" and "because" are not triggers: "DEFER until
+module data exist" and "NO_GO unless freedom to operate is confirmed"
+conclude now. A table's rows are not read as sentences at all.
+
+`tests/test_decision_verdict.py` now holds 24 sentences that state a
+conclusion and 37 that do not, and all 61 are read as intended, with one
+whole report whose gated plan stands beside its conclusion. The rule still
+finds a conclusion in 0 of the 1,797 saved reports.
 
 ## What this does not show
 
