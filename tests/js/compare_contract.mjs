@@ -12,6 +12,7 @@ class Element {
   }
   append(...nodes) { this.children.push(...nodes); }
   addEventListener(event, handler) { this.listeners[event] = handler; }
+  setAttribute(name, value) { (this.attributes ??= {})[name] = value; }
   set innerHTML(value) { this.children = []; }
   get text() { return this.children.length ? this.children.map((c) => c.text).join("|") : this.textContent; }
   find(pred) {
@@ -105,7 +106,7 @@ const scenarios = {
     link.listeners.click({ preventDefault() {} });
     assert.deepEqual(opened, [A], "the topic opens its run in the page, not a new document");
     const briefRows = container.all((n) => n.className === "compare__brief-row");
-    assert.equal(briefRows.length, 6);
+    assert.equal(briefRows.length, 6, "runs from before the decision gate get no decision rows");
     assert.equal(briefRows[0].children[1].textContent, "The technology is at pilot stage.");
     assert.equal(briefRows[5].children[1].textContent, "9 · 3 academic · 2 patent · 4 market");
     // No markup from data: every value is a text node on its own element.
@@ -115,6 +116,102 @@ const scenarios = {
     compare.render(again, compare.comparison(run(A, "completed", SCORES_A), run(A, "completed", SCORES_A)));
     assert.equal(again.children.length, 1);
     assert.equal(again.children[0].textContent, "These are the same run. Choose another to compare with.");
+  },
+  decision_rows() {
+    // What each run was asked and what its report answered, ahead of the rest.
+    const row = (model, name) => {
+      const container = new Element("div");
+      compare.render(container, model);
+      const rows = container.all((n) => n.className === "compare__brief-row");
+      const found = rows.find((n) => n.dataset.row === name);
+      return found && { at: rows.indexOf(found), label: found.children[0].textContent,
+        cells: found.children.slice(1).map((n) => [n.text, n.dataset.tone ?? null]) };
+    };
+    const asked = { decision_gate: { mode: "decision_support", go_no_go_allowed: true } };
+    const orientation = { decision_gate: { mode: "orientation", go_no_go_allowed: false } };
+    const stated = { run_id: A, asked: true,
+      question: { decision_owner: "Technology transfer office", decision_type: "License the technology" },
+      conclusion: { status: "stated", verdict: "defer", statement: "The conclusion is DEFER because module data are missing [A2].",
+        section: "Executive Summary", follows: [], needle: "The conclusion is DEFER", statements: [] } };
+    const left = { ...run(A, "completed", SCORES_A, REPORT, asked), decision: stated };
+    const model = compare.comparison(left, run(B, "completed", SCORES_B, REPORT, orientation));
+    assert.deepEqual(row(model, "compare_context"), { at: 0, label: "Decision context", cells: [
+      ["Decision owner: Technology transfer office · Decision to make: License the technology", null],
+      ["None given: an orientation brief", null]] });
+    assert.deepEqual(row(model, "compare_verdict"), { at: 1, label: "Decision conclusion", cells: [
+      ["DEFER: “The conclusion is DEFER because module data are missing [A2].”", "warning"],
+      // Not a dash: the other run's DEFER is not a difference in the evidence.
+      ["Not asked for: this run gives no GO / NO-GO", "muted"]] });
+
+    const cell = (decision, extra = asked, state = "completed") =>
+      row(compare.comparison({ ...run(A, state, SCORES_A, REPORT, extra), decision }, run(B, "completed", SCORES_B)), "compare_verdict").cells;
+    const none = { ...stated, conclusion: { status: "not_stated", verdict: null, statement: null, section: null,
+      follows: [], needle: null, statements: [] } };
+    assert.deepEqual(cell(none), [["The report states no clear conclusion", "muted"], ["—", null]],
+      "said, not left as a dash; the run from before the gate has nothing to say");
+    // The read failed, or was never made: said as that, never as "no conclusion".
+    assert.deepEqual(cell(undefined)[0], ["The report's conclusion could not be read", "muted"]);
+    assert.deepEqual(cell(null)[0], ["The report's conclusion could not be read", "muted"]);
+    // A reply for a run the server says was not asked contradicts its own status: nothing is claimed.
+    assert.deepEqual(cell({ run_id: A, asked: false, question: null, conclusion: null })[0],
+      ["The report's conclusion could not be read", "muted"]);
+    // A decision-support run that failed has an unreviewed report: no conclusion is shown from it.
+    assert.deepEqual(cell(stated, asked, "failed")[0], ["None: this run did not finish", "muted"]);
+    const incomplete = { decision_gate: { mode: "decision_context_incomplete", go_no_go_allowed: false } };
+    const partial = compare.comparison(run(A, "completed", SCORES_A, REPORT, incomplete), run(B, "completed", SCORES_B, REPORT, orientation));
+    assert.deepEqual(row(partial, "compare_context").cells.map((c) => c[0]),
+      ["Incomplete: not all four required fields were given", "None given: an orientation brief"]);
+  },
+  next_step_expand() {
+    const long = "License the architecture to an established module manufacturer under a field-limited agreement, "
+      + "because the patent family covers the recombination junction and the passivation stack while the remaining "
+      + "encapsulation and scale-up questions may be the licensee's to answer in its own pilot line over two years.";
+    const report = `## Commercialization Opportunities\n\n1. ${long} More.\n`;
+    const container = new Element("div");
+    compare.render(container, compare.comparison(run(A, "completed", SCORES_A, report), run(B, "completed", SCORES_B)));
+    const next = container.all((n) => n.className === "compare__brief-row").find((n) => n.dataset.row === "compare_next");
+    const [cut, whole] = next.children.slice(1);
+    const [text, button] = cut.children;
+    assert.ok(text.textContent.endsWith("…") && text.textContent.length <= 240);
+    assert.equal(button.textContent, "Show the whole sentence");
+    button.onclick();
+    assert.equal(text.textContent, long, "one press shows the sentence as the report has it");
+    assert.equal(button.hidden, true);
+    assert.equal(whole.textContent, "Run a field trial.");
+    assert.equal(whole.children.length, 0, "a step that fits has no button");
+  },
+  async loads_the_decision_only_when_asked() {
+    // The reads the comparison makes, through the shipped api.js and a scripted fetch.
+    const asked = { decision_gate: { mode: "decision_support", go_no_go_allowed: true } };
+    const seen = [];
+    const scripted = (answers) => { globalThis.fetch = async (url) => {
+      const path = String(url);
+      seen.push(path);
+      const [status, body] = answers(path);
+      const json = typeof body !== "string";
+      return { ok: status < 400, status, headers: { get: () => (json ? "application/json" : "text/markdown") },
+        json: async () => body, text: async () => (json ? JSON.stringify(body) : body) };
+    }; };
+    const answers = (status, decision) => (path) => (path.endsWith("/decision") ? decision
+      : path.endsWith("/scores") ? [200, SCORES_A] : path.includes("/report") ? [200, REPORT]
+      : [200, { run_id: A, state: "completed", topic: "T", ...status }]);
+    const reply = { run_id: A, asked: true, question: null, conclusion: { status: "not_stated" } };
+
+    scripted(answers(asked, [200, reply]));
+    const loaded = await compare.load(A);
+    assert.deepEqual(loaded.decision, reply);
+    assert.equal(seen.filter((path) => path.endsWith(`/api/runs/${A}/decision`)).length, 1);
+
+    seen.length = 0;
+    scripted(answers({ decision_gate: { mode: "orientation", go_no_go_allowed: false } }, [200, reply]));
+    assert.equal((await compare.load(A)).decision, null);
+    assert.equal(seen.some((path) => path.endsWith("/decision")), false, "a run that was not asked is not asked about");
+
+    scripted(answers(asked, [500, { detail: "boom" }]));
+    const failed = await compare.load(A);
+    assert.equal(failed.decision, undefined, "a failed read is kept apart from no conclusion");
+    assert.equal(compare.comparison(failed, run(B, "completed", SCORES_B)).sides[0].decision.verdict.text,
+      "The report's conclusion could not be read");
   },
 };
 assert.ok(scenarios[process.argv[2]], "Unknown contract scenario");

@@ -21,7 +21,7 @@ import uvicorn
 
 from academic_agent.run_output import create_run_id, save_report
 from academic_agent.report_audit import save_report_audit
-from academic_agent.run_spec import DecisionContext
+from academic_agent.run_spec import DecisionContext, RunSpec
 from academic_agent.run_terminal import (
     TerminalRecord,
     UsageAccounting,
@@ -34,6 +34,10 @@ FIXTURE_TOPIC = (
     "用于工业预测性维护的量子传感器阵列商业化可行性评估"
 )
 REPORT_SENTINEL = "BROWSER_SMOKE_REPORT_REACHED_CLIENT"
+# The decision-support fixture: who asks what, and the sentence its report answers with.
+DECISION_OWNER = "Technology transfer office"
+DECISION_TYPE = "License the technology"
+DECISION_STATEMENT = "In sum, the actor-specific conclusion is DEFER because module-scale validation is missing [P1]."
 
 
 def _saved_source_fixture() -> dict[str, list[dict[str, str]]]:
@@ -193,6 +197,40 @@ def _write_completed_run(output_root: Path, owner: str) -> str:
             },
             usage_accounting=accounting,
         ),
+    )
+    return run_id
+
+
+def _write_decision_run(output_root: Path, owner: str) -> str:
+    """A finished run that was asked for a conclusion, and whose report states one.
+
+    The saved request, the gate in the status and the report are written the
+    way a run writes them (RunSpec.save, save_report), so the card is read
+    from the same three places it is read from in production. There is no
+    scorecard on purpose: the conclusion must not depend on the brief.
+    """
+    run_id = _write_completed_run(output_root, owner)
+    run_dir = output_root / run_id
+    context = DecisionContext(
+        asset_description="Fixture tandem cell results", target_application="Fixture modules",
+        decision_owner=DECISION_OWNER, decision_type=DECISION_TYPE,
+    )
+    gate = context.gate_snapshot()
+    RunSpec(topic=FIXTURE_TOPIC, decision_context=context).save(run_dir)
+    status_path = run_dir / "status.json"
+    status = json.loads(status_path.read_text(encoding="utf-8"))
+    status["decision_gate"] = gate
+    status_path.write_text(json.dumps(status, indent=2), encoding="utf-8")
+    save_report(
+        "# Browser smoke decision report\n\n"
+        "## Executive Summary\n\n"
+        "This report is a local fixture; no model or search provider produced it [P1].\n\n"
+        f"{DECISION_STATEMENT} Revisit when module data exist [P1].\n\n"
+        "## References\n\n"
+        "[P1] Bilingual literal .* needle patent. Fixture publisher. Published: 2026-09-18. "
+        "Accessed: 2026-10-22. Type: patent. Credibility: high. Rationale: fixture. "
+        "https://example.test/p1\n",
+        run_id, output_root, gate,
     )
     return run_id
 

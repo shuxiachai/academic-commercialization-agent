@@ -144,7 +144,31 @@ bold-led paragraph of the recommendations section, and what would change the
 verdict, read from the checks (evidence confidence, market comparability,
 grounding, consistency, thin domains, a missing decision context). Every line
 comes from an artifact the tabs show; nothing is a new judgement and no model
-is called. A run without a readable scorecard has no brief.
+is called. A run without a readable scorecard has no brief. The first
+recommended step is cut to fit like the summary, and like it offers the whole
+sentence.
+
+A run in decision-support mode (all four starred fields of the decision
+context given) also shows a decision-conclusion card, under the scope line
+and above the brief: the decision owner and the decision as they were entered,
+and the conclusion the report itself states (GO, conditional GO, DEFER or
+NO-GO) with the sentence that states it, up to two sentences that follow it
+in the same paragraph, the section it stands in and a link that opens the
+passage in the report tab. The conclusion is read from the saved report by
+`decision_verdict.py` and served by `GET /api/runs/{id}/decision`; the page,
+the comparison and the PDF all use that one answer. It is taken only from a
+sentence that ties one of those words to the conclusion ("the conclusion is
+DEFER", "Decision: NO_GO", "we recommend a conditional GO"), never from a
+statement of what may be concluded, a criterion ("NO_GO if…") or the words in
+another sense (graphene oxide is "GO"). A report with no such sentence gets a
+card saying the report states no clear conclusion; statements that disagree
+are each quoted and none is chosen; a read that failed says so. Nothing is
+inferred, no score changes, and the code-owned applicability paragraph is
+left out of the reading. Runs in the other two modes, and runs that did not
+complete, have no card. The rule was written against 1,797 saved reports of
+the other modes, where it finds no conclusion, and one production sentence;
+it has not been measured on a set of decision-support reports, because none
+is saved outside production.
 
 Web-search patents are dated from their own Google Patents page, the one
 already read for the applicant: the header's publication date replaces the
@@ -459,6 +483,7 @@ semantic correctness of all report prose; see the
 | GET | `/api/runs/{id}` | State, stage, execution identity and available artifacts, and `viewer_can_modify`: whether this caller passes the rule that guards Cancel, Delete and Resume (`null` when the run has no owner on record) |
 | GET | `/api/runs/{id}/progress` | Progress plus the same observable runtime contract, and the same `viewer_can_modify` |
 | GET | `/api/runs/{id}/report` | Final Markdown |
+| GET | `/api/runs/{id}/decision` | For a completed decision-support run: the decision owner and decision from its saved request, and the conclusion its report states (`stated`, `conflicting` or `not_stated`, with the statements as written). `asked: false` and nothing else for any other run. Read from the saved report on each request; no model call. Open to whoever can read the report |
 | GET | `/api/runs/{id}/{artifact}` | Supported source, score, check and diagnostic artifacts |
 | DELETE | `/api/runs/{id}?intent=cancel` or `?intent=delete` | Only the requested operation, subject to state and ownership rules |
 | POST | `/api/runs/{id}/resume` | New immutable recovery child, not mutation of the old result |
@@ -721,7 +746,7 @@ assessment.
 | `academic_evidence.json`, `patent_evidence.json`, `market_evidence.json` | Source-linked findings, claim types, confidence and limitations |
 | `commercialization_report.md` | Delivered report |
 | `commercialization_scores.json` | Scorecard after deterministic validation |
-| `commercialization_report.pdf` | PDF export when generated; CJK-aware embedded font |
+| `commercialization_report.pdf` | PDF export when generated; CJK-aware embedded font. For a decision-support run it opens with the decision-conclusion card, in the report's language, and its document information carries `decision-card:v1`; an export cached without that mark is rendered once more |
 | `reviewer_notes.md` | Review changes separate from the main report |
 | `status.json`, `steps.jsonl`, `meta.json` | Progress, events and run metadata |
 | `terminal.json` | Write-once terminal truth for API runs |
@@ -1488,11 +1513,14 @@ meets the card, or the landing at `/`.
 A finished run also offers "Compare", which asks for a second finished run
 from the same history and opens `/compare/<a>/<b>`: the two scorecards in
 one table with the difference beside them, then the sentences a decision
-turns on from each (the summary lead, strongest and weakest dimension,
-biggest risk, first recommended step) and the source counts. It is drawn
-from the reads the run page already makes; there is no comparison endpoint,
-and a run that did not finish, or whose scorecard is unreadable, shows a
-dash rather than a number.
+turns on from each (the decision context and the report's stated conclusion,
+the summary lead, strongest and weakest dimension, biggest risk, first
+recommended step) and the source counts. A run that was not asked for a
+conclusion says so in that row, so one run's DEFER beside another's blank is
+not read as a difference in the evidence; runs from before the decision gate
+have neither row. It is drawn from the reads the run page already makes;
+there is no comparison endpoint, and a run that did not finish, or whose
+scorecard is unreadable, shows a dash rather than a number.
 
 ### Run links, BYOK and retention
 
