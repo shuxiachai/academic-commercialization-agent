@@ -1796,9 +1796,10 @@ if _WEB_ROOT.is_dir():
 
         Only "/" is the home page a search engine may index. At every other
         address the same document says noindex in its head and drops the
-        og:url that names the home page (`crawlers.unlisted_page`); the
-        header that says the same is the middleware's. "/" itself stays the
-        committed file. A plain file was no cheaper to reload: measured on
+        og:url and the canonical link, which name the home page
+        (`crawlers.unlisted_page`); the header that says the same is the
+        middleware's. "/" itself stays the committed file, canonical link
+        included. A plain file was no cheaper to reload: measured on
         the deployment on 2026-11-17, a request for "/" carrying its own
         ETag was answered 200 with the whole body, since a file returned
         from a route (unlike one under /static) is never compared.

@@ -20,6 +20,12 @@
 <meta property="og:image:height" content="640">
 <meta property="og:image:alt" content="From a paper or research topic to a cited assessment draft, beside a real historical scorecard">
 <meta name="twitter:card" content="summary_large_image">
+<!-- For a search engine: the one address this page has, whichever host it
+     was read at. It is the address og:url gives, and a self-hosted copy
+     changes the two together. This document is also served at /run/...,
+     /history and the like; the server takes this line and og:url out
+     there (api/crawlers.py), since neither is true of those addresses. -->
+<link rel="canonical" href="https://academic-agent.cc/">
 <link rel="icon" type="image/svg+xml" href="/static/brand/aca-mark.svg">
 <link rel="stylesheet" href="/static/css/tokens.css">
 <link rel="stylesheet" href="/static/css/base.css">
