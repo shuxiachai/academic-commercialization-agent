@@ -11,7 +11,7 @@
 
 import * as api from "./api.js";
 import { t } from "./i18n.js";
-import { DIMENSIONS, decisionBrief } from "./result.js";
+import { DIMENSIONS, decisionAsked, decisionBrief, decisionVerdict, expandButton, verdictLine } from "./result.js";
 import { stateLabel } from "./run.js";
 
 const record = value => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -29,12 +29,43 @@ export function startedAt(runId) {
 /** Everything the comparison reads about one run. Reads only; any read that
  * fails leaves that part empty and the rest still compares. */
 export async function load(runId) {
-  const [status, scores, markdown] = await Promise.all([
-    api.getRun(runId).catch(() => null),
+  const reading = api.getRun(runId).catch(() => null);
+  // The report's conclusion is read only for a run that was asked for one.
+  // `undefined` is a read that failed, which the row says; null is no row.
+  const deciding = reading.then(status => (decisionAsked(status)
+    ? api.getDecision(runId).catch(() => undefined) : null));
+  const [status, scores, markdown, decision] = await Promise.all([
+    reading,
     api.getArtifact(runId, "scores").catch(() => null),
     api.getReport(runId).catch(() => ""),
+    deciding,
   ]);
-  return { id: runId, status, scores: record(scores) ? scores : null, markdown: typeof markdown === "string" ? markdown : "" };
+  return { id: runId, status, decision,
+    scores: record(scores) ? scores : null, markdown: typeof markdown === "string" ? markdown : "" };
+}
+
+const CONTEXT_MODES = { orientation: "compare_context_orientation", decision_context_incomplete: "compare_context_incomplete" };
+
+/** What the "Decision context" and "Decision conclusion" rows say of one run.
+ * A run from before the gate has neither: nothing is known, and a dash says
+ * so. A run that was not asked for a conclusion says that, not a dash, so a
+ * reader does not take the other run's DEFER for a difference in the evidence. */
+function decisionSide(run, status) {
+  const gate = record(status.decision_gate) ? status.decision_gate : null;
+  if (!gate) return { context: null, verdict: null };
+  if (!decisionAsked(status)) {
+    const unfinished = gate.mode === "decision_support" && gate.go_no_go_allowed === true;
+    return {
+      context: { key: unfinished ? "compare_context_given" : CONTEXT_MODES[gate.mode] ?? "compare_context_unknown" },
+      verdict: { key: unfinished ? "compare_verdict_unfinished" : "compare_verdict_not_asked", tone: "muted" },
+    };
+  }
+  const view = decisionVerdict(run.decision === null ? undefined : run.decision);
+  if (!view) return { context: { key: "compare_context_given" }, verdict: { key: "verdict_unread", tone: "muted" } };
+  return {
+    context: view.asked.length ? { asked: view.asked } : { key: "compare_context_given" },
+    verdict: verdictLine(view),
+  };
 }
 
 function side(run) {
@@ -63,6 +94,7 @@ function side(run) {
     overall,
     dims,
     brief: scored ? decisionBrief({ scores: scored, markdown: run.markdown }) : null,
+    decision: decisionSide(run, status),
   };
 }
 
@@ -117,13 +149,31 @@ function runCard(s, onOpen) {
   return card;
 }
 
-function briefRow(label, texts) {
-  if (texts.every(text => !text)) return null;
+/** One row under the table. A cell is text, or `{ text, whole, tone }`: with
+ * `whole` the text was cut to fit and one press shows the rest. */
+function briefRow(label, cells) {
+  const shown = cells.map(cell => (typeof cell === "string" ? { text: cell } : cell));
+  if (shown.every(cell => !cell?.text)) return null;
   const row = el("div", "compare__brief-row");
+  row.dataset.row = label;
   row.append(el("div", "compare__brief-label", t(label)));
-  for (const text of texts) row.append(el("div", "compare__brief-cell", text || "—"));
+  for (const cell of shown) {
+    // Text straight on the cell, as every row had it; a cut one gets a span
+    // for its text beside the button that completes it.
+    const node = el("div", "compare__brief-cell", cell?.whole ? null : cell?.text || "—");
+    if (cell?.tone) node.dataset.tone = cell.tone;
+    if (cell?.whole) {
+      const text = el("span", "compare__brief-text", cell.text);
+      node.append(text, expandButton(text, cell.whole));
+    }
+    row.append(node);
+  }
   return row;
 }
+
+const contextText = (context) => (!context ? null : context.key ? t(context.key)
+  : context.asked.map(item => `${t(item.label)}${t("verdict_label_colon")}${item.value}`).join(" · "));
+const verdictText = (verdict) => (!verdict ? null : verdict.key ? { text: t(verdict.key), tone: verdict.tone } : verdict);
 
 export function render(container, model, { onOpen = () => {} } = {}) {
   container.innerHTML = "";
@@ -167,11 +217,15 @@ export function render(container, model, { onOpen = () => {} } = {}) {
   const briefs = el("div", "compare__briefs");
   const pick = (fn) => model.sides.map(s => (s.brief ? fn(s.brief) : null));
   for (const row of [
+    // What each run was asked and what its report answered, ahead of the rest:
+    // two runs asked different questions are not two answers to one.
+    briefRow("compare_context", model.sides.map(s => contextText(s.decision.context))),
+    briefRow("compare_verdict", model.sides.map(s => verdictText(s.decision.verdict))),
     briefRow("compare_summary", pick(brief => brief.summary)),
     briefRow("compare_strongest", pick(brief => (brief.strongest ? `${t(brief.strongest.label)} ${brief.strongest.value} / ${brief.strongest.max}` : null))),
     briefRow("compare_weakest", pick(brief => (brief.weakest ? `${t(brief.weakest.label)} ${brief.weakest.value} / ${brief.weakest.max}` : null))),
     briefRow("compare_risk", pick(brief => brief.risk)),
-    briefRow("compare_next", pick(brief => brief.next)),
+    briefRow("compare_next", pick(brief => (brief.next ? { text: brief.next, whole: brief.nextWhole } : null))),
     briefRow("compare_sources", model.sides.map(s => (s.sources ? sourcesText(s.sources) : null))),
   ]) if (row) briefs.append(row);
   if (briefs.children.length) container.append(briefs);

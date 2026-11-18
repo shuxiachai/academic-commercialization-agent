@@ -30,12 +30,16 @@ from e2e.scroll_wait import COMES_TO_REST
 from e2e.smoke_report import capture_failure
 from e2e.isolated_app import (
     ACCESS_CODE,
+    DECISION_OWNER,
+    DECISION_STATEMENT,
+    DECISION_TYPE,
     FIXTURE_TOPIC,
     REPORT_SENTINEL,
     _configure_isolated_app,
     _saved_source_fixture,
     _serve,
     _write_completed_run,
+    _write_decision_run,
 )
 
 
@@ -798,6 +802,7 @@ def _exercise_sample_contents(page: Page, base_url: str) -> int:
 def _exercise_browser(
     base_url: str, run_id: str, fault_ids: tuple[str, str, str],
     runtime_ids: tuple[str, str, str], cap_run_id: str, foreign_run_id: str,
+    decision_run_id: str,
 ) -> dict[str, int]:
     external_requests: list[str] = []
     mutation_attempts: list[str] = []
@@ -1087,6 +1092,33 @@ def _exercise_browser(
             expect(page.locator("#run-actions").get_by_role("button", name="Delete")).to_have_count(0)
             shared.locator("#run-shared-new").click()
             expect(page.locator("#pane-compose")).to_be_visible()
+            # A run that was asked for a conclusion, opened by its link. The
+            # saved request and the saved report -> GET /decision -> the card
+            # under the scope line -> the passage in the report tab, in a real
+            # browser; and the PDF built from the same answer. The fixture has
+            # no scorecard, so the card is shown to stand without the brief.
+            page.goto(f"{base_url}/run/{decision_run_id}", wait_until="domcontentloaded")
+            expect(page.locator("#run-pill")).to_have_text("completed")
+            verdict = page.locator(".verdict-card")
+            expect(verdict).to_have_attribute("data-state", "stated")
+            expect(verdict).to_have_attribute("data-verdict", "defer")
+            expect(verdict.locator(".verdict-card__asked")).to_have_text(
+                f"Decision owner: {DECISION_OWNER} · Decision to make: {DECISION_TYPE}")
+            expect(verdict.locator(".verdict-card__verdict")).to_have_text("DEFER")
+            expect(verdict.locator(".verdict-card__quote")).to_contain_text("the actor-specific conclusion is DEFER")
+            expect(page.locator(".brief")).to_have_count(0)
+            # Above the tabs and under the scope line, where a reader meets it first.
+            assert page.evaluate("""() => {
+              const top = (selector) => document.querySelector(selector).getBoundingClientRect().top;
+              return top(".decision-applicability") < top(".verdict-card") && top(".verdict-card") < top(".tabs");
+            }""")
+            verdict.locator(".verdict-card__open").click()
+            passage = page.locator("article.prose .prose__found")
+            expect(passage).to_have_count(1)
+            expect(passage).to_contain_text(DECISION_STATEMENT.split(" [")[0])
+            expect(passage).to_be_in_viewport()
+            exported = page.request.get(f"{base_url}/api/runs/{decision_run_id}/report.pdf")
+            assert exported.ok and b"decision-card:v1" in exported.body()
             # The caller's own run again: the notice is gone and Delete is back behind More.
             page.goto(f"{base_url}/run/{cap_run_id}", wait_until="domcontentloaded")
             expect(page.locator("#run-pill")).to_have_text("completed")
@@ -1340,6 +1372,8 @@ def main() -> None:
         cap_run_id = _write_completed_run(output_root, access.owner_id(ACCESS_CODE))
         # A finished run that belongs to someone else, to be opened by its link.
         foreign_run_id = _write_completed_run(output_root, access.owner_id("another-visitors-code"))
+        # Also someone else's, so the owner's history and counts stay as they were.
+        decision_run_id = _write_decision_run(output_root, access.owner_id("another-visitors-code"))
         cap_scores = json.loads((output_root / run_id / "commercialization_scores.json").read_text(encoding="utf-8"))
         cap_scores["market_cap_audit"] = capture_cap(5, cap_scores)
         save_scores(json.dumps(cap_scores), cap_run_id, output_root)
@@ -1406,7 +1440,7 @@ def main() -> None:
                     api_runs._write_daily_charge(output_root / runtime_id, date.today())
             terminal_path.write_text(json.dumps(record), encoding="utf-8")
         with _serve(app) as base_url:
-            audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id, damaged_audit_id), runtime_ids, cap_run_id, foreign_run_id)
+            audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id, damaged_audit_id), runtime_ids, cap_run_id, foreign_run_id, decision_run_id)
 
     print(
         json.dumps(

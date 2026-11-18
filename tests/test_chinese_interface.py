@@ -278,6 +278,9 @@ NOT_TRANSLATED = {
     "byok_serper_placeholder": "a provider's name and the same term",
     "account_keys": "the same term",
     "compare_delta": "a formula",
+    "verdict_go": "the conclusion's code, as the form, the scope line and the report write it",
+    "verdict_no_go": "the same code",
+    "verdict_label_colon": "punctuation",
 }
 
 

@@ -36,6 +36,20 @@ def pdf_cache_complete(path: Path) -> bool:
     except FileNotFoundError:
         return False
 
+#: Written into the document information of a PDF that opens with the
+#: decision-conclusion card. A report exported before the card existed is
+#: complete and has none; this is how the endpoint tells the two apart.
+DECISION_CARD_MARK = "decision-card:v1"
+
+
+def pdf_carries_decision_card(path: Path) -> bool:
+    """Whether a cached export was built with the card. A read fault is "no": rebuild."""
+    try:
+        return DECISION_CARD_MARK.encode("ascii") in path.read_bytes()
+    except OSError:
+        return False
+
+
 # Reportlab built-in CID fonts — no font file needed, cross-platform.
 # Resolved via pdfmetrics.registerFont(UnicodeCIDFont(...)) in _resolve_font.
 _CID_FONT_MAP: dict[str, str] = {
@@ -378,8 +392,73 @@ def markdown_to_story(report_md: str, styles: dict) -> list:
     return parser.story
 
 
-def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English") -> Path:
+#: The card's one coloured thing is the conclusion itself. Not green and red
+#: alone: DEFER and "none stated" are the common cases and neither is an alarm.
+_CARD_TONES = {
+    "go": "#15803d", "conditional_go": "#a16207", "defer": "#a16207", "no_go": "#b91c1c",
+    "conflicting": "#b91c1c", "not_stated": "#475569",
+}
+
+
+def decision_card_story(card: dict, styles: dict) -> list:
+    """The decision-conclusion card as flowables: one bordered box of paragraphs.
+
+    `card` is decision_verdict.card_text(): its words are the report's own and
+    the code's fixed copy, so everything is escaped as text here and nothing
+    in it is read as markup.
+    """
+    import html as _html
+    from reportlab.lib import colors
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+
+    def text(value: str) -> str:
+        return _html.escape(str(value).translate(_UNICODE_FIX))
+
+    base = styles["Body"]
+    label = ParagraphStyle("CardLabel", parent=base, fontSize=8.5, leading=12, textColor=styles["H3"].textColor, spaceAfter=2)
+    headline = ParagraphStyle(
+        "CardHeadline", parent=base, fontSize=15, leading=20, spaceAfter=3,
+        textColor=colors.HexColor(_CARD_TONES.get(card.get("tone"), _CARD_TONES["not_stated"])),
+    )
+    body = ParagraphStyle("CardBody", parent=base, fontSize=9.5, leading=14, spaceAfter=3)
+    small = ParagraphStyle("CardSmall", parent=base, fontSize=8, leading=11, textColor=styles["H3"].textColor, spaceAfter=0)
+
+    cell = [Paragraph(f"<b>{text(card['title'])}</b>", label)]
+    if card.get("asked"):
+        cell.append(Paragraph(text(" · ".join(card["asked"])), body))
+    cell.append(Paragraph(f"<b>{text(card['headline'])}</b>", headline))
+    if card.get("detail"):
+        cell.append(Paragraph(text(card["detail"]), body))
+    for lead, quote in card.get("quotes", []):
+        # A full-width colon carries its own space.
+        gap = "" if str(lead).endswith("：") else " "
+        cell.append(Paragraph(f"{text(lead)}{gap}“{text(quote)}”", body))
+    if card.get("where"):
+        cell.append(Paragraph(text(card["where"]), small))
+    cell.append(Paragraph(text(card["note"]), small))
+
+    box = Table([[cell]], colWidths=["100%"])
+    box.setStyle(TableStyle([
+        ("BOX", (0, 0), (-1, -1), 0.8, styles["GRID"]),
+        ("BACKGROUND", (0, 0), (-1, -1), styles["TH_BG"]),
+        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+    ]))
+    return [Spacer(1, 4), box, Spacer(1, 8)]
+
+
+def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English", *,
+                  decision_card: dict | None = None, card_at: int = 0) -> Path:
     """Convert a markdown report to PDF. Raises if generation fails.
+
+    With `decision_card` (decision_verdict.card_text) the card is drawn after
+    the first `card_at` characters of the report, which the caller sets to
+    the end of the scope paragraph, and the document information carries
+    DECISION_CARD_MARK.
+
 
     Failures used to be swallowed and returned as None, on the reasoning that
     the report was already saved and shown, so a PDF problem should not take
@@ -400,7 +479,12 @@ def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English
 
     font_name = _resolve_font(output_language)
     styles = _build_styles(font_name)
-    story = markdown_to_story(report_md, styles)
+    if decision_card is None:
+        story = markdown_to_story(report_md, styles)
+    else:
+        story = (markdown_to_story(report_md[:card_at], styles)
+                 + decision_card_story(decision_card, styles)
+                 + markdown_to_story(report_md[card_at:], styles))
 
     pdf_path = run_dir / "commercialization_report.pdf"
     # Rendering can write bytes before raising. Publishing directly to the
@@ -414,6 +498,7 @@ def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English
             str(temporary), pagesize=A4,
             rightMargin=2 * cm, leftMargin=2 * cm,
             topMargin=2 * cm,   bottomMargin=2 * cm,
+            **({"subject": DECISION_CARD_MARK} if decision_card is not None else {}),
         )
         doc.build(story)
         temporary.replace(pdf_path)

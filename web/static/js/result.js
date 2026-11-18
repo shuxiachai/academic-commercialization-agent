@@ -783,6 +783,166 @@ function renderDecisionApplicability(gate) {
 }
 
 
+/* ── Decision conclusion ───────────────────────────────────────────────
+ * A reader who filled in the decision context asked one question, and the
+ * scope line above promises an answer to it ("allows a GO / NO-GO for this
+ * decision-maker"). The report gives one, somewhere in its text: on the run
+ * that prompted this card, "the actor-specific conclusion is DEFER because…"
+ * closed the executive summary, and nothing on the page, in the comparison
+ * or in the PDF repeated it.
+ *
+ * The card says who asked what, and quotes the report's answer with the
+ * sentences beside it. The answer is found by the server
+ * (decision_verdict.py, GET /api/runs/{id}/decision), once, for the page, the
+ * comparison and the PDF. Nothing here judges: a report with no sentence
+ * that states a conclusion gets a card saying exactly that, a report whose
+ * statements disagree gets each of them, and a read that failed is said to
+ * have failed. None of the three is left blank, and none is filled in. */
+
+const VERDICT_TONES = { go: "success", conditional_go: "warning", defer: "warning", no_go: "danger" };
+// The statement and what follows it are shown together while they stay a short read.
+const VERDICT_PASSAGE_LIMIT = 480;
+
+/** Whether this run was asked for an actor-specific conclusion and finished. */
+export function decisionAsked(progress) {
+  const gate = progress?.decision_gate;
+  return progress?.state === "completed" && gate?.mode === "decision_support" && gate?.go_no_go_allowed === true;
+}
+
+const verdictName = (code) => (Object.hasOwn(VERDICT_TONES, code) ? t(`verdict_${code}`) : null);
+
+/** Pure: the reply of the decision read as what the card and the comparison
+ * say. `undefined` in: the read failed. Null out: this run has no card. */
+export function decisionVerdict(reply) {
+  if (reply === undefined) return { state: "unread", asked: [], tone: "muted" };
+  if (!detailRecord(reply) || reply.asked !== true) return null;
+  const question = detailRecord(reply.question) ? reply.question : {};
+  const said = (value) => (typeof value === "string" && value.trim() ? value.trim() : null);
+  const asked = [["decision_owner", "verdict_owner"], ["decision_type", "verdict_decision"]]
+    .map(([field, label]) => (said(question[field]) ? { label, value: said(question[field]) } : null)).filter(Boolean);
+  const conclusion = detailRecord(reply.conclusion) ? reply.conclusion : {};
+  const statements = (Array.isArray(conclusion.statements) ? conclusion.statements : [])
+    .filter(item => detailRecord(item) && verdictName(item.verdict) && said(item.statement))
+    .map(item => ({ verdict: item.verdict, statement: said(item.statement), section: said(item.section), needle: said(item.needle) }));
+  if (conclusion.status === "stated" && verdictName(conclusion.verdict) && said(conclusion.statement)) {
+    const follows = (Array.isArray(conclusion.follows) ? conclusion.follows : []).map(said).filter(Boolean);
+    // One passage: a space between sentences, none after a Chinese full stop.
+    const whole = [said(conclusion.statement), ...follows]
+      .reduce((passage, sentence) => passage + (!passage || /[。！？]$/u.test(passage) ? "" : " ") + sentence, "");
+    return {
+      state: "stated", asked, verdict: conclusion.verdict, tone: VERDICT_TONES[conclusion.verdict],
+      statement: said(conclusion.statement), whole,
+      // Short enough: all of it. Otherwise the statement, and one press for the rest.
+      shown: whole.length <= VERDICT_PASSAGE_LIMIT ? whole : said(conclusion.statement),
+      section: said(conclusion.section), needle: said(conclusion.needle),
+    };
+  }
+  if (conclusion.status === "conflicting" && statements.length > 1) {
+    return { state: "conflicting", asked, tone: "danger", statements };
+  }
+  // Anything else the server sent is not a conclusion this page can name.
+  if (conclusion.status === "not_stated") return { state: "not_stated", asked, tone: "muted" };
+  return { state: "unread", asked, tone: "muted" };
+}
+
+/** One line for a table cell: the comparison's "Decision conclusion" row. */
+export function verdictLine(view) {
+  if (!view) return null;
+  if (view.state === "stated") return { text: `${verdictName(view.verdict)}: “${view.statement}”`, tone: view.tone };
+  if (view.state === "conflicting") {
+    const names = [...new Set(view.statements.map(item => verdictName(item.verdict)))].join(" / ");
+    return { text: `${t("verdict_conflicting")}: ${names}`, tone: view.tone };
+  }
+  return { text: t(view.state === "not_stated" ? "verdict_not_stated" : "verdict_unread"), tone: view.tone };
+}
+
+/** The card. `onOpen(needle, section)` shows the passage in the report tab;
+ * without it (no report tab) the card names the section and offers no link. */
+export function renderDecisionVerdict(view, { onOpen = null } = {}) {
+  const wrap = el("section", "verdict-card");
+  wrap.dataset.state = view.state;
+  wrap.dataset.tone = view.tone;
+  if (view.verdict) wrap.dataset.verdict = view.verdict;
+  wrap.append(el("span", "verdict-card__title", t("verdict_title")));
+  if (view.asked.length) {
+    const asked = el("p", "verdict-card__asked");
+    for (const [index, item] of view.asked.entries()) {
+      if (index) asked.append(" · ");
+      asked.append(el("span", "verdict-card__asked-label", t(item.label) + t("verdict_label_colon")), item.value);
+    }
+    wrap.append(asked);
+  }
+  const open = (needle, section, label = t("verdict_open")) => {
+    const button = el("button", "verdict-card__open", label);
+    button.type = "button";
+    button.addEventListener("click", () => onOpen(needle, section));
+    return button;
+  };
+  if (view.state === "stated") {
+    wrap.append(el("strong", "verdict-card__verdict", verdictName(view.verdict)));
+    const says = el("p", "verdict-card__says");
+    const quote = el("q", "verdict-card__quote");
+    quote.append(citedText(view.shown, "verdict-card__text"));
+    says.append(el("span", "verdict-card__label", t("verdict_says") + " "), quote);
+    if (view.shown !== view.whole) {
+      const more = el("button", "brief__expand", t("verdict_expand"));
+      more.type = "button";
+      more.setAttribute("aria-expanded", "false");
+      more.onclick = () => { quote.replaceChildren(citedText(view.whole, "verdict-card__text")); more.hidden = true; };
+      says.append(" ", more);
+    }
+    wrap.append(says);
+    const where = el("p", "verdict-card__where");
+    if (view.section) where.append(fillText("verdict_where", { section: view.section }) + " ");
+    if (onOpen) where.append(open(view.needle, view.section));
+    if (where.childNodes.length) wrap.append(where);
+  } else if (view.state === "conflicting") {
+    wrap.append(el("strong", "verdict-card__verdict", t("verdict_conflicting")));
+    wrap.append(el("p", "verdict-card__detail", t("verdict_conflicting_detail")));
+    const list = el("ul", "verdict-card__statements");
+    for (const item of view.statements) {
+      const li = el("li", "verdict-card__statement");
+      li.dataset.verdict = item.verdict;
+      li.append(el("span", "verdict-card__label", fillText("verdict_in_section", {
+        verdict: verdictName(item.verdict), section: item.section ?? "" }) + " "));
+      const quote = el("q", "verdict-card__quote");
+      quote.append(citedText(item.statement, "verdict-card__text"));
+      li.append(quote);
+      if (onOpen) li.append(" ", open(item.needle, item.section));
+      list.append(li);
+    }
+    wrap.append(list);
+  } else {
+    const missing = view.state === "not_stated";
+    wrap.append(el("strong", "verdict-card__verdict", t(missing ? "verdict_not_stated" : "verdict_unread")));
+    wrap.append(el("p", "verdict-card__detail", t(missing ? "verdict_not_stated_detail" : "verdict_unread_detail")));
+    if (onOpen) {
+      const where = el("p", "verdict-card__where");
+      where.append(open(null, null, t("verdict_open_report")));
+      wrap.append(where);
+    }
+  }
+  wrap.append(el("p", "verdict-card__note", t("verdict_note")));
+  return wrap;
+}
+
+const sameSpace = (text) => String(text ?? "").replace(/\s+/g, " ").trim();
+
+/** Which of `blocks` (elements of the rendered report, in order) holds the
+ * passage: the first whose text contains the needle, else the heading that
+ * reads as `section`, else none. Text is compared with its spaces collapsed;
+ * the needle carries no citation, which a page draws as a button. */
+export function passageIn(blocks, needle, section) {
+  const wanted = sameSpace(needle);
+  if (wanted) {
+    const at = blocks.findIndex(block => !/^H\d$/.test(block.tagName ?? "") && sameSpace(block.textContent).includes(wanted));
+    if (at >= 0) return at;
+  }
+  const heading = sameSpace(section);
+  return heading ? blocks.findIndex(block => /^H\d$/.test(block.tagName ?? "") && sameSpace(block.textContent) === heading) : -1;
+}
+
+
 /* ── Decision brief ────────────────────────────────────────────────────
  * One screen above the tabs: the verdict, the strongest piece of evidence
  * behind it, the biggest risk, the first recommended step, and what new
@@ -896,10 +1056,6 @@ function quoted(sentence) {
     sentence = (space > BRIEF_SENTENCE_LIMIT - 40 ? cut.slice(0, space) : cut).replace(/[\s,;:]+$/, "") + "…";
   }
   return sentence || null;
-}
-
-function firstSentence(text) {
-  return quoted(sentencesOf(text)[0] ?? "");
 }
 
 /* The summary's sentence, where it is too long for the brief. It used to be
@@ -1041,7 +1197,7 @@ function recommendationIn(lines, routeOnly) {
       const route = text.replace(/\*+/g, "").match(ROUTE_HEADING);
       if (route) {
         const name = (route[1] ?? "").trim();
-        if (name) return firstSentence(name) || null;
+        if (name) return sentencesOf(name)[0] || null;
         labelled = true;
       }
       continue;
@@ -1061,13 +1217,14 @@ function recommendationIn(lines, routeOnly) {
       labelled = true;
       continue;
     }
-    return firstSentence(plain) || null;
+    return sentencesOf(plain)[0] || null;
   }
   return null;
 }
 
 /** The first recommendation of the recommendations section, or null: the
- * route the section labels as primary, else its first item. */
+ * route the section labels as primary, else its first item. The sentence is
+ * returned whole; the brief cuts it to fit and offers the rest. */
 function firstRecommendation(markdown) {
   const lines = markdown.split(/\r?\n/);  // saved reports carry either line ending
   return recommendationIn(lines, true) ?? recommendationIn(lines, false);
@@ -1186,6 +1343,7 @@ export function decisionBrief({ scores, markdown = "", sources = null, progress 
   const risk = detailStrings(scores.key_risks) && scores.key_risks[0]?.trim() ? scores.key_risks[0].trim() : null;
   const opportunity = detailStrings(scores.key_opportunities) && scores.key_opportunities[0]?.trim()
     ? scores.key_opportunities[0].trim() : null;
+  const step = firstRecommendation(text);
   return {
     overall, band: band(overall), trl,
     mrl: scoreNumber(scores.mrl_score, 10) && scores.mrl_score >= 1 ? scores.mrl_score : null,
@@ -1195,7 +1353,11 @@ export function decisionBrief({ scores, markdown = "", sources = null, progress 
     summaryWhole: lead && lead.length > BRIEF_SENTENCE_LIMIT ? lead : null,
     evidence: pickEvidence(citedIds, sources, references),
     risk,
-    next: firstRecommendation(text) ?? opportunity,
+    // Cut like the summary, and like it the whole sentence travels along: the
+    // run that prompted this showed a first step ending "may be the…" and no
+    // way to read on (2026-11-18).
+    next: step ? quoted(step) : opportunity,
+    nextWhole: step && step.length > BRIEF_SENTENCE_LIMIT ? step : null,
     changers: whatWouldChange(scores, progress),
   };
 }
@@ -1220,6 +1382,15 @@ export function sampleFacts(sample) {
     trl: trl === null ? null : fillText("sample_trl", { trl }),
     language: language ? t(language) : null,
   };
+}
+
+/** "Show the whole sentence": one press puts the uncut text in `node`. */
+export function expandButton(node, whole) {
+  const button = el("button", "brief__expand", t("brief_expand"));
+  button.type = "button";
+  button.setAttribute("aria-expanded", "false");
+  button.onclick = () => { node.textContent = whole; button.hidden = true; };
+  return button;
 }
 
 /** The brief's node. `note` is the line under it saying what it was built
@@ -1259,11 +1430,11 @@ export function renderDecisionBrief(data, { note = t("brief_note") } = {}) {
   wrap.append(lines);
 
   const cards = el("div", "brief__cards");
-  const card = (name, label, body) => {
+  const card = (name, label, ...body) => {
     const node = el("div", "brief__card");
     node.dataset.card = name;
     node.append(el("span", "brief__label", label));
-    node.append(body);
+    node.append(...body);
     cards.append(node);
   };
   // Not "strongest evidence": the source is the best-rated one the strongest
@@ -1281,7 +1452,8 @@ export function renderDecisionBrief(data, { note = t("brief_note") } = {}) {
     card("evidence", evidenceLabel, el("p", "brief__text brief__empty", t("brief_evidence_none")));
   }
   card("risk", t("brief_risk"), data.risk ? citedText(data.risk) : el("p", "brief__text brief__empty", t("brief_risk_none")));
-  card("next", t("brief_next"), data.next ? citedText(data.next) : el("p", "brief__text brief__empty", t("brief_next_none")));
+  const next = data.next ? citedText(data.next) : el("p", "brief__text brief__empty", t("brief_next_none"));
+  card("next", t("brief_next"), next, ...(data.nextWhole ? [" ", expandButton(next, data.nextWhole)] : []));
   wrap.append(cards);
 
   const changers = el("div", "brief__changers");
@@ -1467,6 +1639,11 @@ export async function render(container, runId, progress) {
   const reliability = renderReliability(progress);
   const applicability = renderDecisionApplicability(progress.decision_gate);
   if (applicability) container.append(applicability);
+  // Under the line that says a conclusion is permitted: the conclusion. Its
+  // own read and its own slot, so a scorecard that cannot be read costs the
+  // brief and not this.
+  const verdictSlot = decisionAsked(progress) && artifacts.includes("report") ? el("div", "verdict-slot") : null;
+  if (verdictSlot) container.append(verdictSlot);
   // The brief needs the scorecard, the report and the sources; it fills in
   // below once they arrive, and a run without a scorecard has none.
   const briefSlot = progress.state === "completed" && artifacts.includes("scores") ? el("div", "brief-slot") : null;
@@ -1531,6 +1708,18 @@ export async function render(container, runId, progress) {
   let sourcesRequest = null;
   const sourcesOnce = () => (sourcesRequest ??= api.getArtifact(runId, "sources"));
 
+  if (verdictSlot) {
+    // A read that fails is said to have failed: an empty space here would
+    // read as "the report concluded nothing", which nobody found.
+    api.getDecision(runId).catch(() => undefined).then((reply) => {
+      const view = decisionVerdict(reply);
+      if (!view) { verdictSlot.remove(); return; }
+      const node = renderDecisionVerdict(view, { onOpen: showInReport });
+      verdictSlot.replaceWith(node);
+      attachCitations(node, indexOnce, { onShowInSources: hasSources ? showInSources : null });
+    });
+  }
+
   if (briefSlot) {
     // A failed report or sources read costs the brief a line, never the brief;
     // a failed scorecard read removes the slot, since there is nothing to say.
@@ -1553,6 +1742,29 @@ export async function render(container, runId, progress) {
     search.dispatchEvent(new Event("input"));
   }
 
+  // The report tab, open at the passage the conclusion card quotes. The
+  // passage is found in what the tab drew, by its text: the paragraph, else
+  // its section's heading, else the top of the report.
+  let found = null;
+  async function showInReport(needle, section) {
+    await select("report");
+    const article = panels.querySelector('[data-view="report"] .prose');
+    if (!article) return;
+    const blocks = [...article.querySelectorAll("p, li, td, h2, h3, h4")];
+    const target = blocks[passageIn(blocks, needle, section)] ?? article;
+    found?.classList.remove("prose__found");
+    found = target === article ? null : target;
+    found?.classList.add("prose__found");
+    // Focus goes with the reader, so a keyboard or a screen reader continues
+    // from the passage and not from the card it left.
+    target.tabIndex = -1;
+    target.focus({ preventScroll: true });
+    target.scrollIntoView({ block: found ? "center" : "start" });
+  }
+
+  // One load a view, and one promise for it: a second call while the first
+  // is still reading waits for the same panel instead of returning early.
+  const opening = new Map();
   async function select(id) {
     for (const tab of tabs.children) {
       const selected = tab.dataset.view === id;
@@ -1564,9 +1776,14 @@ export async function render(container, runId, progress) {
     for (const panel of panels.children) panel.hidden = panel.dataset.view !== id;
     hintOverflow();
 
-    if (loaded.has(id)) return;
+    if (loaded.has(id)) return opening.get(id);
     loaded.add(id);
+    const work = open(id);
+    opening.set(id, work);
+    return work;
+  }
 
+  async function open(id) {
     const panel = panels.querySelector(`[data-view="${id}"]`);
     panel.append(el("div", "skeleton", ""));
 

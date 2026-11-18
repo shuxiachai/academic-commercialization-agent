@@ -47,7 +47,8 @@ from academic_agent.checkpoint_runtime import pipeline_revision  # noqa: E402
 # A run-directory record, like run_terminal and auxiliary_usage, so the ops
 # report can read it without importing the API.
 from academic_agent import report_feedback as feedback  # noqa: E402
-from academic_agent.report_display import report_for_display  # noqa: E402
+from academic_agent.decision_verdict import card_text, find_verdict  # noqa: E402
+from academic_agent.report_display import display_parts, report_for_display  # noqa: E402
 from academic_agent.llm_config import (  # noqa: E402
     _detect_provider,
     resolve_provider_config,
@@ -99,6 +100,7 @@ from api.models import (  # noqa: E402
     PaidReceipt,
     FeedbackRequest,
     FeedbackState,
+    RunDecision,
     PlanPreview,
     PlanRequest,
     ReadinessStatus,
@@ -2746,6 +2748,70 @@ def get_report(
     )
 
 
+def _run_decision(run_id: str, state: dict, report_path: Path) -> RunDecision:
+    """The question a run was asked and what its report states, for the page and the PDF.
+
+    Filled only where the run completed and its gate permitted an
+    actor-specific conclusion: a run that failed after the writer has a report
+    whose conclusion nobody reviewed, and a report in another mode was told to
+    give none. The owner and the decision come from the run's own saved
+    request. A request that cannot be read costs the card its first line,
+    never its conclusion.
+    """
+    gate = state.get("decision_gate")
+    asked = (
+        state.get("state") == "completed"
+        and isinstance(gate, dict)
+        and gate.get("mode") == "decision_support"
+        and gate.get("go_no_go_allowed") is True
+    )
+    if not asked:
+        return RunDecision(run_id=run_id, asked=False)
+    question = None
+    try:
+        context = runs.RunSpec.load(report_path.parent).decision_context
+    except (OSError, ValueError):
+        context = None
+    if context is not None:
+        question = {"decision_owner": context.decision_owner, "decision_type": context.decision_type}
+    conclusion = find_verdict(report_path.read_text(encoding="utf-8"))
+    return RunDecision(run_id=run_id, asked=True, question=question, conclusion=conclusion)
+
+
+@app.get(
+    "/api/runs/{run_id}/decision",
+    response_model=RunDecision,
+    tags=["artifacts"],
+    responses={
+        404: {"description": "Unknown run_id"},
+        409: {"description": "Run has not produced a report yet"},
+    },
+)
+def get_decision(run_id: str) -> RunDecision:
+    """What the report itself concludes for the decision it was asked about.
+
+    A read, like the report it is drawn from, and open to whoever can read
+    that: the two lines of the decision context it returns are ones the
+    report states too. Nothing is stored and no model is called; the answer
+    is found in the saved text each time (decision_verdict.py), so it cannot
+    drift from the report.
+
+    Registered before /api/runs/{run_id}/{artifact}, which would otherwise
+    take "decision" as an artifact name.
+    """
+    try:
+        state = runs.get_state(run_id)
+    except runs.RunNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    path = runs.artifact_path(run_id, "report")
+    if path is None:
+        raise HTTPException(
+            status_code=409,
+            detail=f"No report available; run state is '{state['state']}'.",
+        )
+    return _run_decision(run_id, state, path)
+
+
 @app.get(
     "/api/runs/{run_id}/progress",
     response_model=RunProgress,
@@ -3177,18 +3243,39 @@ def get_report_pdf(run_id: str) -> FileResponse:
         )
 
     pdf_path = markdown_path.parent / "commercialization_report.pdf"
-    from ui.pdf_export import _generate_pdf, pdf_cache_complete, pdf_cache_lock
+    from ui.pdf_export import (
+        _generate_pdf, pdf_cache_complete, pdf_cache_lock, pdf_carries_decision_card,
+    )
 
     try:
+        language = state.get("output_language", "English")
+        # The card the page shows above the brief, for the runs that have one.
+        decision = _run_decision(run_id, state, markdown_path)
         # Check inside the lock. Atomic publication prevents torn reads, but
         # alone still lets simultaneous first downloads build the same report.
         with pdf_cache_lock(markdown_path.parent):
-            if not pdf_cache_complete(pdf_path):
-                # The PDF is read like the page, not like the audit file.
+            if not decision.asked:
+                if not pdf_cache_complete(pdf_path):
+                    # The PDF is read like the page, not like the audit file.
+                    _generate_pdf(
+                        report_for_display(markdown_path.read_text(encoding="utf-8")),
+                        markdown_path.parent,
+                        output_language=language,
+                    )
+            # An export cached before the card existed is complete and lacks
+            # it; such a run is rendered once more, and then the mark holds.
+            elif not (pdf_cache_complete(pdf_path) and pdf_carries_decision_card(pdf_path)):
+                head, rest = display_parts(markdown_path.read_text(encoding="utf-8"))
                 _generate_pdf(
-                    report_for_display(markdown_path.read_text(encoding="utf-8")),
+                    head + rest,
                     markdown_path.parent,
-                    output_language=state.get("output_language", "English"),
+                    output_language=language,
+                    decision_card=card_text(
+                        decision.question.model_dump() if decision.question else None,
+                        decision.conclusion.model_dump(),
+                        language,
+                    ),
+                    card_at=len(head),
                 )
     except Exception as exc:  # noqa: BLE001 - renderer/filesystem backends vary; sanitize HTTP detail
         _LOGGER.exception("Report PDF rendering failed for run %s", run_id)

@@ -545,6 +545,10 @@ export const getReport = (runId) => request(`/api/runs/${runId}/report?view=disp
 export const getArtifact = (runId, name) =>
   request(`/api/runs/${runId}/${name}`);
 
+// The question a decision-support run was asked and what its report states.
+// A read of the saved report, like the two above; nothing is computed by a model.
+export const getDecision = (runId) => request(`/api/runs/${runId}/decision`);
+
 /* ── Papers ────────────────────────────────────────────────────────── */
 
 export function uploadPaper(file, receiptKey) {

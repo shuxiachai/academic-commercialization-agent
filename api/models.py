@@ -186,6 +186,58 @@ class FeedbackRequest(BaseModel):
         default=None, description="The part that mattered most, when the reader says.")
 
 
+class DecisionQuestion(BaseModel):
+    """Who decides and what, as the run's decision context gave them."""
+
+    decision_owner: str | None = None
+    decision_type: str | None = None
+
+
+_Verdict = Literal["go", "conditional_go", "defer", "no_go"]
+
+
+class DecisionStatement(BaseModel):
+    """One sentence of the report that states a conclusion, as written."""
+
+    verdict: _Verdict
+    statement: str
+    section: str = Field(description="The report's own top-level heading over the statement.")
+    follows: list[str] = Field(
+        default_factory=list,
+        description="Up to two sentences after it in the same paragraph: the reasons "
+                    "and conditions the writer put beside it. Quoted, not chosen.",
+    )
+    needle: str = Field(description="Text of the statement with no citation in it, for finding its paragraph on a page.")
+
+
+class DecisionConclusion(BaseModel):
+    """What the report states for the decision. Read from its text; never inferred."""
+
+    status: Literal["stated", "conflicting", "not_stated"] = Field(
+        description="'not_stated': no sentence ties GO, NO_GO, DEFER or a conditional GO to the "
+                    "conclusion. That is a fact about the wording, not a finding that the "
+                    "report is undecided. 'conflicting': statements name different conclusions.",
+    )
+    verdict: _Verdict | None = None
+    statement: str | None = None
+    section: str | None = None
+    follows: list[str] = Field(default_factory=list)
+    needle: str | None = None
+    statements: list[DecisionStatement] = Field(default_factory=list)
+
+
+class RunDecision(BaseModel):
+    """GET /api/runs/{run_id}/decision: the question a run was asked and the report's answer."""
+
+    run_id: str
+    asked: bool = Field(
+        description="True only for a completed run whose gate permitted an actor-specific "
+                    "conclusion (decision_support). Otherwise nothing below is filled.",
+    )
+    question: DecisionQuestion | None = None
+    conclusion: DecisionConclusion | None = None
+
+
 class FeedbackState(BaseModel):
     """The caller's own recorded answer about a run, or none."""
 

@@ -26,7 +26,8 @@ _APP = (_ROOT / "web" / "static" / "js" / "app.js").read_text(encoding="utf-8")
 _COMPARE = (_ROOT / "web" / "static" / "js" / "compare.js").read_text(encoding="utf-8")
 
 
-@pytest.mark.parametrize("scenario", ["rows", "unfinished", "nothing_to_compare", "drawn"])
+@pytest.mark.parametrize("scenario", ["rows", "unfinished", "nothing_to_compare", "drawn",
+                                      "decision_rows", "next_step_expand", "loads_the_decision_only_when_asked"])
 def test_the_module_compares_what_is_there_and_shows_what_is_not(scenario):
     node = shutil.which("node")
     assert node, "Node is required for the comparison seam"
@@ -61,7 +62,7 @@ def test_the_page_reaches_it_only_from_a_run_and_never_sends_the_pair():
     assert 'id="compare-dialog"' in _INDEX and 'id="compare-choices"' in _INDEX
     # The comparison is reads only: the same reads the run page makes, nothing new.
     for call in re.findall(r"api\.(\w+)\(", _COMPARE):
-        assert call in {"getRun", "getArtifact", "getReport"}, call
+        assert call in {"getRun", "getArtifact", "getReport", "getDecision"}, call
     assert "fetch(" not in _COMPARE and "POST" not in _COMPARE
     # Values become text, never markup.
     assert "innerHTML =" not in _COMPARE.replace('innerHTML = ""', "")

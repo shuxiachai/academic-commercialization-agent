@@ -202,3 +202,30 @@ def report_for_display(report: str) -> str:
         if paragraph is not None:
             shown = report[:block.start()] + paragraph + report[block.end():]
     return _notes_heading(_references(shown, language), language)
+
+
+def display_parts(report: str) -> tuple[str, str]:
+    """The displayed report in two parts: through its scope paragraph, and the rest.
+
+    The PDF puts the decision-conclusion card between them, where the page
+    has it: under the sentence saying a conclusion is permitted, above the
+    report. Joined, the two are report_for_display(report), byte for byte. A
+    report with no delivered scope paragraph is cut after its opening title,
+    or has an empty first part.
+    """
+    shown = report_for_display(report)
+    block = _delivered_block(report)
+    if block is None:
+        title = _OPENING_TITLE.match(report)
+        cut = title.end() if title is not None else 0
+    else:
+        paragraph = _scope_paragraph(block.group(), _report_language(report))
+        if paragraph is None:
+            # applicability_for_display kept the saved words: the marker line
+            # dropped, then each line without its "> ".
+            lines = block.group().splitlines()[1:]
+            paragraph = "\n".join(re.sub(r"^>[ \t]?", "", line) for line in lines if line.strip())
+        cut = block.start() + len(paragraph)
+    # What display rewrites after this point (the reference list, the notes
+    # heading) stands after it, so the offset holds in the displayed text.
+    return shown[:cut], shown[cut:]

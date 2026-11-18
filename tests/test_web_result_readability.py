@@ -29,7 +29,7 @@ class Node {
   append(...items) { for (const item of items) this.children.push(typeof item === "string" ? { text: item } : item); }
   setAttribute(name, value) { this.attributes[name] = value; }
   replaceChildren(...items) { this.children = []; this.append(...items); }
-  addEventListener() {}
+  addEventListener(type, heard) { (this.listeners ??= {})[type] = heard; }
   get childNodes() { return this.children; }
 }
 const printing = { listeners: {}, notes: [] };
@@ -124,7 +124,8 @@ if (input.brief) {
     strongest: data.strongest && [data.strongest.key, data.strongest.value],
     weakest: data.weakest && [data.weakest.key, data.weakest.value],
     summary: data.summary, summary_whole: data.summaryWhole ?? null,
-    evidence: data.evidence, risk: data.risk, next: data.next, changers: data.changers,
+    evidence: data.evidence, risk: data.risk, next: data.next, next_whole: data.nextWhole ?? null,
+    changers: data.changers,
   };
   if (data) {
     const nodes = flat(mod._testRenderDecisionBrief(data));
@@ -141,7 +142,9 @@ if (input.brief) {
         .map(n => [n.dataset.card, n.children[0].textContent])),
       quote: nodes.find(n => n.tagName === "Q")?.textContent ?? null,
       expand: (() => {
-        const button = nodes.find(n => n.className === "brief__expand");
+        // The summary line's own button; the first step's is read below.
+        const line = nodes.find(n => n.className === "brief__line brief__summary");
+        const button = line && flat(line).find(n => n.className === "brief__expand");
         if (!button) return null;
         const before = { text: button.textContent, type: button.type, expanded: button.attributes["aria-expanded"] };
         button.onclick?.();
@@ -149,8 +152,50 @@ if (input.brief) {
       })(),
       changers: nodes.filter(n => n.className === "brief__changer").map(n => [n.dataset.reason, n.textContent]),
       note: nodes.find(n => n.className === "brief__note")?.textContent,
+      next_expand: (() => {
+        const card = nodes.find(n => n.className === "brief__card" && n.dataset.card === "next");
+        const button = flat(card).find(n => n.className === "brief__expand");
+        if (!button) return null;
+        const before = { text: button.textContent, type: button.type, expanded: button.attributes["aria-expanded"], shown: text(card.children[1]) };
+        button.onclick();
+        // A browser drops the old text when textContent is set; this stand-in keeps its children.
+        return { ...before, after: card.children[1].textContent, gone: button.hidden === true };
+      })(),
     };
   }
+}
+if (input.verdict) {
+  // The decision-conclusion card, from the reply of GET /api/runs/{id}/decision.
+  // "unread" stands for a read that failed (undefined does not survive JSON).
+  const reply = input.verdict.reply === "unread" ? undefined : input.verdict.reply;
+  const view = mod.decisionVerdict(reply);
+  out.verdict = { view, asked_for: mod.decisionAsked(input.verdict.progress ?? null), line: mod.verdictLine(view) };
+  if (view) {
+    const opened = [];
+    const text = (node) => flat(node).map(n => n.textContent || n.text || "").join("");
+    const draw = (onOpen) => flat(mod.renderDecisionVerdict(view, { onOpen }));
+    const nodes = draw((needle, section) => opened.push([needle, section]));
+    const one = (name) => nodes.find(n => n.className === name);
+    const more = nodes.find(n => n.className === "brief__expand");
+    const card = {
+      state: nodes[0].dataset.state, tone: nodes[0].dataset.tone, verdict: nodes[0].dataset.verdict ?? null,
+      title: one("verdict-card__title")?.textContent, asked: one("verdict-card__asked") ? text(one("verdict-card__asked")) : null,
+      headline: one("verdict-card__verdict")?.textContent, says: one("verdict-card__says") ? text(one("verdict-card__says")) : null,
+      detail: one("verdict-card__detail")?.textContent ?? null, where: one("verdict-card__where") ? text(one("verdict-card__where")) : null,
+      statements: nodes.filter(n => n.className === "verdict-card__statement").map(n => [n.dataset.verdict, text(n)]),
+      cites: nodes.filter(n => n.className === "cite").map(n => n.dataset.cite),
+      note: one("verdict-card__note")?.textContent, buttons: nodes.filter(n => n.tagName === "BUTTON" && n.className !== "cite").map(n => [n.className, n.textContent, n.type]),
+      more: more ? { text: more.textContent, expanded: more.attributes["aria-expanded"] } : null,
+    };
+    if (more) { more.onclick(); card.more.after = text(one("verdict-card__quote")); card.more.gone = more.hidden === true; }
+    for (const node of nodes.filter(n => n.className === "verdict-card__open")) node.listeners?.click?.();
+    card.opened = opened;
+    card.without_a_report_tab = draw(null).filter(n => n.className === "verdict-card__open").length;
+    out.verdict.card = card;
+  }
+}
+if (input.passage) {
+  out.passage = mod.passageIn(input.passage.blocks, input.passage.needle, input.passage.section);
 }
 if (input.scores) {
   const nodes = flat(mod._testRenderScorecard(input.scores, input.sources_for_scorecard ?? null));
@@ -1188,6 +1233,28 @@ class DecisionBriefTests(unittest.TestCase):
         self.assertEqual(data["next"], "Semi-solid-state batteries as an entry point.")
         self.assertEqual(data["summary"], "The technology shows promise for higher energy density, yet barriers remain unresolved.")
 
+    def test_a_first_step_cut_to_fit_offers_the_whole_sentence(self):
+        """The production run's first step ended "may be the…" and nothing
+        on the page let its reader finish the sentence (2026-11-18)."""
+        long = ("License the tandem cell architecture to an established module manufacturer under a field-limited "
+                "agreement, because the patent family covers the recombination junction and the passivation stack "
+                "while the remaining encapsulation and scale-up questions may be the licensee's to answer in its own "
+                "pilot line over the first two years.")
+        self.assertGreater(len(long), 240)
+        seen = self._brief(markdown=f"## 5. Commercialization Opportunities & Recommendations\n\n1. {long} More.\n")
+        shown = seen["brief"]["next"]
+        self.assertTrue(shown.endswith("…") and len(shown) <= 240 and long.startswith(shown[:-1]))
+        self.assertEqual(seen["brief"]["next_whole"], long)
+        expand = seen["brief_view"]["next_expand"]
+        self.assertEqual((expand["text"], expand["type"], expand["expanded"]), ("Show the whole sentence", "button", "false"))
+        self.assertEqual(expand["shown"], shown)
+        self.assertEqual((expand["after"], expand["gone"]), (long, True))
+        # A step that fits is whole already and has no button; nor has the scorecard's opportunity.
+        short = self._brief(markdown="## 5. Commercialization Opportunities & Recommendations\n\n1. Run a field trial.\n")
+        self.assertEqual((short["brief"]["next"], short["brief"]["next_whole"]), ("Run a field trial.", None))
+        self.assertIsNone(short["brief_view"]["next_expand"])
+        self.assertIsNone(self._brief(markdown="")["brief_view"]["next_expand"])
+
     def test_the_risk_and_the_step_keep_their_citations_as_buttons(self):
         shown = self._brief(markdown="")["brief_view"]
         self.assertEqual(shown["cards"]["risk"], "Biggest riskNo named commercial actors in the market registry [M2, M3].")
@@ -1830,6 +1897,156 @@ class CheckWordingTests(unittest.TestCase):
         rows = self._checks(progress=progress)["rows"]
         self.assertIn("without Patents", rows["sources"])
         self.assertIn("Market, other", rows["grounding"])
+
+
+_ASKED = {"state": "completed", "decision_gate": {"mode": "decision_support", "go_no_go_allowed": True}}
+_QUESTION = {"decision_owner": "Technology transfer office", "decision_type": "License the technology"}
+_STATEMENT = ("In sum, the actor-specific conclusion is DEFER because module-scale validation, reliability "
+              "evidence, and patent/legal clarity remain insufficient [A2][P1].")
+
+
+def _reply(**conclusion):
+    stated = {"status": "stated", "verdict": "defer", "statement": _STATEMENT, "section": "Executive Summary",
+              "follows": ["Licensing should be revisited once outdoor module data exist [A3]."],
+              "needle": "In sum, the actor-specific conclusion is DEFER because module-scale validation",
+              "statements": []}
+    stated.update(conclusion)
+    return {"run_id": "r", "asked": True, "question": _QUESTION, "conclusion": stated}
+
+
+@unittest.skipUnless(shutil.which("node"), "node not installed")
+class DecisionConclusionTests(unittest.TestCase):
+    """The card under the scope line: who asked what, and the report's own
+    answer. On 2026-11-18 a report concluded DEFER in its executive summary and
+    the page that promised a GO / NO-GO showed a score and no conclusion."""
+
+    @classmethod
+    def setUpClass(cls):
+        ResultReadabilityTests.setUpClass.__func__(cls)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._tmp.cleanup()
+
+    def _card(self, reply, language=None, progress=_ASKED):
+        payload = {"verdict": {"reply": reply, "progress": progress}}
+        if language:
+            payload["language"] = language
+        return ResultReadabilityTests._run(self, **payload)["verdict"]
+
+    def test_the_card_says_who_asked_what_and_quotes_the_reports_answer(self):
+        card = self._card(_reply())["card"]
+        self.assertEqual((card["state"], card["verdict"], card["tone"]), ("stated", "defer", "warning"))
+        self.assertEqual(card["title"], "Decision conclusion")
+        self.assertEqual(card["asked"], "Decision owner: Technology transfer office · Decision to make: License the technology")
+        self.assertEqual(card["headline"], "DEFER")
+        # The statement and the sentence beside it, as written, citations as buttons.
+        self.assertEqual(card["says"], "The report says: In sum, the actor-specific conclusion is DEFER because module-scale "
+                         "validation, reliability evidence, and patent/legal clarity remain insufficient [A2][P1]. "
+                         "Licensing should be revisited once outdoor module data exist [A3].")
+        self.assertEqual(card["cites"], ["A2", "P1", "A3"])
+        self.assertEqual(card["where"], "Stated in the report's section “Executive Summary”. Show it in the report")
+        self.assertEqual(card["note"], "Read from the report's own text. The scores are not changed by it.")
+        self.assertIsNone(card["more"])
+
+    def test_the_link_opens_the_passage_in_the_report_and_is_absent_without_a_report_tab(self):
+        card = self._card(_reply())["card"]
+        self.assertEqual(card["buttons"], [["verdict-card__open", "Show it in the report", "button"]])
+        self.assertEqual(card["opened"], [["In sum, the actor-specific conclusion is DEFER because module-scale validation",
+                                           "Executive Summary"]])
+        self.assertEqual(card["without_a_report_tab"], 0)
+
+    def test_each_of_the_four_conclusions_has_its_name_and_only_no_go_is_an_alarm(self):
+        seen = {code: self._card(_reply(verdict=code))["card"] for code in ("go", "conditional_go", "defer", "no_go")}
+        self.assertEqual({code: card["headline"] for code, card in seen.items()},
+                         {"go": "GO", "conditional_go": "Conditional GO", "defer": "DEFER", "no_go": "NO-GO"})
+        self.assertEqual({code: card["tone"] for code, card in seen.items()},
+                         {"go": "success", "conditional_go": "warning", "defer": "warning", "no_go": "danger"})
+
+    def test_a_report_with_no_stated_conclusion_gets_a_card_that_says_so(self):
+        """Not an empty space and not a guess: the reader is told the report did not say."""
+        card = self._card(_reply(status="not_stated", verdict=None, statement=None, section=None, follows=[], needle=None))["card"]
+        self.assertEqual((card["state"], card["tone"], card["verdict"]), ("not_stated", "muted", None))
+        self.assertEqual(card["headline"], "The report states no clear conclusion")
+        self.assertIn("infers nothing", card["detail"])
+        self.assertIsNone(card["says"])
+        self.assertEqual(card["asked"], "Decision owner: Technology transfer office · Decision to make: License the technology")
+        self.assertEqual(card["buttons"], [["verdict-card__open", "Open the report", "button"]])
+        self.assertEqual(card["opened"], [[None, None]])
+
+    def test_conclusions_that_disagree_are_each_quoted_and_none_is_the_headline(self):
+        statements = [
+            {"verdict": "defer", "statement": _STATEMENT, "section": "Executive Summary", "follows": [], "needle": "In sum"},
+            {"verdict": "conditional_go", "statement": "Decision: GO, subject to a durability test [A3].",
+             "section": "5. Recommendations", "follows": [], "needle": "Decision: GO, subject to a durability test"},
+        ]
+        shown = self._card(_reply(status="conflicting", verdict=None, statement=None, section=None, needle=None,
+                                  statements=statements))
+        card = shown["card"]
+        self.assertEqual((card["state"], card["tone"], card["verdict"]), ("conflicting", "danger", None))
+        self.assertEqual(card["headline"], "The report states conclusions that disagree")
+        self.assertEqual([code for code, _ in card["statements"]], ["defer", "conditional_go"])
+        self.assertTrue(card["statements"][1][1].startswith("Conditional GO, in “5. Recommendations”: Decision: GO, subject to"))
+        self.assertEqual(len(card["opened"]), 2)
+        self.assertEqual(shown["line"], {"text": "The report states conclusions that disagree: DEFER / Conditional GO", "tone": "danger"})
+
+    def test_a_read_that_failed_is_said_to_have_failed_not_shown_as_no_conclusion(self):
+        card = self._card("unread")["card"]
+        self.assertEqual((card["state"], card["headline"]), ("unread", "The report's conclusion could not be read"))
+        self.assertIn("nothing is claimed here either way", card["detail"])
+        # A status this page does not know is not turned into a verdict either.
+        self.assertEqual(self._card(_reply(status="approved"))["card"]["state"], "unread")
+        self.assertEqual(self._card(_reply(verdict="maybe"))["card"]["state"], "unread")
+
+    def test_a_run_that_was_not_asked_has_no_card(self):
+        for reply in ({"run_id": "r", "asked": False, "question": None, "conclusion": None}, None, "text", []):
+            with self.subTest(reply=reply):
+                self.assertIsNone(self._card(reply)["view"])
+        asked = lambda **over: self._card(_reply(), progress={**_ASKED, **over})["asked_for"]  # noqa: E731
+        self.assertTrue(asked())
+        self.assertFalse(asked(state="failed"))
+        self.assertFalse(asked(decision_gate={"mode": "orientation", "go_no_go_allowed": False}))
+        self.assertFalse(asked(decision_gate={"mode": "decision_support", "go_no_go_allowed": False}))
+        self.assertFalse(asked(decision_gate=None))
+
+    def test_a_long_passage_shows_the_statement_and_offers_what_follows(self):
+        follows = ["Licensing should be revisited once outdoor module data of at least one year exist [A3]. " * 5]
+        card = self._card(_reply(follows=follows))["card"]
+        self.assertTrue(card["says"].endswith("remain insufficient [A2][P1]. Show what follows it"))
+        self.assertEqual(card["more"]["text"], "Show what follows it")
+        self.assertEqual(card["more"]["expanded"], "false")
+        self.assertIn("at least one year exist", card["more"]["after"])
+        self.assertTrue(card["more"]["gone"])
+
+    def test_the_card_reads_in_chinese_around_the_reports_own_words(self):
+        question = {"decision_owner": "技术转移办公室", "decision_type": "是否许可这项技术"}
+        card = self._card({**_reply(), "question": question}, "Simplified Chinese")["card"]
+        self.assertEqual(card["title"], "决策结论")
+        self.assertEqual(card["asked"], "决策负责人：技术转移办公室 · 待作决策：是否许可这项技术")
+        self.assertEqual(card["headline"], "暂缓")
+        self.assertTrue(card["says"].startswith("报告原文： In sum, the actor-specific conclusion is DEFER"))
+        self.assertEqual(card["where"], "出自报告“Executive Summary”一节。 在报告中查看")
+        none = self._card(_reply(status="not_stated", verdict=None, statement=None), "Simplified Chinese")["card"]
+        self.assertEqual(none["headline"], "报告没有给出明确结论")
+        # Chinese sentences follow one another without a space.
+        chinese = self._card(_reply(statement="决策结论为暂缓许可 [A2]。", follows=["待取得户外数据后重新评估 [A3]。", "第三句。"]),
+                             "Simplified Chinese")["card"]
+        self.assertEqual(chinese["says"], "报告原文： 决策结论为暂缓许可 [A2]。待取得户外数据后重新评估 [A3]。第三句。")
+
+    def test_the_passage_is_found_by_its_text_then_by_its_heading(self):
+        blocks = [{"tagName": "H2", "textContent": "Executive Summary"},
+                  {"tagName": "P", "textContent": "Tandem cells exceed 33% [A1]."},
+                  {"tagName": "P", "textContent": "Bankability is open.  In sum, the actor-specific conclusion is\nDEFER because module-scale validation, reliability A2"},
+                  {"tagName": "H2", "textContent": "5. Recommendations"}]
+        find = lambda needle, section: ResultReadabilityTests._run(  # noqa: E731
+            self, passage={"blocks": blocks, "needle": needle, "section": section})["passage"]
+        self.assertEqual(find("In sum, the actor-specific conclusion is DEFER because module-scale validation", "Executive Summary"), 2)
+        # The paragraph is gone from the page: the section's heading, not another paragraph.
+        self.assertEqual(find("a sentence the page does not hold", "5. Recommendations"), 3)
+        self.assertEqual(find("a sentence the page does not hold", "No such section"), -1)
+        # A heading that happens to contain the words is not the passage.
+        self.assertEqual(find("Executive Summary", None), -1)
+        self.assertEqual(find(None, None), -1)
 
 
 if __name__ == "__main__":
