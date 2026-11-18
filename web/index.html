@@ -90,6 +90,24 @@
         </div>
         <!-- Only where the deployment pays for a newcomer's first assessment (app.js). -->
         <p class="landing__trial" id="landing-trial" data-i18n="landing_trial" hidden>Your first assessment is free: no API keys needed.</p>
+        <!-- Three things that set the tool apart, under the buttons. The
+             column ended at the buttons while the card beside it ran on for
+             another 360 px (measured at 1440 px, 2026-11-18). Each says what
+             the steps below and the samples show; none is a new claim. -->
+        <ul class="landing__points">
+          <li>
+            <strong data-i18n="landing_point1_title">Evidence before writing</strong>
+            <span data-i18n="landing_point1_body">Code retrieves and validates papers, patents and market sources, and freezes them before any agent writes.</span>
+          </li>
+          <li>
+            <strong data-i18n="landing_point2_title">A score you can trace</strong>
+            <span data-i18n="landing_point2_body">Five dimensions, each with its reasons and its sources. The weighted total is computed by code, not by the model.</span>
+          </li>
+          <li>
+            <strong data-i18n="landing_point3_title">Checks shown with every report</strong>
+            <span data-i18n="landing_point3_body">Automated checks come with each report and say where it is weakest, and where a check could not reach a result.</span>
+          </li>
+        </ul>
       </div>
 
       <!-- Filled from /api/samples, which needs no credentials: the titles
@@ -117,6 +135,30 @@
       </aside>
     </div>
 
+    <!-- What a finished assessment looks like: the decision brief and the
+         scorecard of one sample, as its page shows them. The card above draws
+         a scorecard's verdict and bars; nothing on the landing showed the
+         brief, the reasons or what a reader does with them. A screenshot, one
+         for each theme, width and interface language, so it is legible on a
+         phone and does not stand as a dark block in the light theme, which
+         is what the single picture here did until 2026-11-13. The files are
+         named by app.js when the landing is known to stay (paintLandingShot):
+         the markup names none, so a page that never shows the landing asks
+         for none. The figure opens the sample itself. -->
+    <section class="landing__card landing__shot" aria-labelledby="landing-shot-title">
+      <h2 id="landing-shot-title" data-i18n="landing_shot_title">What a finished assessment looks like</h2>
+      <figure class="landing__shot-figure">
+        <a class="landing__shot-link" href="/samples/continuous-glucose-monitoring">
+          <picture>
+            <source id="landing-shot-phone" media="(max-width: 640px)" width="734" height="3020">
+            <img id="landing-shot" width="1744" height="1912" loading="lazy" decoding="async"
+                 alt="Screenshot: a decision brief headed 74.0 / 100, Strong, with its main source, biggest risk and first recommended step, above a scorecard of five scored dimensions.">
+          </picture>
+        </a>
+        <figcaption data-i18n="landing_shot_caption">A screenshot of this interface from November 2026: the sample assessment of continuous glucose monitoring, opened at its decision brief and scorecard. Select it to read the whole report.</figcaption>
+      </figure>
+    </section>
+
     <ol class="landing__steps">
       <li>
         <h2 data-i18n="landing_step1_title">A topic or a paper goes in</h2>
@@ -131,6 +173,12 @@
         <p data-i18n="landing_step3_body">A scorecard for TRL, MRL, patent strength, market accessibility and evidence confidence; a cited report; the main risks and a recommended first step. Export Markdown or PDF, or share the link. A run takes 6 to 15 minutes.</p>
       </li>
     </ol>
+    <!-- Where the evidence comes from, by name. Only services the pipeline
+         asks on a deployment set up as this one is: each is in the privacy
+         page's list of who receives a query, and has a client in
+         src/academic_agent/source_clients.py or, for patents, the Google
+         Patents pages the pipeline reads (tests/test_landing_page.py). -->
+    <p class="landing__sources" data-i18n="landing_sources">Evidence comes from public sources: papers from OpenAlex, Crossref, PubMed, arXiv and Semantic Scholar, patents from Google Patents, and market sources through the web search service you choose.</p>
 
     <!-- Said before sign-up, not after: this is the fact a visitor most
          needs to decide whether to come in. The sentences match the key
@@ -140,9 +188,51 @@
       <h2 id="landing-pay-title" data-i18n="landing_pay_title">Your keys, your bill</h2>
       <p data-i18n="landing_pay_body">Assessments run on your own API keys: one model key (DeepSeek, Qwen, OpenAI or Anthropic) and one search key (Tavily or Serper). Your providers bill you directly, and this service adds nothing. Keys are saved with your account, encrypted, so you add them once; you can remove them at any time.</p>
       <!-- In money, and only for the providers with a recorded figure: each
-           sum is a row of "What an assessment costs" in
-           docs/evidence-status.md (tests/test_run_costs.py). -->
-      <p data-i18n="landing_pay_cost">What one assessment cost in model fees when it was measured here: about $0.05 with DeepSeek (deepseek-chat, November 2026), $0.10 to $0.25 with Qwen on Model Studio (qwen3.7-plus and qwen3.8-max, October 2026), and about $0.55 with Anthropic (claude-sonnet-5-5, November 2026). Search is billed by the search service: Tavily's free plan includes 1,000 searches a month, and a new Serper account gets 2,500 free queries.</p>
+           row is a row of "What an assessment costs" in
+           docs/evidence-status.md, with its model, its sum and the day it
+           was measured (tests/test_run_costs.py). Until 2026-11-18 the four
+           sums, four model names and two months stood in one sentence. A
+           provider with no recorded run has no row and no remark. On a phone
+           each row is two lines: who and how much, then which model and when. -->
+      <p data-i18n="landing_pay_cost">What one assessment cost in model fees when it was measured here. These are sums recorded for particular runs: your provider bills by its own meter.</p>
+      <table class="landing__costs" id="landing-costs">
+        <thead>
+          <tr>
+            <th scope="col" data-i18n="landing_cost_provider">Provider</th>
+            <th scope="col" data-i18n="landing_cost_model">Model measured</th>
+            <th scope="col" data-i18n="landing_cost_sum">One assessment</th>
+            <th scope="col" data-i18n="landing_cost_date">Measured</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">DeepSeek</th>
+            <td class="landing__cost-model">deepseek-chat</td>
+            <td class="landing__cost-sum" data-i18n="landing_cost_005">about $0.05</td>
+            <td class="landing__cost-date">2026-11-12</td>
+          </tr>
+          <tr>
+            <th scope="row" data-i18n="landing_cost_qwen">Qwen (Model Studio)</th>
+            <td class="landing__cost-model">qwen3.7-plus</td>
+            <td class="landing__cost-sum" data-i18n="landing_cost_010">about $0.10</td>
+            <td class="landing__cost-date">2026-10-18</td>
+          </tr>
+          <tr>
+            <th scope="row" data-i18n="landing_cost_qwen">Qwen (Model Studio)</th>
+            <td class="landing__cost-model">qwen3.8-max</td>
+            <td class="landing__cost-sum" data-i18n="landing_cost_025">about $0.25</td>
+            <td class="landing__cost-date">2026-10-19</td>
+          </tr>
+          <tr>
+            <th scope="row">Anthropic</th>
+            <td class="landing__cost-model">claude-sonnet-5-5</td>
+            <td class="landing__cost-sum" data-i18n="landing_cost_055">about $0.55</td>
+            <td class="landing__cost-date">2026-11-12</td>
+          </tr>
+        </tbody>
+      </table>
+      <!-- Search is another company's bill, so it is not a row of the table. -->
+      <p class="landing__search-cost" data-i18n="landing_pay_search">Search is billed separately, by the search service: Tavily's free plan includes 1,000 searches a month, and a new Serper account gets 2,500 free queries.</p>
       <!-- A new account needs two keys from two other companies before its
            first paid run. Three steps, one recommendation each, the links
            the keys form gives; no screenshots, which go stale. Where the
@@ -157,9 +247,49 @@
           <li><span data-i18n="key_guide_step3_landing">Create an account here, paste both keys, enter deepseek-chat as the model, and start.</span></li>
         </ol>
       </details>
-      <!-- The deployment's retention period, from /health (app.js); the key
-           form states the same figure, but by then the visitor has signed up. -->
-      <p class="landing__retention" id="landing-retention"></p>
+    </section>
+
+    <!-- The five things a visitor asks before signing up. Each answer says
+         what the privacy page, the form or the documents already say, in a
+         sentence or three (tests/test_landing_page.py holds each to its
+         source). Closed by default: the page stays a page, and a question
+         is one press away. -->
+    <section class="landing__faq" id="landing-faq" aria-labelledby="landing-faq-title">
+      <h2 id="landing-faq-title" data-i18n="landing_faq_title">Common questions</h2>
+      <details class="landing__question">
+        <summary data-i18n="landing_faq_q1">How long is my data kept?</summary>
+        <div class="landing__answer">
+          <!-- The deployment's own retention period, from /health (app.js
+               paintLandingRetention). It stood under "Your keys, your bill"
+               and in the key form; this is the question it answers. -->
+          <p class="landing__retention" id="landing-retention"></p>
+          <p data-i18n="landing_faq_a1">You can delete any assessment from its page, or your whole account, at any time. An uploaded PDF is deleted as soon as its text has been extracted. Your API keys stay with your account, encrypted, until you remove them.</p>
+        </div>
+      </details>
+      <details class="landing__question">
+        <summary data-i18n="landing_faq_q2">Which languages does it support?</summary>
+        <div class="landing__answer">
+          <p data-i18n="landing_faq_a2">The interface is in English and Simplified Chinese. A report can be written in English, Chinese, Japanese, Korean, French, German, Spanish, Portuguese, Arabic, Russian or Hindi; left on “Auto language”, it follows the language of your topic.</p>
+        </div>
+      </details>
+      <details class="landing__question">
+        <summary data-i18n="landing_faq_q3">What is a decision context?</summary>
+        <div class="landing__answer">
+          <p data-i18n="landing_faq_a3">An optional part of the form that says whose decision the report is for: the asset, the target application, the decision owner and the decision to make. With all four, the report may give a GO / NO-GO for that decision, bounded by its evidence. Without them the assessment still runs, as an orientation brief that claims no decision.</p>
+        </div>
+      </details>
+      <details class="landing__question">
+        <summary data-i18n="landing_faq_q4">Can I upload a paper?</summary>
+        <div class="landing__answer">
+          <p data-i18n="landing_faq_a4">Yes: attach a PDF of up to 50 MB instead of typing a topic. Text selected from it is sent to the model provider you chose, to extract what the paper contributes. The PDF is deleted as soon as that succeeds, and an extracted summary that no assessment uses is deleted within 24 hours. Upload only papers you are allowed to send to that provider.</p>
+        </div>
+      </details>
+      <details class="landing__question">
+        <summary data-i18n="landing_faq_q5">How are the fees worked out?</summary>
+        <div class="landing__answer">
+          <p data-i18n="landing_faq_a5">This service charges nothing and cannot refund a provider's charge. An assessment runs on your own model key and search key, and each provider bills you directly, by its own meter. The table above is what one assessment cost in model fees when it was measured here; searches are billed by the search service, and both search services have a free allowance.</p>
+        </div>
+      </details>
     </section>
   </div>
 
@@ -455,10 +585,10 @@
                            placeholder="TTO manager, founder, investor, R&amp;D lead">
                   </label>
                   <div class="decision-picks" role="group" aria-labelledby="decision-owner-label">
-                    <button type="button" class="chip-btn decision-pick" data-fills="decision-owner" data-i18n="decision_owner_pick_investor">Investor</button>
-                    <button type="button" class="chip-btn decision-pick" data-fills="decision-owner" data-i18n="decision_owner_pick_tto">Technology transfer office</button>
-                    <button type="button" class="chip-btn decision-pick" data-fills="decision-owner" data-i18n="decision_owner_pick_rnd">Corporate R&amp;D lead</button>
-                    <button type="button" class="chip-btn decision-pick" data-fills="decision-owner" data-i18n="decision_owner_pick_founder">Startup founder</button>
+                    <button type="button" class="chip-btn decision-pick" aria-pressed="false" data-fills="decision-owner" data-i18n="decision_owner_pick_investor">Investor</button>
+                    <button type="button" class="chip-btn decision-pick" aria-pressed="false" data-fills="decision-owner" data-i18n="decision_owner_pick_tto">Technology transfer office</button>
+                    <button type="button" class="chip-btn decision-pick" aria-pressed="false" data-fills="decision-owner" data-i18n="decision_owner_pick_rnd">Corporate R&amp;D lead</button>
+                    <button type="button" class="chip-btn decision-pick" aria-pressed="false" data-fills="decision-owner" data-i18n="decision_owner_pick_founder">Startup founder</button>
                   </div>
                 </div>
                 <div class="decision-context__field">
@@ -469,10 +599,10 @@
                            placeholder="License, spin out, pilot, invest, or stop">
                   </label>
                   <div class="decision-picks" role="group" aria-labelledby="decision-type-label">
-                    <button type="button" class="chip-btn decision-pick" data-fills="decision-type" data-i18n="decision_type_pick_invest">Invest or pass</button>
-                    <button type="button" class="chip-btn decision-pick" data-fills="decision-type" data-i18n="decision_type_pick_license">License the technology</button>
-                    <button type="button" class="chip-btn decision-pick" data-fills="decision-type" data-i18n="decision_type_pick_pilot">Start a pilot</button>
-                    <button type="button" class="chip-btn decision-pick" data-fills="decision-type" data-i18n="decision_type_pick_spinout">Form a spin-out</button>
+                    <button type="button" class="chip-btn decision-pick" aria-pressed="false" data-fills="decision-type" data-i18n="decision_type_pick_invest">Invest or pass</button>
+                    <button type="button" class="chip-btn decision-pick" aria-pressed="false" data-fills="decision-type" data-i18n="decision_type_pick_license">License the technology</button>
+                    <button type="button" class="chip-btn decision-pick" aria-pressed="false" data-fills="decision-type" data-i18n="decision_type_pick_pilot">Start a pilot</button>
+                    <button type="button" class="chip-btn decision-pick" aria-pressed="false" data-fills="decision-type" data-i18n="decision_type_pick_spinout">Form a spin-out</button>
                   </div>
                 </div>
               </div>
@@ -618,7 +748,7 @@
           <button type="button" class="btn btn--secondary" id="compare-back" data-i18n="compare_back">Back to run A</button>
         </div>
       </header>
-      <div class="pane__body" id="compare-body"></div>
+      <div class="pane__body compare" id="compare-body"></div>
     </section>
 
   </main>
@@ -722,17 +852,17 @@
     <!-- Bring-your-own-key: an open alternative to the code, billed to
          whoever fills this in rather than to the deployment owner. -->
     <form id="byok-form" hidden>
-      <h2 class="gate__title" data-i18n="byok_title">Use your own API keys</h2>
+      <!-- Takes the cursor when the form opens with the fields for a new set
+           folded away (an account with saved keys): no field is shown then. -->
+      <h2 class="gate__title" id="byok-title" tabindex="-1" data-i18n="byok_title">Use your own API keys</h2>
       <!-- Shown instead of the sentence below once an account is signed in:
            the same promise, addressed to the account. -->
       <p class="gate__sub" id="byok-account-note" hidden></p>
       <p class="gate__sub" id="byok-sub" data-i18n="byok_sub">Your keys are sent to this server and the selected providers only for operations you start. They are not written to run artifacts and disappear from this browser when the tab closes.</p>
-      <!-- Filled from /health when this form is opened, because the number is
-           the deployment's, not the page's. The sentence above is about the
-           keys; this one is about extracted metadata and the assessment, which
-           do stay on the server. Keeping them apart is the point: one line
-           covering both was read as a promise it did not make. -->
-      <p class="gate__sub gate__sub--retention" id="byok-retention"></p>
+      <!-- How long papers and assessments are kept is not said here any more:
+           this form is about keys. The landing says it before sign-up, in its
+           questions, and the privacy page says it with everything else that
+           is stored. -->
       <!-- What is saved with the account, for an account that has saved
            keys (app.js paintSavedKeys): never a key, only which provider and
            model and the last four characters of each. -->
@@ -761,6 +891,13 @@
           <button type="button" class="gate__switch" id="byok-saved-check-now" data-i18n="byok_saved_check">Check these keys</button>
           <button type="button" class="gate__switch" id="byok-saved-remove" data-i18n="byok_saved_remove">Remove saved keys</button>
         </div>
+        <!-- Opens the fields for a new set, which are folded away while keys
+             are saved (#byok-new below; app.js showKeys). They open on the
+             saved provider, model and search service. Last in the block and
+             on a row of its own, so the fields appear right under it. -->
+        <div class="gate__saved-replace">
+          <button type="button" class="btn btn--secondary" id="byok-replace" aria-controls="byok-new" aria-expanded="false" data-i18n="byok_replace">Replace keys</button>
+        </div>
       </div>
       <!-- Keys an account chose not to save: they are in this tab, and until
            2026-11-15 the form opened empty over them, with no way to see
@@ -771,6 +908,14 @@
           <button type="button" class="gate__switch" id="byok-tab-clear" data-i18n="byok_tab_clear">Clear keys from this tab</button>
         </div>
       </div>
+      <!-- Everything a new set of keys is typed into and submitted with, as
+           one block. An account that has saved keys opens this form to check
+           them, change their model or remove them far more often than to type
+           a new set, and until 2026-11-18 these fields stood open under the
+           saved ones, on the first provider in the list whatever was saved.
+           app.js hides the block while keys are saved and "Replace keys"
+           shows it. It adds no box of its own (display: contents). -->
+      <div id="byok-new">
       <select class="gate__input" id="byok-provider" aria-label="LLM provider" data-i18n-aria-label="aria_llm_provider">
         <option value="deepseek">DeepSeek</option>
         <option value="qwen">Qwen (Alibaba Model Studio)</option>
@@ -860,6 +1005,7 @@
            saving them. Never a dead end: the same keys can be saved anyway. -->
       <p class="gate__error" id="byok-error" role="alert" hidden></p>
       <button type="submit" class="btn btn--primary" id="byok-submit" data-i18n="byok_submit">Start</button>
+      </div>
       <button type="button" class="gate__switch" id="byok-to-gate" data-i18n="byok_have_code">I have an access code</button>
       <button type="button" class="gate__switch" id="byok-skip" data-i18n="byok_skip" hidden>Add keys later</button>
     </form>

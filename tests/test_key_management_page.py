@@ -415,3 +415,58 @@ def test_the_run_button_keeps_to_the_right_when_the_bar_wraps():
     start = INDEX.index('class="composer__bar"')
     inside = INDEX[start:INDEX.index("</form>", start)]
     assert inside.rindex('class="send-btn') > inside.rindex("composer__spacer")
+
+
+# ── With keys saved, the fields for a new set are folded away ──────────────
+
+# Everything a new set of keys is typed into or submitted with.
+NEW_SET = ("byok-provider", "byok-llm-key", "byok-model", "byok-model-kind", "byok-model-note", "byok-model-chips",
+           "byok-search", "byok-search-key", "byok-save-row", "byok-links", "byok-key-guide", "byok-error", "byok-submit")
+# What the form shows of the saved set and of the tab's, and the ways out of it.
+ALWAYS = ("byok-title", "byok-account-note", "byok-sub", "byok-saved", "byok-tab", "byok-to-gate", "byok-skip")
+
+
+def test_the_fields_for_a_new_set_are_one_block_that_replace_keys_opens(page, strings):
+    """Seen 2026-11-15 and again 2026-11-18: an account with Qwen keys saved
+    opened "API keys" to an empty form for new keys under the saved ones, its
+    provider on DeepSeek. The fields are one block now, folded away while
+    keys are saved (app.js showKeys), and one button in the saved block opens it."""
+    _, by_id = page
+    english, chinese, _ = strings
+    block = by_id["byok-new"]
+    assert "byok-form" in block["within"] and "hidden" not in block["attrs"], "open in the markup: a visitor with no account types here"
+    for name in NEW_SET:
+        assert "byok-new" in by_id[name]["within"], name
+    for name in ALWAYS:
+        assert "byok-new" not in by_id[name]["within"], name
+    # The wrapper adds no box of its own, so the form's spacing is what it was.
+    assert re.search(r"#byok-new \{ display: contents; \}", CSS)
+    replace = by_id["byok-replace"]
+    assert replace["tag"] == "button" and replace["attrs"]["type"] == "button", "Not a submit"
+    assert "byok-saved" in replace["within"], "It belongs to the saved set it replaces"
+    assert replace["attrs"]["aria-controls"] == "byok-new" and replace["attrs"]["aria-expanded"] == "false"
+    assert replace["attrs"]["data-i18n"] == "byok_replace"
+    assert (english("byok_replace"), chinese("byok_replace")) == ("Replace keys", "更换密钥")
+    # The saved set's summary names the button, where it used to point at fields "below".
+    assert "Replace keys" in english("byok_saved_summary") and "below" not in english("byok_saved_summary")
+    assert "更换密钥" in chinese("byok_saved_summary") and "下方" not in chinese("byok_saved_summary")
+    # The card's heading takes the cursor when no field is shown to take it.
+    assert by_id["byok-title"]["attrs"].get("tabindex") == "-1"
+
+
+def test_the_key_form_no_longer_states_the_retention_period(page, strings):
+    """A sentence about how long papers and assessments are kept stood in the
+    key form since it was the only place a visitor met before signing up. The
+    landing says it now, before sign-up, in its questions, and the privacy
+    page says it always; in a form about keys it was one more paragraph
+    between the reader and the fields (the maintainer's call, 2026-11-18)."""
+    _, by_id = page
+    _, _, text = strings
+    app = (JS / "app.js").read_text(encoding="utf-8")
+    assert "byok-retention" not in by_id and "byok-retention" not in INDEX
+    assert "showByokRetention" not in app and "#byok-retention" not in app
+    # The sentence itself is still the landing's, in both languages.
+    assert text.count("    byok_retention: ") == 2 and text.count("    byok_retention_forever: ") == 2
+    assert 'id="landing-retention"' in INDEX
+    privacy = (WEB / "privacy.html").read_text(encoding="utf-8")
+    assert "data-retention=" in privacy, "the period is still stated where what is stored is listed"

@@ -1039,6 +1039,100 @@ const scenarios = {
       }
       assert.equal(button.disabled, false);
       f.get('#byok-skip').onclick(); await gate;
+    } else if (kind === 'folded') {
+      // An account that has saved keys opens the form to change something
+      // about them far more often than to type a new set. Until 2026-11-18
+      // the fields for a new set stood open under the saved ones, on DeepSeek
+      // whatever was saved. They are folded away now behind "Replace keys",
+      // and open on the saved provider, model and search service.
+      const fresh = f.get('#byok-new'), replace = f.get('#byok-replace'), title = f.get('#byok-title');
+      const said = {}, focused = [], heard = [];
+      // The page announces a filled field as typing or choosing would; this stand-in records it.
+      f.run('globalThis.Event = function Event(type, init) { this.type = type; this.bubbles = init?.bubbles === true; }');
+      replace.setAttribute = (name, value) => { said[name] = String(value); };
+      for (const id of ['#byok-title', '#byok-llm-key', '#byok-replace']) f.get(id).focus = () => { focused.push(id); };
+      for (const id of ['#byok-provider', '#byok-search', '#byok-model']) {
+        f.get(id).dispatchEvent = (event) => { heard.push([id, event.type, event.bubbles, f.get(id).value]); };
+      }
+      account(true);
+      const gate = f.run('showGate(null, { keysOnly: true })');
+      assert.equal(fresh.hidden, true, 'Folded at once: the account said at sign-in that it has keys');
+      assert.deepEqual(focused, ['#byok-title'], 'The cursor is not put in a key field that is not shown');
+      assert.equal(shown.hidden, true, 'What is saved is listed when the server has said');
+      await turn(); f.respond(0, summary); await turn();
+      assert.equal(shown.hidden, false);
+      assert.equal(fresh.hidden, true, 'Still folded: the saved set and what can be done with it');
+      assert.equal(replace.hidden, false);
+      assert.equal(said['aria-expanded'], 'false');
+      assert.deepEqual(heard, [], 'Nothing is filled in while the fields are folded away');
+
+      replace.onclick();
+      assert.equal(fresh.hidden, false, 'One press opens the fields for a new set');
+      assert.equal(said['aria-expanded'], 'true');
+      assert.deepEqual([f.get('#byok-provider').value, f.get('#byok-search').value, f.get('#byok-model').value],
+        ['qwen', 'tavily', 'qwen3.8-27b'], 'They start on what is saved, not on the first provider in the list');
+      assert.deepEqual(heard, [['#byok-provider', 'change', true, 'qwen'], ['#byok-search', 'change', true, 'tavily'],
+        ['#byok-model', 'input', true, 'qwen3.8-27b']],
+        'Each is told as a choice would be, the provider before its model: the notes under the fields follow');
+      assert.equal(f.get('#byok-llm-key').value, '', 'No key is filled in: the page has none');
+      assert.equal(f.get('#byok-search-key').value, '');
+      assert.equal(focused.at(-1), '#byok-llm-key', 'The cursor goes to the first thing to type');
+      // Typed something, then thought better of it: folded again, and the next opening starts from what is saved.
+      f.get('#byok-provider').value = 'openai'; f.get('#byok-model').value = 'gpt-4o'; f.get('#byok-llm-key').value = 'typed';
+      replace.onclick();
+      assert.equal(fresh.hidden, true);
+      assert.equal(said['aria-expanded'], 'false');
+      assert.equal(f.get('#byok-llm-key').value, '', 'A key typed and put away does not wait in a hidden field');
+      replace.onclick();
+      assert.deepEqual([f.get('#byok-provider').value, f.get('#byok-model').value], ['qwen', 'qwen3.8-27b']);
+      // Saving a new set from the opened fields is the submit it always was.
+      fill();
+      const saving = send(); await turn();
+      assert.equal(f.requests.at(-1).options.method, 'PUT');
+      f.respond(f.requests.length - 1, summary); await saving; await gate;
+
+      // Removed on another device since sign-in: the server says so, and the fields are what is left to show.
+      const second = f.run('showGate(null, { keysOnly: true })');
+      assert.equal(fresh.hidden, true);
+      await turn(); f.respond(f.requests.length - 1, { saved: false }); await turn();
+      assert.equal(fresh.hidden, false, 'Nothing is saved: the form for a new set, as for a new account');
+      assert.equal(shown.hidden, true);
+      assert.equal(f.run('accountKeysSaved'), false);
+      f.get('#byok-skip').onclick(); await second;
+
+      // What is saved could not be read: the fields open, since a card with nothing on it helps nobody.
+      f.run('accountKeysSaved = true');
+      const third = f.run('showGate(null, { keysOnly: true })');
+      assert.equal(fresh.hidden, true);
+      await turn(); f.respond(f.requests.length - 1, { detail: 'fixture' }, 500); await turn();
+      assert.equal(fresh.hidden, false);
+      assert.equal(shown.hidden, true);
+      assert.equal(f.run('accountKeysSaved'), true, 'An answer that failed is not an answer that nothing is saved');
+      f.get('#byok-skip').onclick(); await third;
+
+      // Removing the saved set from the form leaves the fields for a new one.
+      const fourth = f.run('showGate(null, { keysOnly: true })');
+      await turn(); f.respond(f.requests.length - 1, summary); await turn();
+      assert.equal(fresh.hidden, true);
+      const removing = f.get('#byok-saved-remove').onclick();
+      await turn(); answered(f.requests.length - 1); await removing;
+      assert.equal(fresh.hidden, false);
+      assert.equal(shown.hidden, true);
+      f.get('#byok-skip').onclick(); await fourth;
+
+      // An account with nothing saved, and a visitor with no account: the fields, open, with the cursor in the first.
+      account(false);
+      focused.length = 0;
+      const fifth = f.run('showGate(null, { keysOnly: true })');
+      assert.equal(fresh.hidden, false);
+      assert.deepEqual(focused, ['#byok-llm-key']);
+      f.get('#byok-skip').onclick(); await fifth;
+      f.run('accountMode = false; authConfig = { enabled: false }');
+      focused.length = 0;
+      const sixth = f.run('showGate(null, { keysOnly: true })');
+      assert.equal(fresh.hidden, false);
+      assert.deepEqual(focused, ['#byok-llm-key']);
+      void sixth; void title;
     } else if (kind === 'tab_listed') {
       // Keys the account chose not to save are in this tab. The form opened
       // empty over them: no telling which they were, and no way to drop them.
@@ -1420,6 +1514,36 @@ const scenarios = {
     assert.equal(f.get('#compare-dialog').open, false);
     assert.equal(JSON.stringify(f.run('compared')), JSON.stringify(['20261106T000000Z-reuse', '20261105T000000Z-other']));
     assert.equal(f.requests.length, 1, 'Choosing sends nothing');
+
+    // The runs on this run's topic come first and say so. Here the run being
+    // compared is not in the list (it is past the list's end, or another
+    // account's that an administrator opened): its topic is the title on screen.
+    f.get('#run-title').textContent = '  Hyperloop for freight ';
+    const again = compare.listeners.click();
+    f.respond(1, { total: 4, runs: [
+      { run_id: '20261105T000000Z-other', state: 'completed', topic: 'the other' },
+      { run_id: '20261104T000000Z-broken', state: 'failed', topic: 'hyperloop for freight' },
+      { run_id: '20261103T000000Z-older', state: 'completed', topic: 'hyperloop for freight.', owner_label: 'ceshi' },
+      { run_id: '20261102T000000Z-oldest', state: 'completed', topic: 'HYPERLOOP for freight' },
+    ] });
+    await again;
+    const listed = f.get('#compare-choices').children.map((item) => item.children[0]);
+    assert.deepEqual(listed.map((choice) => [choice.dataset.runId.slice(-6), choice.dataset.sameTopic ?? null]),
+      [['-older', 'true'], ['oldest', 'true'], ['-other', null]],
+      'The same topic first, newest first within it; the unfinished run of that topic is still not offered');
+    const said = listed.map((choice) => choice.children[1].textContent);
+    assert.ok(said[0].startsWith('compare_pick_same · ') && said[0].endsWith(' · ceshi'), said[0]);
+    assert.ok(said[1].startsWith('compare_pick_same · '));
+    assert.ok(!said[2].includes('compare_pick_same'), 'A run on another topic is not marked');
+    // A title that is still the placeholder names no topic: the list as it came.
+    f.get('#run-title').textContent = '—';
+    const third = compare.listeners.click();
+    f.respond(2, { total: 2, runs: [
+      { run_id: '20261105T000000Z-other', state: 'completed', topic: '—' },
+      { run_id: '20261103T000000Z-older', state: 'completed', topic: 'hyperloop for freight' },
+    ] });
+    await third;
+    assert.deepEqual(f.get('#compare-choices').children.map((item) => item.children[0].dataset.sameTopic ?? null), [null, null]);
   },
   async run_reuse() {
     // A finished run offers its topic again and its address; neither sends anything.

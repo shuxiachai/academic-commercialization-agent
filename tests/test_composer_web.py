@@ -90,7 +90,7 @@ def test_an_account_saving_keys_is_told_what_the_providers_said(outcome):
                                   "check_failed", "check_limited", "check_unreachable", "check_gone",
                                   "tab_listed", "needed", "needed_gate", "dismiss",
                                   "model_ok", "model_enter", "model_checked", "model_invalid", "model_empty", "model_failed",
-                                  "model_unreachable", "model_gone", "model_conflict"])
+                                  "model_unreachable", "model_gone", "model_conflict", "folded"])
 def test_an_accounts_keys_are_saved_with_the_account(kind):
     """An account's keys lived in the browser, so the key form came up again
     in another browser, after signing out, and whenever the browser had

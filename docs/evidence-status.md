@@ -198,7 +198,9 @@ production incident rates or improved report accuracy. See the
 The landing page and the keys form say what one assessment cost in model
 fees, per provider. They say it only for a provider with a figure in this
 table, and `tests/test_run_costs.py` holds every sum on the page to a row
-here. These are sums recorded for particular runs at the prices in the
+here. Since 2026-11-18 the landing shows it as a table of its own, a row
+for each row here with the model and the day it was measured, and the keys
+form keeps to one line. These are sums recorded for particular runs at the prices in the
 project's table on that day, not a quote; a provider bills by its own meter.
 
 | Provider | Model | Measured | Runs | Model fees per run | Said on the page as | Source |

@@ -279,9 +279,8 @@ def _byok_journey(browser, scratch: Page, base: str, scheme: str, log: dict) -> 
         keys.press("Space")
         expect(page.locator("#byok-form")).to_be_visible()
         expect(page.locator("#byok-llm-key")).to_be_focused()
-        # The retention sentence comes from /health after the form opens and
-        # moves the fields down; measure once it is there.
-        expect(page.locator("#byok-retention")).to_contain_text("30")
+        # Nothing arrives after the form opens to move the fields down: the
+        # retention sentence that used to, from /health, is the landing's now.
         byok_stops = audit.cycle(inside="#gate")
         keys.type("fixture-llm-key")
         keys.press("Tab")
