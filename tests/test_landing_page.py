@@ -56,8 +56,14 @@ SCENARIOS = (
     "landing_before_the_check_answers", "a_button_pressed_before_the_answer_opens_its_form_after_it",
     "the_last_press_before_the_answer_is_the_one_kept", "a_press_before_the_answer_where_sign_up_is_closed",
     "the_link_from_a_sample_waits_for_the_answer_too", "early_landing_gives_way_to_an_open_deployment",
-    "early_landing_gives_way_to_the_code_card", "early_landing_gives_way_when_the_check_cannot_be_reached",
+    "early_landing_gives_way_to_the_code_card",
     "keys_in_this_tab_never_see_the_landing", "unreadable_keys_never_see_the_landing",
+    # A boot whose access check got no answer about the visitor says so
+    # (tests/test_boot_failure_notice.py).
+    "a_boot_told_to_wait_says_so_and_can_be_tried_again", "a_boot_that_cannot_reach_the_server_says_so",
+    "a_boot_the_server_could_not_answer_says_so", "a_signed_in_boot_told_to_wait_keeps_the_session",
+    "a_shared_link_whose_boot_was_told_to_wait_says_so",
+    "a_boot_that_broke_in_the_page_is_not_blamed_on_the_server",
     # A sample's scorecard, drawn by the page, where a picture of one used to be.
     "preview_that_cannot_be_read_is_a_quiet_line", "a_scorecard_that_arrives_after_the_landing_left_is_not_drawn",
     # The card's sign-in mode, without what only creating an account needs.
