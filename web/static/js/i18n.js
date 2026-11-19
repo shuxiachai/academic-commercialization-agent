@@ -319,7 +319,8 @@ const STRINGS = {
     tab_report: "Report",
     // A run that stopped after writing: the writer's text, named for what it is.
     tab_draft: "Draft (not reviewed or scored)",
-    draft_note: "This is an unreviewed, unscored draft. The run stopped before its report was finished: this is what the report writer wrote, before the review that checks its citations and claims, and with no score. Do not treat it as the assessment. Resuming the run finishes the remaining steps and reuses this text.",
+    draft_note: "This is an unreviewed, unscored draft. The run stopped before its report was finished: this is what the report writer wrote, before the review that checks its citations and claims, and with no score. Do not treat it as the assessment.",
+    draft_note_owner: "This is an unreviewed, unscored draft. The run stopped before its report was finished: this is what the report writer wrote, before the review that checks its citations and claims, and with no score. Do not treat it as the assessment. Resuming the run finishes the remaining steps and reuses this text.",
     tab_sources: "Sources",
     tab_grounding: "Citation check",
     // One tab for the three checks of a finished report (result.js renderChecks).
@@ -1158,7 +1159,8 @@ const STRINGS = {
     tab_score: "评分卡",
     tab_report: "报告",
     tab_draft: "草稿（未经审稿和打分）",
-    draft_note: "这是一份未经审稿和打分的草稿。这次运行在报告完成前停下了：下面是报告撰写这一步写出的文字，还没有经过核对引用和论断的审查，也没有评分。请不要把它当作评估结论。续跑会完成剩下的步骤，并沿用这份文字。",
+    draft_note: "这是一份未经审稿和打分的草稿。这次运行在报告完成前停下了：下面是报告撰写这一步写出的文字，还没有经过核对引用和论断的审查，也没有评分。请不要把它当作评估结论。",
+    draft_note_owner: "这是一份未经审稿和打分的草稿。这次运行在报告完成前停下了：下面是报告撰写这一步写出的文字，还没有经过核对引用和论断的审查，也没有评分。请不要把它当作评估结论。续跑会完成剩下的步骤，并沿用这份文字。",
     tab_sources: "来源",
     tab_grounding: "引用核查",
     tab_checks: "自动检查",

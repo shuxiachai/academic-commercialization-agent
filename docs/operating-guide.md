@@ -1471,6 +1471,23 @@ evidence stage. In the history a resumed run keeps its row and the runs it
 continues are folded under it (`resumed_from` on each entry of
 `GET /api/runs`).
 
+A resume recorded before that change keeps its record, and the page reads it
+with care: seconds recorded under a stage the run took whole from the
+earlier run cannot have been spent there, so the timing fold and the stage
+list show them under the first step the run did run, which its own record
+names (`recovery.next_node`). The first stage's seconds, the run starting
+up, are left where they are, and a record that does not name a first step
+is shown as it stands.
+
+The other direction is said too. A run that stopped and was later resumed
+shows "This run was resumed later" with the way to the run that continued
+it (`continued_by` on both run reads: the newest run resumed from it and
+recorded under the same owner). Naming a run hands over its link, so it is
+told only to a caller who may modify the run, its owner or an
+administrator, never to a reader who holds the link alone or of a run with
+no owner on record. For the same reader the draft's notice leaves out the
+sentence about resuming, which they cannot do.
+
 ### Email verification
 
 Give the service a way to send email and a new account must prove its

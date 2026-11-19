@@ -149,7 +149,7 @@ def test_the_tooltip_says_whose_runs_and_how_many(page):
 
 def test_the_header_gives_the_estimate_the_runs_own_model():
     assert "runView.etaTitle(eta, llm_model)" in APP_JS
-    assert re.search(r"paintHeader\(\{[^}]*\bllm_model, lineage, run_id,", APP_JS, re.S)
+    assert re.search(r"paintHeader\(\{[^}]*\bllm_model, lineage, run_id, continued_by,", APP_JS, re.S)
 
 
 # ── A resumed run's stage list ──────────────────────────────────────────────
@@ -218,6 +218,86 @@ def test_a_reused_row_is_drawn_with_its_words_in_place_of_a_time(page):
     assert english[0] == ["reused", "stage__meta stage__meta--reused", "reused from the earlier run"]
     assert english[4] == ["active", "stage__meta", "0:40"]
     assert chinese[3] == ["reused", "stage__meta stage__meta--reused", "沿用上次结果"]
+
+
+# What a worker before 2026-11-19 recorded for a resume that only scored: the
+# scorer's 3 min 33 s under the evidence phase (production, 2026-11-18).
+OLD_RESUME = [{"stage": SOURCES, "duration_seconds": 0, "active": False},
+              {"stage": EVIDENCE, "duration_seconds": 213, "active": False},
+              {"stage": SCORING, "duration_seconds": 0, "active": False}]
+
+
+def test_an_old_resumes_time_is_shown_under_the_step_it_ran(page):
+    english, chinese, as_recorded = page(
+        [EN, "timingSummary", [OLD_RESUME, ALL_BUT_SCORING]], [ZH, "timingSummary", [OLD_RESUME, ALL_BUT_SCORING]],
+        [EN, "timingSummary", [OLD_RESUME]])
+    assert english == "Sources 0:00 · Scoring 3:33"
+    assert chinese == "来源 0:00 · 评分 3:33"
+    # Without the run's own word for what it reused, the record is shown as it stands.
+    assert as_recorded == "Sources 0:00 · Evidence 3:33 · Scoring 0:00"
+    rows = page([EN, "stages", ["Done", "completed", OLD_RESUME, ALL_BUT_SCORING]])[0]
+    assert [row[1:3] for row in rows] == [["reused", None]] * 4 + [["done", 213]]
+
+
+def test_an_old_resume_from_the_writer_on_shows_the_writers_time_under_the_report(page):
+    recovery = {"state": "reused", "source_run_id": "p", "next_node": "writer",
+                "reused_nodes": ["retrieval", "academic", "patent", "market"]}
+    timings = [{"stage": SOURCES, "duration_seconds": 2}, {"stage": EVIDENCE, "duration_seconds": 300},
+               {"stage": REVIEW, "duration_seconds": 100}, {"stage": SCORING, "duration_seconds": 40}]
+    assert page([EN, "timingSummary", [timings, recovery]])[0] == "Sources 0:02 · Report 5:00 · Review 1:40 · Scoring 0:40"
+
+
+@pytest.mark.parametrize(("recovery", "why"), [
+    # The evidence stage ran here in part: its label was right.
+    ({"state": "reused", "source_run_id": "p", "next_node": "market", "reused_nodes": ["retrieval", "academic", "patent"]},
+     "a stage reused only in part ran here"),
+    # The record does not say where the run began, so nothing says where the seconds belong.
+    ({"state": "reused", "source_run_id": "p", "next_node": None,
+      "reused_nodes": ["retrieval", "academic", "patent", "market", "writer", "reviewer"]}, "no first step on record"),
+    ({"state": "reused", "source_run_id": "p",
+      "reused_nodes": ["retrieval", "academic", "patent", "market", "writer", "reviewer"]}, "no first step on record"),
+    # A record at odds with itself: the step it names is one it says it reused.
+    ({"state": "reused", "source_run_id": "p", "next_node": "writer",
+      "reused_nodes": ["retrieval", "academic", "patent", "market", "writer", "reviewer"]}, "the first step is itself reused"),
+    ({"state": "cold_start", "source_run_id": "p", "next_node": "academic", "reused_nodes": []}, "nothing was reused"),
+    (None, "not a resume"),
+])
+def test_seconds_stay_where_they_were_recorded_when_nothing_says_otherwise(page, recovery, why):
+    assert page([EN, "timingSummary", [OLD_RESUME, recovery]])[0] == "Sources 0:00 · Evidence 3:33 · Scoring 0:00", why
+
+
+def test_a_resume_recorded_since_the_fix_reads_as_it_was_recorded(page):
+    timings = [{"stage": SOURCES, "duration_seconds": 4}, {"stage": SCORING, "duration_seconds": 224}]
+    assert page([EN, "timingSummary", [timings, ALL_BUT_SCORING]])[0] == "Sources 0:04 · Scoring 3:44"
+    # The run's own start-up, under the first stage, is never moved.
+    began = [{"stage": SOURCES, "duration_seconds": 9}, {"stage": SCORING, "duration_seconds": 30}]
+    assert page([EN, "timingSummary", [began, ALL_BUT_SCORING]])[0] == "Sources 0:09 · Scoring 0:30"
+    # Seconds shown under the step it ran are added to what that step already has, not put in its place.
+    both = [{"stage": SOURCES, "duration_seconds": 0}, {"stage": EVIDENCE, "duration_seconds": 213},
+            {"stage": SCORING, "duration_seconds": 12}]
+    assert page([EN, "timingSummary", [both, ALL_BUT_SCORING]])[0] == "Sources 0:00 · Scoring 3:45"
+
+
+def test_the_timing_fold_is_given_the_runs_recovery_record():
+    assert "timingEl.textContent = runView.timingSummary(stage_timings, recovery);" in APP_JS
+
+
+# ── The run a resume continued ─────────────────────────────────────────────
+
+
+def test_a_run_that_was_resumed_later_says_so_with_the_way_there(page):
+    assert page([EN, "headerLabel", ["continued_note"]], [EN, "headerLabel", ["continued_open"]],
+                [ZH, "headerLabel", ["continued_note"]], [ZH, "headerLabel", ["continued_open"]]) == [
+        "This run was resumed later.", "Open the run that continued it", "这次运行后来已被续跑。", "打开接着它做的那次运行"]
+    assert 'id="run-continued" hidden' in INDEX
+    assert INDEX.index('id="run-lineage"') < INDEX.index('id="run-continued"') < INDEX.index('id="run-outcome"')
+    start = APP_JS.index("function paintContinued(runId) {")
+    body = APP_JS[start:APP_JS.index("\n}\n", start)]
+    assert 'const known = typeof runId === "string" && runId !== "";' in body
+    assert "line.hidden = !known;" in body
+    assert "open.onclick = known ? () => openRun(runId) : null;" in body
+    assert "paintContinued(continued_by);" in APP_JS
+    assert re.search(r"paintHeader\(\{[^}]*\bllm_model, lineage, run_id, continued_by,", APP_JS, re.S)
 
 
 def test_the_page_hands_the_stage_list_the_runs_recovery_record():
@@ -437,6 +517,11 @@ def test_the_draft_is_named_for_what_it_is_in_both_languages(page):
     assert tab_en == "Draft (not reviewed or scored)" and tab_zh == "草稿（未经审稿和打分）"
     assert note_en.startswith("This is an unreviewed, unscored draft.") and "Do not treat it as the assessment." in note_en
     assert note_zh.startswith("这是一份未经审稿和打分的草稿。")
+    # Said to a reader: what the text is, and nothing about resuming, which they cannot do.
+    assert "Resum" not in note_en and "续跑" not in note_zh
+    owner_en, owner_zh = page([EN, "label", ["draft_note_owner"]], [ZH, "label", ["draft_note_owner"]])
+    assert owner_en == note_en + " Resuming the run finishes the remaining steps and reuses this text."
+    assert owner_zh == note_zh + "续跑会完成剩下的步骤，并沿用这份文字。"
     # "No report" is said only where there is no draft either.
     assert "produced no report" in none_en and "没有生成报告" in none_zh
     assert "produced no report" not in with_en and "没有生成报告" not in with_zh
@@ -448,7 +533,9 @@ def test_the_draft_tab_is_drawn_from_the_draft_artifact_under_its_notice():
     assert 'api.getArtifact(runId, "draft")' in RESULT_JS
     start = RESULT_JS.index('} else if (id === "draft") {')
     body = RESULT_JS[start:RESULT_JS.index('} else if (id === "checks") {', start)]
-    assert body.index('t("draft_note")') < body.index("renderMarkdown(md)"), "The notice is read before the text"
+    assert body.index('el("p", "draft-note"') < body.index("renderMarkdown(md)"), "The notice is read before the text"
+    # A reader of someone else's run cannot resume it, and is not told to.
+    assert 't(progress.viewer_can_modify === false ? "draft_note" : "draft_note_owner")' in body
     # A run with a draft and no report must not ask for the report it does not have.
     assert "(draft ? draftOnce() : reportOnce()).then(citationIndex)" in RESULT_JS
     assert 't(hasDraft(progress) ? "rel_no_report_draft" : "rel_no_report")' in RESULT_JS
@@ -486,9 +573,9 @@ def test_every_new_string_is_in_both_languages():
                 "eta_title", "eta_title_others", "eta_title_any", "stage_reused", "lineage_reused", "lineage_reused_all",
                 "lineage_cold", "lineage_earlier", "lineage_sep", "lineage_total", "lineage_total_running",
                 "lineage_usage", "lineage_usage_before", "lineage_usage_none", "lineage_cost", "lineage_at_least",
-                "lineage_missing", "help_run_id", "help_copy", "help_copied", "help_copy_failed", "help_contact",
+                "lineage_missing", "continued_note", "continued_open", "help_run_id", "help_copy", "help_copied", "help_copy_failed", "help_contact",
                 "help_no_contact"):
         assert english.count(f"    {key}: ") == 1 and chinese.count(f"    {key}: ") == 1, key
-    for key in ("tab_draft", "draft_note", "rel_no_report_draft", "runs_earlier_one", "runs_earlier_many",
+    for key in ("tab_draft", "draft_note", "draft_note_owner", "rel_no_report_draft", "runs_earlier_one", "runs_earlier_many",
                 "run_earlier_row", "run_time", "run_time_one"):
         assert STRINGS.count(f"    {key}: ") == 2, key

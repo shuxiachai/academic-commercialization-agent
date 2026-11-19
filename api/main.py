@@ -1001,6 +1001,26 @@ def _viewer_can_modify(run_id: str, http_request: Request) -> bool | None:
         return False
 
 
+def _continued_by(run_id: str, state: str, may_modify: bool | None) -> str | None:
+    """The run that continued this one, for a caller who may be told.
+
+    Naming a run is handing over its link, and a link is a read capability.
+    The run a resume produced is therefore named only to whoever may modify
+    the run it continues: its owner or an administrator. A reader holding
+    the link of a failed run (a colleague it was shared with, say) is not
+    handed the finished report of its resume by that. Not to a run with no
+    owner on record either: there the server cannot say who is asking.
+    Only a run that stopped can have been resumed, and a history that
+    cannot be read is no answer, never a failed read of the run itself.
+    """
+    if may_modify is not True or state not in {"failed", "cancelled", "timeout"}:
+        return None
+    try:
+        return runs.continued_by(run_id)
+    except OSError:
+        return None
+
+
 def _authorize_run_mutation(run_id: str, http_request: Request) -> None:
     """Require proof of ownership before mutating or restarting a run.
 
@@ -2653,7 +2673,9 @@ def get_run(run_id: str, http_request: Request) -> RunStatus:
         state = runs.get_state(run_id)
     except runs.RunNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return RunStatus(**state, viewer_can_modify=_viewer_can_modify(run_id, http_request))
+    may_modify = _viewer_can_modify(run_id, http_request)
+    return RunStatus(**state, viewer_can_modify=may_modify,
+                     continued_by=_continued_by(run_id, state["state"], may_modify))
 
 
 @app.delete(
@@ -2867,10 +2889,12 @@ def get_progress(run_id: str, http_request: Request, since: int = Query(default=
     except runs.RunNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
+    may_modify = _viewer_can_modify(run_id, http_request)
     return RunProgress(
         run_id=run_id,
         # About the caller, not the run: computed here, never stored with it.
-        viewer_can_modify=_viewer_can_modify(run_id, http_request),
+        viewer_can_modify=may_modify,
+        continued_by=_continued_by(run_id, state["state"], may_modify),
         state=state["state"],
         status_record_state=state.get("status_record_state"),
         audit_metadata_unreadable=state.get("audit_metadata_unreadable", []),

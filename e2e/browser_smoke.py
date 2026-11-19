@@ -1287,6 +1287,11 @@ def _exercise_browser(
             expect(page.locator("#run-body")).not_to_contain_text("produced no report")
             expect(page.locator("#run-help-id")).to_have_text(stopped_id)
             expect(page.locator("#run-lineage")).to_be_hidden()
+            # This reader holds someone else's run by its link: they cannot
+            # resume it and are not told to, and are not handed the run that
+            # continued it either.
+            expect(draft_note).not_to_contain_text("Resuming the run")
+            expect(page.locator("#run-continued")).to_be_hidden()
             # A draft is read, not exported or compared: no report download is offered for it.
             expect(page.locator(f'#run-actions a[href$="/api/runs/{stopped_id}/report.pdf"]')).to_have_count(0)
 

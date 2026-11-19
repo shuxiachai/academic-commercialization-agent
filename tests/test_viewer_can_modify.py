@@ -175,4 +175,8 @@ def test_the_mutation_guard_and_the_reads_share_one_rule():
     reads = source[source.index("def _viewer_can_modify("):]
     reads = reads[:reads.index("\n\n\n")]
     assert "_run_mutation_verdict(run_id, http_request)" in reads
-    assert source.count("viewer_can_modify=_viewer_can_modify(run_id, http_request)") == 2
+    # Each read asks once and reports what it was told.
+    assert source.count("may_modify = _viewer_can_modify(run_id, http_request)") == 2
+    assert source.count("viewer_can_modify=may_modify") == 2
+    # Who is told which run continued this one hangs on that same answer, not on a rule of its own.
+    assert source.count('continued_by=_continued_by(run_id, state["state"], may_modify)') == 2

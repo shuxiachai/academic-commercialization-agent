@@ -151,3 +151,25 @@ behind every figure so that a reader can weigh it.
   them instead of counting down.
 - Seen in a real browser on synthetic runs only (the browser smoke and a
   local preview); not yet seen on production.
+
+## Seen on production after the deploy, and three follow-ups
+
+With the maintainer's consent the failed run and its resume were opened by
+their links on 2026-11-19, signed out, with GET requests only. The resume
+read "In all: 29:19 (3:48 here + 25:31 before) · at least 176.5k tokens
+(35.3k here + at least 141.2k before)", and its link opened the failed run;
+the failed run opened on its draft, under the notice, with its run ID and the
+operator's contact; at a phone's width it opened at the top. Not seen: the
+history fold and the line about a run in progress, which need an account.
+
+Three things seen there were changed afterwards:
+
+- The resume's timing fold still read "Evidence 3:33": its record predates
+  the stage fix and is not rewritten. A stage the run took whole from the
+  earlier run ran nothing in it, so the page now shows such seconds under
+  the first step the run's own record says it ran ("Scoring 3:33").
+- The failed run did not say it had been resumed. It now does, with the way
+  to the run that continued it, for whoever may modify it; a reader holding
+  only its link is not handed another run by that.
+- The draft's notice told every reader that resuming reuses the text. A
+  reader of someone else's run cannot resume it and is no longer told to.

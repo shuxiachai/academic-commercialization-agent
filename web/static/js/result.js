@@ -1874,7 +1874,9 @@ export async function render(container, runId, progress) {
         panel.innerHTML = "";
         // Above the text, not after it: nobody should read a paragraph of
         // this as the assessment's conclusion before learning what it is.
-        panel.append(el("p", "draft-note", t("draft_note")));
+        // That resuming reuses the text is said to whoever can resume: a
+        // reader of someone else's run was told to do what they cannot.
+        panel.append(el("p", "draft-note", t(progress.viewer_can_modify === false ? "draft_note" : "draft_note_owner")));
         const article = el("article", "prose prose--draft");
         article.innerHTML = renderMarkdown(md);
         panel.append(article);

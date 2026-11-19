@@ -458,6 +458,13 @@ class RunProgress(BaseModel):
                     "(a keys-only run): its id is then the only credential, and the server cannot say whose it is. "
                     "For a page to hide what would be refused; it is not the boundary, the requests are guarded themselves.",
     )
+    continued_by: str | None = Field(
+        default=None,
+        description="The newest run that was resumed from this one, for a run that stopped. Told only to a caller "
+                    "who may modify this run (`viewer_can_modify` true): whoever is told can open that run, and a "
+                    "reader holding only this run's link is not given another. Null otherwise, and when no run "
+                    "continued this one.",
+    )
     auxiliary_usage: dict | None = None
     state: RunState
     status_record_state: Literal["absent", "readable", "unreadable"] | None = None
@@ -664,6 +671,13 @@ class RunStatus(BaseModel):
                     "this read: the same rule that guards those requests. Null when the run has no owner on record "
                     "(a keys-only run): its id is then the only credential, and the server cannot say whose it is. "
                     "For a page to hide what would be refused; it is not the boundary, the requests are guarded themselves.",
+    )
+    continued_by: str | None = Field(
+        default=None,
+        description="The newest run that was resumed from this one, for a run that stopped. Told only to a caller "
+                    "who may modify this run (`viewer_can_modify` true): whoever is told can open that run, and a "
+                    "reader holding only this run's link is not given another. Null otherwise, and when no run "
+                    "continued this one.",
     )
     auxiliary_usage: dict | None = None
     state: RunState
