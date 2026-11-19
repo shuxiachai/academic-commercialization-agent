@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 from academic_agent.report_applicability import _MARKER, add_applicability_block, applicability_for_display
-from academic_agent.report_display import report_for_display
+from academic_agent.report_display import HEADING_TRANSLATIONS, report_for_display
 from academic_agent.run_spec import DecisionContext
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -42,7 +42,7 @@ SUPPORT = {
 def test_an_orientation_brief_reads_as_sentences():
     shown = report_for_display(_delivered())
     assert shown.startswith("# Report\n\n**Scope of this assessment:** An orientation brief: no decision "
-                            "context was given, so it gives no GO/NO_GO for a particular decision-maker. "
+                            "context was given, so it gives no GO / NO-GO for a particular decision-maker. "
                             "No success criteria were given, so any thresholds in the report are the "
                             "analyst's proposals.\n\n## Executive Summary")
     assert _MARKER not in shown and "`orientation`" not in shown and "`not_established`" not in shown
@@ -50,7 +50,7 @@ def test_an_orientation_brief_reads_as_sentences():
 
 def test_the_chinese_paragraph_is_chinese():
     shown = report_for_display(_delivered("Simplified Chinese"))
-    assert "**评估范围：**方向性简报：没有提供具体决策场景，因此不针对任何决策者给出 GO/NO_GO。" in shown
+    assert "**评估范围：**方向性简报：没有提供具体决策场景，因此不针对任何决策者给出 GO / NO-GO。" in shown
     assert "未提供成功标准，报告中的决策门槛均为分析者建议。" in shown
     assert "Mode `" not in shown
 
@@ -58,7 +58,7 @@ def test_the_chinese_paragraph_is_chinese():
 def test_decision_support_says_so_and_keeps_the_caveat():
     shown = report_for_display(_delivered(**SUPPORT, success_criteria="Nitrate below 10 mg/L",
                                           success_criteria_authority="owner_approved"))
-    assert "Decision support: the context given allows a GO/NO_GO for this decision-maker" in shown
+    assert "Decision support: the context given allows a GO / NO-GO for this decision-maker" in shown
     assert "The decision-maker approved the success criteria." in shown
     assert "a cited benchmark does not establish owner approval" in shown
 
@@ -69,8 +69,8 @@ def test_a_support_label_without_the_permission_is_not_upgraded():
     forged = delivered.replace(allowed, "Actor-specific `GO/NO_GO` is not assessed.")
     assert forged != delivered
     shown = report_for_display(forged)
-    assert "No GO/NO_GO is given for a particular decision-maker." in shown
-    assert "allows a GO/NO_GO" not in shown
+    assert "No GO / NO-GO is given for a particular decision-maker." in shown
+    assert "allows a GO / NO-GO" not in shown and "GO/NO_GO" not in shown
 
 
 def test_a_permission_the_mode_does_not_carry_keeps_the_saved_words():
@@ -84,16 +84,26 @@ def test_a_permission_the_mode_does_not_carry_keeps_the_saved_words():
 
 @pytest.mark.parametrize("language", ["Japanese", "German", "French", "Spanish"])
 def test_other_languages_keep_the_saved_paragraph(language):
+    """Its words as saved, with the verdict vocabulary spelt as the page spells
+    it; the English heading under it is shown in the paragraph's language
+    (tests/test_report_headings.py)."""
     delivered = _delivered(language)
     shown = report_for_display(delivered)
-    assert shown.split("## References")[0] == applicability_for_display(delivered).split("## References")[0]
+    saved_words = applicability_for_display(delivered).split("## References")[0]
+    assert "`GO/NO_GO`" in saved_words and "`not_established`" in saved_words
+    heading = HEADING_TRANSLATIONS[language][1]
+    assert shown.split("## References")[0] == (
+        saved_words.replace("`GO/NO_GO`", "GO / NO-GO").replace("## Executive Summary", heading))
 
 
 def test_a_paragraph_outside_the_preamble_is_left_alone():
     gate = DecisionContext().gate_snapshot()
     block = add_applicability_block("", decision_gate=gate, output_language="English").strip()
     report = "# Report\n\n" + BODY + "\n\n" + block + "\n"
-    assert report_for_display(report).split("## References")[0] == report
+    # Not turned into the scope sentences and still under its marker; only the
+    # spelling every line of prose gets.
+    assert "`GO/NO_GO`" in report
+    assert report_for_display(report).split("## References")[0] == report.replace("`GO/NO_GO`", "GO / NO-GO")
 
 
 def test_the_reference_list_loses_its_doubled_stops():

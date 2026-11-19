@@ -559,11 +559,26 @@ def translate_headings(
     headings: tuple[str, ...],
     target_language_name: str,
 ) -> tuple[str, ...]:
-    """Translate a tuple of Markdown heading strings to the target language.
+    """The report's headings in the target language.
 
-    Preserves the leading # / ## markers. Returns the originals unchanged
-    if the translation result count does not match (safety fallback).
+    The required headings are a fixed set, and for every language a report
+    can be asked for on the page they come from a table
+    (report_display.HEADING_TRANSLATIONS): no call, nothing to fail. Until
+    2026-11-19 every non-English run asked the model for them. A Chinese run
+    on production (2026-11-18) had that call fail twice; the English originals
+    came back from here looking like a translation, the writer wrote under
+    them, and the report was saved with English headings over Chinese text.
+
+    The model is asked only for a language the table does not have, or for
+    headings other than the required nine. Its answer keeps the leading
+    # / ## markers. The originals come back unchanged when the call fails or
+    the count does not match; headings_untranslated() tells a caller so.
     """
+    from academic_agent.report_display import REPORT_HEADINGS, fixed_headings
+
+    fixed = fixed_headings(target_language_name)
+    if fixed is not None and tuple(headings) == REPORT_HEADINGS:
+        return fixed
     lines = "\n".join(headings)
     result = _llm_call(
         f"Translate these Markdown section headings to {target_language_name}. "
@@ -580,3 +595,18 @@ def translate_headings(
     if len(translated) != len(headings):
         return headings
     return tuple(translated)
+
+
+def headings_untranslated(headings, output_language: str) -> bool:
+    """True when a report in another language would be written under English headings.
+
+    That is the state a failed translate_headings leaves: the originals, or
+    nothing. A translation never equals the originals, so the comparison is
+    exact; it is made on the first heading, which carries no topic yet when
+    this is asked.
+    """
+    from academic_agent.report_display import REPORT_HEADINGS
+
+    if not output_language or output_language == "English":
+        return False
+    return not headings or str(headings[0]).strip() == REPORT_HEADINGS[0]

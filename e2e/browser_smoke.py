@@ -942,9 +942,9 @@ def _exercise_browser(
             expect(applicability).to_have_count(1)
             expect(applicability).to_be_visible()
             expect(applicability).to_contain_text("An orientation brief")
-            # This line is part of the report as shown (report_display.py), so it
-            # keeps the pipeline's spelling; the interface's own sentences say "GO / NO-GO".
-            expect(applicability).to_contain_text("gives no GO/NO_GO for a particular decision-maker.")
+            # This line is part of the report as shown (report_display.py),
+            # which spells it as the interface's own sentences do.
+            expect(applicability).to_contain_text("gives no GO / NO-GO for a particular decision-maker.")
             expect(applicability).to_contain_text("No success criteria were given")
             expect(applicability).not_to_contain_text("not_established")
             expect(page.locator("article.prose")).not_to_contain_text("Actor-specific GO is approved.")

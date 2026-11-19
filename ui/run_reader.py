@@ -64,6 +64,9 @@ def _run_duration(run_dir: Path) -> str:
 _REPORT_TITLE_PREFIXES = (
     "academic commercialization assessment:",
     # Common localized prefixes — strip the heading label, keep the topic
+    # The title in the fixed table (report_display.HEADING_TRANSLATIONS), then
+    # the shorter one: the model wrote them 15 and 42 times in 57 saved reports.
+    "学术成果商业化评估：", "学术成果商业化评估:", "学术成果商业化评估",
     "学术商业化评估：", "学术商业化评估:", "学术商业化评估",
     "commercialization assessment:",
 )
