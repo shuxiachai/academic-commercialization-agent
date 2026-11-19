@@ -925,6 +925,9 @@
 .decision-context__grid label {
   display: grid;
   gap: 6px;
+  /* A field beside a taller one keeps its own height and stays under its
+     label: stretched, a two-line answer sat in a box grown to its neighbour's. */
+  align-content: start;
   color: var(--text-secondary);
   font-size: var(--text-xs);
   font-weight: 600;
@@ -946,7 +949,16 @@
   transition: border-color var(--duration-fast) var(--ease),
               box-shadow var(--duration-fast) var(--ease);
 }
-.decision-context__grid textarea { resize: vertical; }
+/* As tall as its text (decision_context.js sets the height on every edit):
+   a description of four lines used to show its last three and scroll the
+   rest away. No drag handle, which would fight the script; and a ceiling,
+   past which the field scrolls, so a pasted page cannot push the run button
+   off the screen. */
+.decision-context__grid textarea {
+  resize: none;
+  max-height: min(60vh, 28em);
+  overflow-y: auto;
+}
 .decision-context__grid select {
   cursor: pointer;
   appearance: none;
@@ -970,6 +982,13 @@
 .decision-context__field { display: grid; gap: var(--space-2); align-content: start; }
 .decision-picks { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .decision-picks .chip-btn { height: 26px; font-size: var(--text-xs); }
+/* The pick whose words are in its field. Without this a pressed pick looked
+   chosen only while the pointer rested on it. */
+.decision-pick[aria-pressed="true"] {
+  background: var(--accent-subtle);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
 .decision-context__status {
   margin: 0 var(--space-4) var(--space-4);
   color: var(--text-secondary);
@@ -1597,6 +1616,11 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
 .gate__kind[hidden] { display: none; }
 .gate__saved .gate__kind { flex-basis: 100%; }
 .gate__saved-actions { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); flex-basis: 100%; }
+.gate__saved-replace { flex-basis: 100%; margin-top: var(--space-1); }
+/* The fields for a new set of keys, as one block the page can fold away
+   (app.js showKeys). No box of its own: its children are laid out by the
+   form, as they were before the block existed. */
+#byok-new { display: contents; }
 .gate__saved-actions .gate__switch { align-self: baseline; margin-top: 0; }
 #byok-links a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .gate__danger {

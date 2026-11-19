@@ -1400,10 +1400,23 @@ export function renderDecisionBrief(data, { note = t("brief_note") } = {}) {
   const wrap = el("section", "brief");
   wrap.dataset.tone = data.band.tone;
   const head = el("div", "brief__head");
-  head.append(el("span", "brief__title", t("brief_title")));
+  // The grade and the score first, as a badge in the grade's colour. They
+  // were one bold run of text after the label, at the size of the sentences
+  // under it, on a page with three cards above the tabs. The badge is three
+  // pieces for the eye; the sentence after it is the same verdict as one
+  // reading for a screen reader, and is not drawn (result.css).
+  const badge = el("div", "brief__badge");
+  badge.dataset.tone = data.band.tone;
+  badge.setAttribute("aria-hidden", "true");
+  badge.append(el("span", "brief__score tabular", data.overall.toFixed(1)), el("span", "brief__denom", "/ 100"),
+    el("span", "brief__band", data.band.name));
+  head.append(badge);
   head.append(el("strong", "brief__verdict", fillText("brief_verdict", { band: data.band.name, score: data.overall.toFixed(1) })));
+  const heading = el("div", "brief__heading");
+  heading.append(el("span", "brief__title", t("brief_title")));
   const readiness = [data.trl, data.mrl !== null ? fillText("brief_mrl", { mrl: data.mrl }) : null].filter(Boolean).join(" · ");
-  if (readiness) head.append(el("span", "brief__readiness", readiness));
+  if (readiness) heading.append(el("span", "brief__readiness", readiness));
+  head.append(heading);
   wrap.append(head);
 
   const lines = el("div", "brief__lines");

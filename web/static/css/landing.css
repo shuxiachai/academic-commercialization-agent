@@ -115,6 +115,34 @@
 }
 .landing__sample-link:hover { color: var(--accent); text-decoration-color: currentColor; }
 
+/* Three points under the buttons. The column used to end at the buttons
+   while the card beside it ran on for another 360 px. A rule in the accent
+   down the side of each, as the sample list beside them has. */
+.landing__points {
+  display: grid;
+  gap: var(--space-5);
+  max-width: 36em;
+  margin-top: var(--space-10);
+  list-style: none;
+}
+.landing__points li {
+  display: grid;
+  gap: var(--space-1);
+  padding-left: var(--space-4);
+  border-left: 2px solid var(--accent-border);
+}
+.landing__points strong {
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.landing__points span {
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  color: var(--text-secondary);
+}
+
 /* A sheet laid on the page, like a report card in the workbench. */
 .landing__card {
   padding: var(--space-6);
@@ -213,6 +241,36 @@
 }
 .landing__sample .btn { margin-top: var(--space-4); min-height: 44px; }
 
+/* ── What a finished assessment looks like ──
+   A screenshot of one sample's decision brief and scorecard, in the theme,
+   at the width and in the language the visitor reads in (app.js
+   paintLandingShot names the file). It is framed as what it is, a capture of
+   another page, and it opens that page. The width and height on the picture
+   keep its place before it loads. */
+/* No wider than the capture is: 872 px of the sample page, at twice the
+   pixels. Wider, its text would stand larger than the page's own. */
+.landing__shot-figure { max-width: 872px; margin: var(--space-4) auto 0; }
+.landing__shot-link {
+  display: block;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  background: var(--bg-base);
+  overflow: hidden;
+  transition: border-color var(--duration-fast) var(--ease);
+}
+.landing__shot-link:hover { border-color: var(--accent-border); }
+.landing__shot-link img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.landing__shot-figure figcaption {
+  margin-top: var(--space-3);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--text-tertiary);
+}
+
 /* ── How a run goes: three numbered cards ── */
 
 .landing__steps {
@@ -252,16 +310,89 @@
   color: var(--text-secondary);
 }
 
+/* Where the evidence comes from, by name, under the step that gathers it. */
+.landing__sources {
+  margin-top: var(--space-4);
+  padding: 0 var(--space-6);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+  color: var(--text-secondary);
+}
+
 .landing__pay { margin-top: var(--space-4); }
+/* What an assessment cost, a row for each measured model. Four sums, four
+   model names and two months stood in one sentence. */
+.landing__costs {
+  width: 100%;
+  max-width: 46em;
+  margin-top: var(--space-4);
+  border-collapse: collapse;
+  font-size: var(--text-base);
+}
+.landing__costs th,
+.landing__costs td {
+  padding: var(--space-2) var(--space-4) var(--space-2) 0;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-weight: 400;
+  text-align: left;
+  vertical-align: baseline;
+}
+.landing__costs thead th {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.landing__costs tbody th { font-weight: 600; }
+.landing__cost-model { font-family: var(--font-mono); font-size: var(--text-sm); }
+.landing__cost-sum,
+.landing__cost-date { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.landing__costs .landing__cost-date { color: var(--text-secondary); }
 .landing__pay > p { max-width: 60em; }
 .landing__pay > p + p { margin-top: var(--space-3); }
 .landing__pay .key-guide { max-width: 60em; margin-top: var(--space-4); }
 .landing__retention:empty { display: none; }
-.landing__retention {
-  margin-top: var(--space-2);
-  font-size: var(--text-sm);
-  color: var(--text-tertiary);
+
+/* ── Common questions ── Closed until asked: a question is one press away
+   and the page stays a page. The whole line is the control, 48 px tall. */
+.landing__faq { margin-top: var(--space-12); }
+.landing__faq h2 { margin-bottom: var(--space-3); font-size: var(--text-xl); }
+.landing__question { border-top: 1px solid var(--border-default); }
+.landing__question:last-of-type { border-bottom: 1px solid var(--border-default); }
+.landing__question > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: 48px;
+  padding: var(--space-3) 0;
+  color: var(--text-primary);
+  font-size: var(--text-md);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
 }
+.landing__question > summary::-webkit-details-marker { display: none; }
+.landing__question > summary::after {
+  content: "+";
+  flex: none;
+  color: var(--text-tertiary);
+  font-size: var(--text-xl);
+  font-weight: 400;
+  line-height: 1;
+}
+.landing__question[open] > summary::after { content: "−"; }
+.landing__question > summary:hover { color: var(--accent); }
+.landing__answer {
+  max-width: 60em;
+  padding-bottom: var(--space-4);
+  color: var(--text-secondary);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+}
+.landing__answer p + p { margin-top: var(--space-2); }
 
 /* ── Footer ── */
 
@@ -307,4 +438,45 @@
   .landing__pitch h1 { max-width: none; }
   .landing__steps { grid-template-columns: minmax(0, 1fr); }
   .landing__sample-link { margin-left: 0; }
+  .landing__points { margin-top: var(--space-8); }
+  .landing__sources { padding: 0; }
+}
+/* On a phone the capture is the phone's own, and four screens tall. Its
+   first screen is shown and fades out: the sample it opens is the same thing
+   as a page, which reads better than a picture of one. */
+@media (max-width: 640px) {
+  .landing__shot-link { position: relative; max-height: 34rem; }
+  .landing__shot-link::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0;
+    height: 6rem;
+    background: linear-gradient(to bottom, transparent, var(--bg-raised));
+    pointer-events: none;
+  }
+}
+/* A phone has no room for four columns. Each measured model is two lines:
+   who and how much, then which model and when. The headings stay for a
+   screen reader and leave the screen. */
+@media (max-width: 640px) {
+  .landing__costs thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .landing__costs tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px var(--space-3);
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .landing__costs tbody th,
+  .landing__costs tbody td { padding: 0; border-bottom: 0; }
+  .landing__costs .landing__cost-sum { grid-column: 2; grid-row: 1; text-align: right; font-weight: 600; }
+  .landing__costs .landing__cost-model { grid-column: 1; grid-row: 2; overflow-wrap: anywhere; }
+  .landing__costs .landing__cost-date { grid-column: 2; grid-row: 2; text-align: right; }
 }

@@ -81,30 +81,83 @@ def test_every_sum_on_the_page_is_a_row_of_the_record(language):
                    "Qwen": [r for r in rows if r["provider"].startswith("Model Studio")],
                    "Anthropic": [r for r in rows if r["provider"] == "Anthropic"]}
     recorded = {row["page"] for row in rows}
-    for key in ("landing_pay_cost", "byok_guide"):
-        text = _string(table, key)
-        assert set(re.findall(r"\$\d+(?:\.\d+)?", text)) == recorded, (language, key)
-        for provider, provider_rows in by_provider.items():
-            # Each provider's own sum stands beside its name: before it in
-            # English ("about $0.05 with DeepSeek"), after it in Chinese.
-            at = text.index(provider)
-            beside = (re.split(r"[,:] ", text[:at])[-1] if language == "English"
-                      else re.split(r"[，。：；]", text[at:])[0])
-            assert set(re.findall(r"\$\d+(?:\.\d+)?", beside)) == {row["page"] for row in provider_rows}, (language, key, provider, beside)
-        assert "OpenAI" not in text, "a provider without a measured figure is given none, and no remark"
-        assert "100,000" not in text and "10 万" not in text
-    # The landing also says which model and when; the keys form's line is the short one.
-    landing = _string(table, "landing_pay_cost")
-    for row in rows:
-        assert row["model"].strip("`") in landing, (language, row["model"])
-    months = {row["measured"][:7] for row in rows}
-    assert months == {"2026-10", "2026-11"}
-    for word in (("October 2026", "November 2026") if language == "English" else ("2026 年 10 月", "2026 年 11 月")):
-        assert word in landing, (language, word)
-    assert "1,000" in landing and "2,500" in landing, "the search allowances, as the record has them"
+    # The keys form says it in one line.
+    text = _string(table, "byok_guide")
+    assert set(re.findall(r"\$\d+(?:\.\d+)?", text)) == recorded, language
+    for provider, provider_rows in by_provider.items():
+        # Each provider's own sum stands beside its name: before it in
+        # English ("about $0.05 with DeepSeek"), after it in Chinese.
+        at = text.index(provider)
+        beside = (re.split(r"[,:] ", text[:at])[-1] if language == "English"
+                  else re.split(r"[，。：；]", text[at:])[0])
+        assert set(re.findall(r"\$\d+(?:\.\d+)?", beside)) == {row["page"] for row in provider_rows}, (language, provider, beside)
+    assert "OpenAI" not in text, "a provider without a measured figure is given none, and no remark"
+    assert "100,000" not in text and "10 万" not in text
     # The sentence about who bills stays, and stays free of figures.
     body = _string(table, "landing_pay_body")
     assert not re.search(r"\$|token", body), (language, body)
+    # No sum stands in the landing's prose any more: each is a cell of its table.
+    for key in ("landing_pay_cost", "landing_pay_search", "landing_faq_a5"):
+        assert "$" not in _string(table, key), (language, key)
+
+
+def _landing_cost_table() -> tuple[list[str], list[dict[str, str]]]:
+    """The landing's cost table as served: its heading keys and its rows."""
+    start = _INDEX.index('<table class="landing__costs" id="landing-costs">')
+    markup = _INDEX[start:_INDEX.index("</table>", start)]
+    headings = re.findall(r'<th scope="col" data-i18n="(\w+)">', markup)
+    rows = []
+    for row in re.findall(r"<tr>(.*?)</tr>", markup[markup.index("<tbody>"):], re.S):
+        provider = re.search(r'<th scope="row"(?: data-i18n="(\w+)")?>([^<]+)</th>', row)
+        cell = {name: re.search(rf'<td class="landing__cost-{name}"(?: data-i18n="(\w+)")?>([^<]+)</td>', row)
+                for name in ("model", "sum", "date")}
+        assert provider and all(cell.values()), row
+        rows.append({"provider_key": provider[1], "provider": provider[2], "model": cell["model"][2],
+                     "sum_key": cell["sum"][1], "sum": cell["sum"][2], "date": cell["date"][2]})
+    return headings, rows
+
+
+def test_the_landing_states_each_measured_cost_as_a_row_of_a_table():
+    """Until 2026-11-18 the landing said it in one sentence of 419
+    characters: four sums, four model names and two months, with the search
+    allowances at its end. It is a table now, a row for each row of the
+    record, in the record's order, and the search allowances are a line of
+    their own under it. A row added to the page without one in the record,
+    or the other way round, fails here; so does a sum, a model or a date
+    that is not the record's."""
+    record = _cost_rows()
+    headings, shown = _landing_cost_table()
+    assert headings == ["landing_cost_provider", "landing_cost_model", "landing_cost_sum", "landing_cost_date"]
+    assert len(shown) == len(record)
+    names = {"DeepSeek": "DeepSeek", "Model Studio (Qwen)": "Qwen (Model Studio)", "Anthropic": "Anthropic"}
+    for row, cell in zip(record, shown, strict=True):
+        assert cell["model"] == row["model"].strip("`"), cell
+        assert cell["date"] == row["measured"], "the day it was measured, as the record has it"
+        assert cell["provider"] == names[row["provider"]], cell
+        assert cell["sum"] == f'about {row["page"]}', cell
+        # The cell's string says the same sum in both languages.
+        assert _string(_ENGLISH, cell["sum_key"]) == cell["sum"]
+        assert _string(_CHINESE, cell["sum_key"]) == f'约 {row["page"]}'
+    assert "OpenAI" not in _INDEX[_INDEX.index('id="landing-costs"'):_INDEX.index("</table>", _INDEX.index('id="landing-costs"'))], (
+        "a provider without a measured figure has no row, and no remark")
+    # A provider's name that differs by language is a string; the others are names.
+    assert {cell["provider_key"] for cell in shown} == {None, "landing_cost_qwen"}
+    assert _string(_ENGLISH, "landing_cost_qwen") == "Qwen (Model Studio)" and "百炼" in _string(_CHINESE, "landing_cost_qwen")
+    for table in (_ENGLISH, _CHINESE):
+        search = _string(table, "landing_pay_search")
+        assert "Tavily" in search and "1,000" in search and "Serper" in search and "2,500" in search, (
+            "the search allowances, as the record has them, apart from the model fees")
+        for key in ("landing_cost_provider", "landing_cost_model", "landing_cost_sum", "landing_cost_date", "landing_pay_cost"):
+            assert _string(table, key), key
+    # It follows the sentence it belongs to and comes before the search line and the key guide.
+    order = [_INDEX.index(mark) for mark in ('data-i18n="landing_pay_cost"', 'id="landing-costs"',
+                                             'data-i18n="landing_pay_search"', 'id="landing-key-guide"')]
+    assert order == sorted(order)
+    # On a phone a row is two lines, and the headings leave the screen, not the page.
+    css = (_ROOT / "web" / "static" / "css" / "landing.css").read_text(encoding="utf-8")
+    phone = css[css.index("@media (max-width: 640px)"):]
+    assert re.search(r"\.landing__costs tbody tr \{[^}]*display: grid", phone)
+    assert re.search(r"\.landing__costs thead \{[^}]*clip: rect\(0 0 0 0\)", phone)
 
 
 def test_no_page_string_still_counts_a_run_in_tokens():

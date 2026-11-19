@@ -26,6 +26,34 @@ export function startedAt(runId) {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
+/** A topic as it is compared: case, letter width, spacing and punctuation
+ * aside, so "Hyperloop." and "hyperloop" are one topic. Nothing cleverer:
+ * two wordings of one subject are two topics here, and the notice that
+ * follows from this says only that the topics differ. */
+const topicKey = (topic) => (typeof topic === "string"
+  ? topic.normalize("NFKC").toLowerCase().replace(/[\p{P}\p{S}\s]+/gu, " ").trim() : "");
+
+/** True or false for two topics on record; null when either is not, since a
+ * run whose topic is unknown cannot be said to differ from anything. */
+export function sameTopic(a, b) {
+  const [left, right] = [topicKey(a), topicKey(b)];
+  return left && right ? left === right : null;
+}
+
+/** The runs the picker offers for `runId`, in its order: the finished runs on
+ * the same topic first, since comparing those is what the view is for, then
+ * the rest, each group in the order the list gave them (newest first). The
+ * run's own topic is read from the list; `topic` stands in when the run is
+ * not in it. Until 2026-11-18 the list was by date alone, and a second run of
+ * a topic stood wherever its date put it among unrelated ones. */
+export function pickerOrder(runs, runId, topic = null) {
+  const listed = Array.isArray(runs) ? runs.filter(run => record(run) && typeof run.run_id === "string" && run.run_id) : [];
+  const own = listed.find(run => run.run_id === runId)?.topic ?? topic;
+  const others = listed.filter(run => run.state === "completed" && run.run_id !== runId)
+    .map(run => ({ run, same: sameTopic(run.topic, own) === true }));
+  return [...others.filter(entry => entry.same), ...others.filter(entry => !entry.same)];
+}
+
 /** Everything the comparison reads about one run. Reads only; any read that
  * fails leaves that part empty and the rest still compares. */
 export async function load(runId) {
@@ -86,6 +114,8 @@ function side(run) {
   return {
     id: run.id,
     topic: typeof status.topic === "string" && status.topic ? status.topic : run.id,
+    // Whether `topic` is the run's topic or its id standing in for one.
+    named: typeof status.topic === "string" && status.topic.trim() !== "",
     state: typeof status.state === "string" ? status.state : "unknown",
     finished,
     startedAt: startedAt(run.id),
@@ -113,7 +143,9 @@ export function comparison(left, right) {
   }
   // Rows nobody scored on either side say nothing about the difference.
   const kept = rows.filter(row => row.key === "overall_score" || row.values.some(value => value !== null));
-  return { sides, rows: kept, same: String(left.id) === String(right.id) };
+  return { sides, rows: kept, same: String(left.id) === String(right.id),
+    // false: two topics, which the view says before it shows a difference.
+    sameTopic: sides.every(s => s.named) ? sameTopic(sides[0].topic, sides[1].topic) : null };
 }
 
 /* ── Drawing ───────────────────────────────────────────────────────── */
@@ -135,8 +167,12 @@ function sourcesText(counts) {
   return `${academic + patent + market} · ${academic} ${t("academic")} · ${patent} ${t("patent")} · ${market} ${t("market")}`;
 }
 
-function runCard(s, onOpen) {
+/** A run's card, over its column of the table. The letter is the column's:
+ * the table's heading said "A" and "B" and no card said which it was. */
+function runCard(s, letter, onOpen) {
   const card = el("div", "compare__run");
+  card.dataset.side = letter.toLowerCase();
+  card.append(el("span", "compare__letter", letter));
   const title = el("a", "compare__topic", s.topic);
   title.href = `/run/${s.id}`;
   title.addEventListener("click", (event) => { event.preventDefault(); onOpen(s.id); });
@@ -182,11 +218,23 @@ export function render(container, model, { onOpen = () => {} } = {}) {
     return;
   }
   const [a, b] = model.sides;
+  if (model.sameTopic === false) {
+    // Before the cards and the table: a difference between two topics is not
+    // a change in one. Not said when a topic is unknown.
+    const notice = el("p", "compare__notice", t("compare_different_topics"));
+    notice.setAttribute("role", "note");
+    container.append(notice);
+  }
+  // Four cells, as the table has four columns: each card stands over its own.
   const heads = el("div", "compare__heads");
-  heads.append(el("div", "compare__corner", ""), runCard(a, onOpen), runCard(b, onOpen));
+  heads.append(el("div", "compare__corner", ""), runCard(a, "A", onOpen), runCard(b, "B", onOpen), el("div", "compare__corner", ""));
   container.append(heads);
 
   const table = el("table", "compare__table");
+  // The widths the cards above and the rows below are laid out on (result.css).
+  const columns = el("colgroup");
+  for (const name of ["label", "run", "run", "delta"]) columns.append(el("col", `compare__col--${name}`));
+  table.append(columns);
   const thead = el("thead");
   const headRow = el("tr");
   for (const text of [t("compare_metric"), "A", "B", t("compare_delta")]) headRow.append(el("th", "", text));

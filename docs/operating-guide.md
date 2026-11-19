@@ -1302,6 +1302,17 @@ account with nothing saved gets 409 `no_saved_keys`. The form also lists
 keys the account chose not to save, which are in that browser tab only, by
 their last four characters, with a control that clears them from the tab.
 
+While keys are saved with the account, the fields for typing a new set are
+folded away: an account opens this form to check its keys, change their
+model or remove them far more often than to replace them, and until
+2026-11-18 the empty fields stood open under the saved set, on the first
+provider in the list whatever was saved. "Replace keys" in the saved block
+opens them on the saved provider, model and search service; pressed again
+it folds them and clears a key typed meanwhile. The fields are open
+whenever nothing is listed as saved: no keys, keys removed since sign-in,
+or a listing the page could not read. The form no longer states the
+retention period; the landing's questions and the privacy page do.
+
 The model the saved keys are used with can be changed on its own. A model
 is wrong far more often than a key is, and until 2026-11-16 correcting one
 meant typing both keys again. The saved block of the key form has the model
@@ -1523,6 +1534,17 @@ not read as a difference in the evidence; runs from before the decision gate
 have neither row. It is drawn from the reads the run page already makes;
 there is no comparison endpoint, and a run that did not finish, or whose
 scorecard is unreadable, shows a dash rather than a number.
+
+The picker lists the finished runs on the same topic first, marked as such,
+then the rest, each group newest first. Two topics are the same when they
+match apart from case, letter width, spacing and punctuation; nothing
+cleverer is attempted, so two wordings of one subject count as two topics.
+When the two runs' topics differ, the view says above everything else that
+the score differences are for reference only; it says nothing when either
+topic is not on record. Each run's card carries its letter, A or B, and
+stands over its own column of the table: the cards, the table and the
+sentences under it share one set of column widths, and the two cards are
+one height.
 
 ### Run links, BYOK and retention
 

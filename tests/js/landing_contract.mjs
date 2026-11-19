@@ -71,7 +71,8 @@ assert.ok(hiddenAtStart.includes("landing-preview-note"), "the note for a previe
 
 // `replies` answers the seams a scenario is about beyond the boot's access check.
 // `hold: true` keeps the access check unanswered until the scenario calls answer().
-function fixture({ pathname = "/", search = "", hash = "", access, replies = {}, hold = false }) {
+// `dark: true` is a system set to its dark theme, as matchMedia reports it.
+function fixture({ pathname = "/", search = "", hash = "", access, replies = {}, hold = false, dark = false }) {
   const elements = new Map();
   class Element {
     constructor() {
@@ -99,6 +100,8 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
   };
   for (const id of hiddenAtStart) get(`#${id}`).hidden = true;
   const requests = [], navigations = [], reloads = [], sidebarRefreshes = [], replaced = [], summaries = [];
+  // What the page asked to hear about the system's theme, and the theme it is told.
+  const system = { dark, heard: [] };
   // Where app.js writes how far its boot got (markBoot), for whoever reads a failed smoke.
   const documentElement = { dataset: {} };
   const reply = (body, status = 200, headers = {}) => Promise.resolve(new Response(JSON.stringify(body), {
@@ -148,7 +151,8 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
             pageTitle: (name = "") => (name ? `${name} · brand_full` : "brand_full") },
     document: { querySelector: get, querySelectorAll: () => [], createElement: () => new Element(),
       addEventListener: () => {}, hidden: false, documentElement },
-    window: { matchMedia: () => ({ matches: false }), addEventListener: () => {} },
+    window: { matchMedia: () => ({ get matches() { return system.dark; },
+      addEventListener: (type, handler) => { if (type === "change") system.heard.push(handler); } }), addEventListener: () => {} },
     localStorage: globalThis.localStorage, Event, URLSearchParams,
     history: { pushState: () => {}, replaceState: (_state, _unused, url) => replaced.push(url) },
     location: { pathname, search, hash, reload: () => reloads.push(true), replace: (url) => navigations.push(url) },
@@ -156,7 +160,7 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
     confirm: () => true,
   });
   vm.runInContext(source, context);
-  return { get, requests, navigations, reloads, sidebarRefreshes, replaced, summaries, answer: () => answer(),
+  return { get, requests, navigations, reloads, sidebarRefreshes, replaced, summaries, system, answer: () => answer(),
     deliver: () => deliver(), boot: () => documentElement.dataset.boot,
     run: (text) => vm.runInContext(text, context) };
 }
@@ -674,6 +678,57 @@ const scenarios = {
     assert.notEqual(list.children[0], drawn[0], "The list is drawn again, in the words of the new language");
     assert.deepEqual(list.children.map((item) => item.children[0].href), drawn.map((item) => item.children[0].href));
     assert.equal(f.requests.filter((r) => r.url === "/api/samples").length, 1, "...from the list it had already read");
+  },
+  // The screenshot of a finished assessment, further down the landing: one
+  // file for each theme, width and language, named by the page.
+  async the_screenshot_is_asked_for_once_the_landing_stays_in_the_theme_and_language_in_use() {
+    const shot = (f) => ({ desk: f.get("#landing-shot").src, phone: f.get("#landing-shot-phone").srcset });
+    const sizes = (f) => [f.get("#landing-shot").width, f.get("#landing-shot").height,
+      f.get("#landing-shot-phone").width, f.get("#landing-shot-phone").height];
+    const file = (size, theme, language) => `/static/landing/brief-scorecard-${size}-${theme}-${language}.png`;
+    const f = fixture({ access: refused(ACCOUNTS), hold: true });
+    await settle();
+    assert.deepEqual(shown(f), { landing: true, workbench: false, gate: false });
+    assert.deepEqual(shot(f), { desk: undefined, phone: undefined },
+      "Not before the deployment has said the landing stays: the picture is below the first screen");
+    f.answer();
+    await settle();
+    assert.deepEqual(shot(f), { desk: file("desktop", "light", "en"), phone: file("phone", "light", "en") });
+    assert.deepEqual(sizes(f), [1744, 1912, 734, 3020], "Each file's own size, so the page does not move when it loads");
+    assert.equal(f.get("#landing-shot").alt, "landing_shot_alt", "Described in the reader's language");
+    // The interface language changes: the capture of the interface changes with it.
+    f.run('i18n.language = () => "Simplified Chinese"');
+    f.get("#ui-lang").listeners.change();
+    await settle();
+    assert.deepEqual(shot(f), { desk: file("desktop", "light", "zh"), phone: file("phone", "light", "zh") });
+    assert.deepEqual(sizes(f), [1744, 1912, 734, 2794]);
+    // The system goes dark while the page is open, and the page is told.
+    assert.equal(f.system.heard.length, 1, "The page listens for the system's theme once");
+    f.system.dark = true;
+    f.system.heard[0]();
+    assert.deepEqual(shot(f), { desk: file("desktop", "dark", "zh"), phone: file("phone", "dark", "zh") });
+    // A theme the reader chose with the toggle wins over the system's.
+    f.run('document.documentElement.dataset.theme = "light"; paintLandingShot()');
+    assert.equal(shot(f).desk, file("desktop", "light", "zh"));
+    f.run('document.documentElement.dataset.theme = "dark"; i18n.language = () => "English"; paintLandingShot()');
+    assert.deepEqual(shot(f), { desk: file("desktop", "dark", "en"), phone: file("phone", "dark", "en") });
+
+    // A visit that starts in a dark system gets the dark capture from the first.
+    const night = fixture({ access: refused(ACCOUNTS), dark: true });
+    await settle();
+    assert.deepEqual(shot(night), { desk: file("desktop", "dark", "en"), phone: file("phone", "dark", "en") });
+
+    // A deployment that puts the landing away again never asks for the picture,
+    // and a change of language there has no picture to change.
+    const open = fixture({ access: { status: 200, body: { ok: true } }, hold: true });
+    await settle();
+    assert.equal(shown(open).landing, true);
+    open.answer();
+    await settle();
+    assert.equal(shown(open).landing, false);
+    open.get("#ui-lang").listeners.change();
+    assert.deepEqual(shot(open), { desk: undefined, phone: undefined });
+    assert.equal(open.system.heard.length, 0);
   },
   // A run on the live site failed at the evidence step on an OCR model, and
   // the one prominent button was "Resume from checkpoint": the same step, on

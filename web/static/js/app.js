@@ -2126,6 +2126,52 @@ function paintLanding() {
   paintLandingPreview();
 }
 
+/* The screenshot of a finished assessment, further down the landing: the
+ * decision brief and scorecard of the sample the card above draws its
+ * scorecard from, as that sample's page shows them. One file for each theme,
+ * width and interface language (web/static/landing/), so the capture is in
+ * the theme the visitor reads in and legible at a phone's width: the single
+ * dark, 900 px picture this page had until 2026-11-13 was neither.
+ *
+ * The markup names no file. The pair for the theme and language in use is
+ * named here, once the access check has said the landing stays (showLanding):
+ * the picture is below the first screen, so nothing is seen later for it,
+ * and a deployment that puts the landing away again never asks for it. The
+ * browser takes the phone's file at a phone's width (the <source>'s media).
+ * Each file's size in pixels is given with it, so the page under the picture
+ * does not move when it arrives; tests/test_landing_page.py reads the sizes
+ * back from the files. */
+const LANDING_SHOT_SIZES = {
+  en: { desktop: [1744, 1912], phone: [734, 3020] },
+  zh: { desktop: [1744, 1912], phone: [734, 2794] },
+};
+let landingShotShown = false;
+
+function themeInUse() {
+  const chosen = document.documentElement?.dataset?.theme;
+  if (chosen === "light" || chosen === "dark") return chosen;
+  const system = typeof window !== "undefined" && window.matchMedia?.("(prefers-color-scheme: dark)");
+  return system?.matches ? "dark" : "light";
+}
+
+function paintLandingShot() {
+  landingShotShown = true;
+  const picture = $("#landing-shot");
+  const narrow = $("#landing-shot-phone");
+  const language = i18n.language() === "Simplified Chinese" ? "zh" : "en";
+  const theme = themeInUse();
+  const file = (size) => `/static/landing/brief-scorecard-${size}-${theme}-${language}.png`;
+  const sized = (node, [width, height]) => { node.width = width; node.height = height; };
+  sized(narrow, LANDING_SHOT_SIZES[language].phone);
+  sized(picture, LANDING_SHOT_SIZES[language].desktop);
+  if (narrow.srcset !== file("phone")) narrow.srcset = file("phone");
+  if (picture.dataset.file !== file("desktop")) {
+    picture.dataset.file = file("desktop");
+    picture.src = file("desktop");
+  }
+  picture.alt = t("landing_shot_alt");
+}
+
 /* The landing put away: for a visit the access check turned out to let in
  * or to send to the code card, and for one that signed in from it. The
  * scorecard it drew goes with it. Left in the document, hidden, it was a
@@ -2140,6 +2186,12 @@ async function showLanding() {
   const landing = $("#landing");
   const workbench = $("#workbench");
   paintLanding();
+  paintLandingShot();
+  // The system's theme may change while the page is open (a scheduled dark
+  // mode): the capture follows it, as the page around it does.
+  if (typeof window !== "undefined") {
+    window.matchMedia?.("(prefers-color-scheme: dark)")?.addEventListener?.("change", paintLandingShot);
+  }
   // Without sign-up the button would only ever fail; sign-in stands alone.
   $("#landing-create").hidden = !authConfig?.signup_open;
   // Said only where the deployment pays for a newcomer's first assessment.
@@ -2254,9 +2306,10 @@ function drawLandingSamples() {
 }
 
 /* How long this deployment keeps what a visitor hands it, said next to who
- * pays. The key form says the same (showByokRetention), but by then the
- * visitor has signed up; this is the moment they decide to. Silent on
- * failure for the same reason as there: no line beats a wrong one. */
+ * pays, in the landing's questions: this is the moment a visitor decides to
+ * sign up. The key form said the same until 2026-11-18. Silent on failure:
+ * /health is unauthenticated, and an unreachable server must not leave a
+ * claim on screen that nothing has confirmed. No line beats a wrong one. */
 async function paintLandingRetention() {
   const node = $("#landing-retention");
   try {
@@ -2428,31 +2481,6 @@ async function decideAccess() {
   }
 }
 
-/* How long the deployment keeps what a visitor is about to hand it.
- *
- * The line above this one is about the API keys and is true of them. Someone
- * about to upload an unpublished paper reads it as covering everything, and
- * the assessment and the PDF do stay on the server — so the retention window
- * is stated here, next to the form, rather than only in a tooltip on a
- * capacity indicator they have not reached yet.
- *
- * Silent on failure: /health is unauthenticated and this is the one moment the
- * gate is up, so an unreachable server must not leave a claim on screen that
- * nothing has confirmed. No line is better than a wrong one.
- */
-async function showByokRetention() {
-  const node = $("#byok-retention");
-  if (!node || node.textContent) return;
-  try {
-    const { retention_days } = await api.health();
-    node.textContent = retention_days
-      ? t("byok_retention").replace("{days}", retention_days)
-      : t("byok_retention_forever");
-  } catch {
-    node.textContent = "";
-  }
-}
-
 /* Beside the invite code field: who gives out codes.
  *
  * The operator's contact is whatever they chose to publish on the privacy
@@ -2613,6 +2641,43 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
     toast(t("byok_tab_cleared"));
   };
 
+  /* The fields for a new set of keys (#byok-new), folded away while keys are
+   * saved with the account. Such an account opens this form to check its
+   * keys, change their model or remove them; the fields for typing a new set
+   * stood open under all that, on the first provider in the list whatever
+   * was saved. "Replace keys" opens them, on what is saved; pressed again it
+   * folds them, and a key typed meanwhile does not wait in a hidden field.
+   * They are open whenever nothing is listed as saved: no keys, keys that
+   * were removed, or a listing that could not be read. */
+  const replaceButton = $("#byok-replace");
+  const fold = (folded) => {
+    $("#byok-new").hidden = folded;
+    replaceButton.setAttribute("aria-expanded", String(!folded));
+  };
+  const told = (field, type) => {
+    if (typeof Event === "function") field.dispatchEvent?.(new Event(type, { bubbles: true }));
+  };
+  replaceButton.onclick = () => {
+    if (!listed) return;
+    if (!$("#byok-new").hidden) {
+      $("#byok-llm-key").value = "";
+      $("#byok-search-key").value = "";
+      fold(true);
+      return;
+    }
+    // The provider before its model: byok_fields.js takes a model the page
+    // offers only for another provider back out when the provider changes.
+    const provider = $("#byok-provider"), search = $("#byok-search"), model = $("#byok-model");
+    provider.value = listed.llm_provider ?? provider.value;
+    told(provider, "change");
+    search.value = listed.search ?? search.value;
+    told(search, "change");
+    model.value = listed.llm_model ?? "";
+    told(model, "input");
+    fold(false);
+    $("#byok-llm-key").focus();
+  };
+
   const paintSavedKeys = async (account) => {
     const view = ++savedView;
     const block = $("#byok-saved");
@@ -2620,11 +2685,14 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
     $("#byok-saved-check").hidden = true;
     listed = null;
     paintTabKeys(account);
+    // Folded from the start for an account that said at sign-in it has keys:
+    // the fields do not show and then vanish when the listing arrives.
+    fold(Boolean(account && accountKeysSaved));
     if (!account || !accountKeysSaved) return;
     let keys;
-    try { keys = await api.savedKeys(); } catch { return; }
+    try { keys = await api.savedKeys(); } catch { if (view === savedView) fold(false); return; }
     if (view !== savedView || byokForm.hidden) return;
-    if (keys?.saved !== true) { accountKeysSaved = false; paintTrialNote(); return; }
+    if (keys?.saved !== true) { accountKeysSaved = false; fold(false); paintTrialNote(); return; }
     showSaved(keys);
   };
 
@@ -2682,7 +2750,9 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
       // Removed on another device since the form opened: say what is so, not that a check failed.
       if (err.code === "no_saved_keys") {
         accountKeysSaved = false;
+        listed = null;
         $("#byok-saved").hidden = true;
+        fold(false);
         paintTrialNote();
         button.disabled = false;
         return;
@@ -2719,6 +2789,7 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
         accountKeysSaved = false;
         listed = null;
         $("#byok-saved").hidden = true;
+        fold(false);
         paintTrialNote();
         return;
       }
@@ -2755,7 +2826,9 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
     try {
       await api.removeSavedKeys();
       accountKeysSaved = false;
+      listed = null;
       $("#byok-saved").hidden = true;
+      fold(false);
       paintTrialNote();
       toast(t("byok_saved_removed"));
     } catch {
@@ -2791,8 +2864,8 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
     $("#byok-skip").hidden = !account;
     paintKeyFormDismiss();
     syncBack();
-    $("#byok-llm-key").focus();
-    showByokRetention();
+    // The first thing to type, or, with the fields folded away, the heading.
+    ($("#byok-new").hidden ? $("#byok-title") : $("#byok-llm-key")).focus();
   };
   const showAccount = () => {
     codeForm.hidden = true;
@@ -3197,21 +3270,26 @@ async function pickComparison(runId) {
     toast(operationErrorMessage(err), "error");
     return;
   }
-  const others = runs.filter((run) => run.state === "completed" && run.run_id !== runId);
+  // The runs on this run's topic first. Its topic is the list's own entry for
+  // it; a run the list does not hold is named by the title on screen.
+  const title = String($("#run-title").textContent ?? "").trim();
+  const others = compareView.pickerOrder(runs, runId, title && title !== "—" ? title : null);
   $("#compare-empty").hidden = others.length > 0;
-  for (const run of others) {
+  for (const { run, same } of others) {
     const item = document.createElement("li");
     const choose = document.createElement("button");
     choose.type = "button";
     choose.className = "picker__choice";
     choose.dataset.runId = run.run_id;
+    if (same) choose.dataset.sameTopic = "true";
     const when = compareView.startedAt(run.run_id);
     const label = document.createElement("span");
     label.className = "picker__topic";
     label.textContent = run.topic || run.run_id;
     const meta = document.createElement("span");
     meta.className = "picker__meta tabular";
-    meta.textContent = [when ? when.toLocaleDateString() : null, run.owner_label || null].filter(Boolean).join(" · ");
+    meta.textContent = [same ? t("compare_pick_same") : null, when ? when.toLocaleDateString() : null, run.owner_label || null]
+      .filter(Boolean).join(" · ");
     choose.append(label, meta);
     choose.addEventListener("click", () => {
       dialog.close();
@@ -3303,6 +3381,8 @@ langSelect.addEventListener("change", () => {
   document.title = baseTitle();
   paintAccountIdentity();
   drawLandingSamples();
+  // The capture of the interface is in the interface's language too.
+  if (landingShotShown) paintLandingShot();
   paintTrialNote();
   localizeSourceLocatorLink();
   renderPlan();

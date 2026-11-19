@@ -101,6 +101,19 @@ const scenarios = {
     assert.deepEqual(cells.slice(0, 6), ["48.6", "61.2", "+12.6", "5 / 9", "6 / 9", "+1"]);
     const deltas = container.all((n) => n.className.includes("compare__delta"));
     assert.deepEqual(deltas.map((n) => n.dataset.sign), ["up", "up", "same", "up", "up"]);
+    // Each run's card stands over its column of the table and says which it is.
+    const heads = container.find((n) => n.className === "compare__heads");
+    assert.deepEqual(heads.children.map((n) => n.className),
+      ["compare__corner", "compare__run", "compare__run", "compare__corner"],
+      "four cells, as the table has four columns: the label's, A's, B's and the difference's");
+    assert.deepEqual(heads.children.slice(1, 3).map((card) => [card.dataset.side, card.children[0].className, card.children[0].textContent]),
+      [["a", "compare__letter", "A"], ["b", "compare__letter", "B"]]);
+    const columns = container.find((n) => n.tag === "colgroup").children.map((col) => col.className);
+    assert.deepEqual(columns, ["compare__col--label", "compare__col--run", "compare__col--run", "compare__col--delta"]);
+    assert.deepEqual(container.all((n) => n.tag === "thead")[0].children[0].children.map((th) => th.textContent),
+      ["Score", "A", "B", "B − A"]);
+    // "Topic aa" and "Topic bb" are two topics, which is said before anything else (see `topics`).
+    assert.deepEqual(container.children.slice(0, 2).map((n) => n.className), ["compare__notice", "compare__heads"]);
     const link = container.find((n) => n.tag === "a");
     assert.equal(link.href, `/run/${A}`);
     link.listeners.click({ preventDefault() {} });
@@ -116,6 +129,60 @@ const scenarios = {
     compare.render(again, compare.comparison(run(A, "completed", SCORES_A), run(A, "completed", SCORES_A)));
     assert.equal(again.children.length, 1);
     assert.equal(again.children[0].textContent, "These are the same run. Choose another to compare with.");
+  },
+  topics() {
+    // Two runs on different topics can be laid side by side, and until
+    // 2026-11-18 nothing said that their scores are not two readings of one thing.
+    const on = (id, topic, scores = SCORES_A) => ({ ...run(id, "completed", scores), status: { state: "completed", topic } });
+    const notice = (left, right) => {
+      const container = new Element("div");
+      const model = compare.comparison(left, right);
+      compare.render(container, model);
+      const found = container.find((n) => n.className === "compare__notice");
+      return { same: model.sameTopic, first: container.children[0].className, text: found?.textContent ?? null,
+        role: found?.attributes?.role ?? null };
+    };
+    assert.deepEqual(notice(on(A, "hyperloop"), on(B, "space-based solar power")), { same: false, first: "compare__notice",
+      text: "These two assessments are on different topics; the score differences are for reference only.", role: "note" },
+      "said first, above the cards and the table");
+    assert.deepEqual(notice(on(A, "hyperloop"), on(B, "hyperloop")), { same: true, first: "compare__heads", text: null, role: null });
+    // The same topic typed a little differently is the same topic.
+    for (const [left, right] of [["Hyperloop", "hyperloop."], ["  solid-state   batteries ", "Solid-State Batteries"],
+      ["特高压直流输电", "特高压直流输电。"], ["ＣＧＭ for diabetes", "cgm for diabetes"]]) {
+      assert.equal(compare.sameTopic(left, right), true, `${left} / ${right}`);
+    }
+    for (const [left, right] of [["hyperloop", "hyperloop for freight"], ["CRISPR", "CRISPR-Cas9"], ["特高压直流输电", "特高压交流输电"]]) {
+      assert.equal(compare.sameTopic(left, right), false, `${left} / ${right}`);
+    }
+    // A run whose topic is not on record is not said to differ from anything.
+    const unnamed = { id: B, scores: SCORES_B, markdown: REPORT, status: { state: "completed" } };
+    assert.deepEqual(notice(on(A, "hyperloop"), unnamed), { same: null, first: "compare__heads", text: null, role: null });
+    assert.deepEqual(notice(unnamed, { ...unnamed, id: A }).same, null);
+    for (const empty of ["", "   ", "。", null, undefined, 7]) assert.equal(compare.sameTopic(empty, "hyperloop"), null, String(empty));
+  },
+  picker_order() {
+    // Which run to compare with: the ones on this run's topic are what the
+    // comparison is for, and they stood wherever their dates put them.
+    const listed = [
+      { run_id: "20261116T110000Z-f", state: "completed", topic: "pig kidney xenotransplantation" },
+      { run_id: "20261114T160000Z-e", state: "completed", topic: "Continuous glucose monitoring for diabetes." },
+      { run_id: "20261112T081000Z-d", state: "failed", topic: "continuous glucose monitoring for diabetes" },
+      { run_id: "20261110T140500Z-c", state: "completed", topic: "space-based solar power" },
+      { run_id: "20261108T101500Z-a", state: "completed", topic: "continuous glucose monitoring for diabetes" },
+      { run_id: "20261107T101500Z-0", state: "completed" },
+    ];
+    const order = (runId, topic) => compare.pickerOrder(listed, runId, topic).map((entry) => [entry.run.run_id.slice(-1), entry.same]);
+    assert.deepEqual(order("20261108T101500Z-a"), [["e", true], ["f", false], ["c", false], ["0", false]],
+      "the same topic first, then the rest in the order the list gave them; only finished runs, never the run itself");
+    assert.deepEqual(order("20261116T110000Z-f"), [["e", false], ["c", false], ["a", false], ["0", false]],
+      "no other run on this topic: the list as it was");
+    // The run being compared is not in the list (another account's, or past the list's end): its topic is handed in.
+    assert.deepEqual(order("20261201T000000Z-z", "continuous glucose monitoring for diabetes"),
+      [["e", true], ["a", true], ["f", false], ["c", false], ["0", false]]);
+    assert.deepEqual(order("20261201T000000Z-z"), [["f", false], ["e", false], ["c", false], ["a", false], ["0", false]],
+      "a run whose topic is not known has no same-topic group");
+    assert.deepEqual(compare.pickerOrder(null, "x"), []);
+    assert.deepEqual(compare.pickerOrder([null, 7, { state: "completed" }], "x").length, 0, "an entry without an id cannot be opened");
   },
   decision_rows() {
     // What each run was asked and what its report answered, ahead of the rest.

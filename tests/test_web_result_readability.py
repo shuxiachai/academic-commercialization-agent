@@ -135,6 +135,15 @@ if (input.brief) {
       title: nodes.find(n => n.className === "brief__title")?.textContent,
       verdict: nodes.find(n => n.className === "brief__verdict")?.textContent,
       readiness: nodes.find(n => n.className === "brief__readiness")?.textContent ?? null,
+      // The grade and the score as the badge at the head of the brief shows them.
+      badge: (() => {
+        const head = nodes.find(n => n.className === "brief__head");
+        const badge = nodes.find(n => n.className === "brief__badge");
+        if (!badge) return null;
+        return { first: head.children[0] === badge, tone: badge.dataset.tone, hidden: badge.attributes["aria-hidden"],
+          parts: badge.children.map(n => [n.className, n.textContent]),
+          order: head.children.map(n => n.className) };
+      })(),
       lines: nodes.filter(n => (n.className ?? "").startsWith("brief__line ")).map(text),
       cards: Object.fromEntries(nodes.filter(n => n.className === "brief__card").map(n => [n.dataset.card, text(n)])),
       cites: nodes.filter(n => n.className === "cite").map(n => n.dataset.cite),
@@ -661,6 +670,44 @@ class DecisionBriefTests(unittest.TestCase):
         self.assertEqual(shown["verdict"], "Early · 50.0 / 100")
         self.assertEqual(shown["readiness"], "TRL 4 (component validated in laboratory) · Manufacturing readiness 3.5 / 10")
         self.assertEqual(shown["tone"], "warning")
+
+    def test_the_grade_and_the_score_stand_at_the_head_of_the_brief_as_a_badge(self):
+        """Until 2026-11-18 the verdict was one bold run of text after the
+        label "Decision brief", at the size of the sentences under it: on a
+        page with three cards above the tabs, the number a reader came for
+        was the hardest thing to find. It is the first thing in the brief now,
+        the score large and the grade beside it in the grade's colour."""
+        shown = self._brief()["brief_view"]
+        badge = shown["badge"]
+        self.assertTrue(badge["first"])
+        self.assertEqual(badge["order"], ["brief__badge", "brief__verdict", "brief__heading"])
+        self.assertEqual(badge["parts"], [["brief__score tabular", "50.0"], ["brief__denom", "/ 100"], ["brief__band", "Early"]])
+        self.assertEqual(badge["tone"], "warning", "the badge takes the grade's colour, as the card's edge does")
+        # One reading for a screen reader: the sentence, not the three pieces.
+        self.assertEqual(badge["hidden"], "true")
+        self.assertEqual(shown["verdict"], "Early · 50.0 / 100")
+        for overall, tone, name in ((82.04, "success", "Strong"), (55, "accent", "Moderate"), (12.3, "muted", "Nascent")):
+            other = self._brief(scores={**_SCORES, "overall_score": overall})["brief_view"]
+            self.assertEqual((other["badge"]["tone"], other["badge"]["parts"][0][1], other["badge"]["parts"][2][1]),
+                             (tone, f"{overall:.1f}", name))
+            self.assertEqual(other["tone"], tone)
+        chinese = self._run(language="Simplified Chinese",
+                            brief={"scores": _SCORES, "markdown": _REPORT, "sources": _SOURCES, "progress": _PROGRESS})["brief_view"]
+        self.assertEqual(chinese["badge"]["parts"], [["brief__score tabular", "50.0"], ["brief__denom", "/ 100"], ["brief__band", "早期"]])
+
+    def test_the_badge_is_styled_in_every_grade_and_the_sentence_is_kept_for_a_screen_reader(self):
+        css = (_REPO / "web/static/css/result.css").read_text(encoding="utf-8")
+        for tone, colour in (("success", "--success"), ("accent", "--accent"), ("warning", "--warning"), ("muted", "--text-secondary")):
+            rule = re.search(rf'\.brief__badge\[data-tone="{tone}"\]\s*\{{([^}}]*)\}}', css)
+            self.assertIsNotNone(rule, tone)
+            self.assertIn(f"color: var({colour})", rule[1], tone)
+            self.assertRegex(rule[1], r"background: var\(--[a-z-]+\)", tone)
+        score = re.search(r"\.brief__score\s*\{([^}]*)\}", css)[1]
+        self.assertIn("font-size: var(--text-3xl)", score)
+        # The sentence stays in the page for assistive technology, out of sight.
+        hidden = re.search(r"\.brief__verdict\s*\{([^}]*)\}", css)[1]
+        for declaration in ("position: absolute", "clip: rect(0 0 0 0)", "width: 1px", "height: 1px"):
+            self.assertIn(declaration, hidden)
 
     def test_the_strongest_and_weakest_dimensions_are_compared_by_their_share_of_the_scale(self):
         data = self._brief()["brief"]

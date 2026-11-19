@@ -70,6 +70,8 @@ SCENARIOS = (
     "the_card_in_sign_in_mode_says_only_what_signing_in_needs",
     # The run header's fold for the model, the revision and a plain completion.
     "a_change_of_language_renames_the_tab_and_redraws_the_landing_samples",
+    # The screenshot of a finished assessment further down the landing.
+    "the_screenshot_is_asked_for_once_the_landing_stays_in_the_theme_and_language_in_use",
     "a_run_that_did_not_finish_offers_what_fits_its_cause",
     "a_run_that_is_going_says_the_page_can_be_closed",
     "the_header_folds_what_only_a_maintainer_reads",
@@ -110,10 +112,13 @@ def test_the_landing_is_in_the_page_before_the_workbench():
     # The buttons are buttons: the card they open is in this document, not another page.
     assert re.search(r'<button type="button"[^>]*id="landing-create"', landing)
     assert re.search(r'<button type="button"[^>]*id="landing-sign-in"', landing)
-    # What a finished report looks like: a place for one sample's scorecard,
-    # which app.js draws when the landing shows, and a line for when it cannot.
-    # It was a 900 px picture of a dark scorecard until 2026-11-13; no picture
-    # of one is served any more, so there is nothing to go stale or to shrink.
+    # What a finished report looks like, in the card beside the pitch: a place
+    # for one sample's scorecard, which app.js draws when the landing shows,
+    # and a line for when it cannot. It was a 900 px picture of a dark
+    # scorecard until 2026-11-13, and this card still holds no picture. The
+    # screenshot further down the page is another figure with its own tests
+    # below: one file for each theme, width and language, which is what the
+    # single picture lacked.
     figure = landing[landing.index('<figure class="landing__figure">'):landing.index("</figure>")]
     assert re.search(r'<div class="landing__preview" id="landing-preview" data-state="loading"></div>', figure)
     assert re.search(r'<p class="landing__preview-note" id="landing-preview-note" data-i18n="landing_preview_unavailable" hidden>', figure)
@@ -279,3 +284,230 @@ def test_the_way_in_says_what_a_run_takes_and_what_a_trial_spares():
     for key in ("landing_trial", "account_sub_trial"):
         assert _STRINGS.count(f"    {key}: ") == 2, key
     assert "authConfig?.trial_runs > 0" in _APP
+
+
+# ── What was added on 2026-11-18: points, a screenshot, sources, questions ──
+
+_CSS = (_WEB / "static/css/landing.css").read_text(encoding="utf-8")
+_PRIVACY = (_WEB / "privacy.html").read_text(encoding="utf-8")
+_PRIVACY_EN, _PRIVACY_ZH = _PRIVACY.split('data-lang-block="zh"', 1)
+_SHOTS = _WEB / "static" / "landing"
+_SHOT_NAMES = sorted(f"brief-scorecard-{size}-{theme}-{language}.png"
+                     for size in ("desktop", "phone") for theme in ("light", "dark") for language in ("en", "zh"))
+
+
+def test_the_pitch_has_three_points_under_its_buttons():
+    """Measured at 1440 px on 2026-11-18: the pitch ended at its buttons, 419
+    px down, and the card beside it at 782. Three points fill the column.
+    Each repeats what the page's steps or the privacy page already say."""
+    landing = _landing_markup()
+    pitch = landing[landing.index('<div class="landing__pitch">'):landing.index('<aside class="landing__card landing__sample"')]
+    assert pitch.index('class="landing__actions"') < pitch.index('<ul class="landing__points">')
+    points = re.findall(r"<li>\s*<strong data-i18n=\"(landing_point\d_title)\">[^<]+</strong>\s*"
+                        r"<span data-i18n=\"(landing_point\d_body)\">[^<]+</span>\s*</li>", pitch)
+    assert points == [(f"landing_point{n}_title", f"landing_point{n}_body") for n in (1, 2, 3)]
+    assert re.search(r"\.landing__points \{[^}]*list-style: none", _CSS)
+    english, chinese = _landing_strings("English"), _landing_strings("Simplified Chinese")
+    # The first two are the second step's own facts, and the third is the privacy page's.
+    assert "before any agent writes" in english["landing_point1_body"] and "then freezes them" in english["landing_step2_body"]
+    assert "computed by code, not by the model" in english["landing_point2_body"]
+    assert "computed by code, not by the model" in english["landing_step2_body"]
+    assert "where it is weakest" in english["landing_point3_body"]
+    assert "the automated checks shown with each report say where it is weakest" in _PRIVACY_EN
+    assert "由代码计算，不由模型给出" in chinese["landing_point2_body"] and "由代码计算，不由模型给出" in chinese["landing_step2_body"]
+
+
+def _png_size(path: Path) -> tuple[int, int]:
+    data = path.read_bytes()
+    assert data[:8] == b"\x89PNG\r\n\x1a\n" and data[12:16] == b"IHDR", path.name
+    return int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
+
+
+def test_the_screenshot_of_a_finished_assessment_is_one_file_for_each_theme_width_and_language():
+    """The landing showed a scorecard's verdict and bars and nothing of the
+    brief. It now shows a screenshot of one sample's page. The single picture
+    this page had until 2026-11-13 was dark in the light theme and a few
+    pixels a letter on a phone, so there is a file for each case, and the
+    page tells the browser each file's real size before it loads."""
+    assert sorted(path.name for path in _SHOTS.iterdir()) == _SHOT_NAMES, "eight files, and nothing else beside them"
+    declared = re.search(r"const LANDING_SHOT_SIZES = \{\s*en: \{ desktop: \[(\d+), (\d+)\], phone: \[(\d+), (\d+)\] \},"
+                         r"\s*zh: \{ desktop: \[(\d+), (\d+)\], phone: \[(\d+), (\d+)\] \},\s*\};", _APP)
+    assert declared, "the sizes the page gives the picture"
+    numbers = [int(value) for value in declared.groups()]
+    sizes = {("en", "desktop"): tuple(numbers[0:2]), ("en", "phone"): tuple(numbers[2:4]),
+             ("zh", "desktop"): tuple(numbers[4:6]), ("zh", "phone"): tuple(numbers[6:8])}
+    for name in _SHOT_NAMES:
+        _, _, size, theme, language = name.removesuffix(".png").split("-")
+        path = _SHOTS / name
+        assert _png_size(path) == sizes[(language, size)], name
+        assert path.stat().st_size < 200_000, f"{name}: a picture a phone has to fetch"
+    # A phone's file is a phone's capture (two device pixels a CSS pixel), not a desk's made small.
+    assert sizes[("en", "phone")][0] < 800 < sizes[("en", "desktop")][0]
+    assert "/static/landing/brief-scorecard-${size}-${theme}-${language}.png" in _APP
+    # The markup names no file: a page that never shows the landing asks for none.
+    landing = _landing_markup()
+    figure = landing[landing.index('<figure class="landing__shot-figure">'):]
+    figure = figure[:figure.index("</figure>")]
+    picture = re.search(r"<img id=\"landing-shot\"([^>]*)>", figure)[1]
+    source = re.search(r"<source id=\"landing-shot-phone\"([^>]*)>", figure)[1]
+    assert " src=" not in picture and "srcset=" not in source and "/static/landing/" not in _INDEX
+    assert 'loading="lazy"' in picture and re.search(r'alt="[^"]{40,}"', picture)
+    assert f'width="{sizes[("en", "desktop")][0]}" height="{sizes[("en", "desktop")][1]}"' in picture
+    assert f'width="{sizes[("en", "phone")][0]}" height="{sizes[("en", "phone")][1]}"' in source
+    assert 'media="(max-width: 640px)"' in source
+    # It is asked for once the access check has said the landing stays, never before.
+    shown = _APP[_APP.index("async function showLanding()"):]
+    assert "paintLandingShot();" in shown[:shown.index("await new Promise")]
+    early = _APP[_APP.index("function paintLanding() {"):_APP.index("function themeInUse()")]
+    assert "paintLandingShot()" not in early.split("\n}\n", 1)[0]
+
+
+def test_the_screenshot_is_of_the_sample_it_opens_and_says_when_it_was_taken():
+    from api import samples
+
+    slug = re.search(r'const LANDING_PREVIEW_SAMPLE = "([a-z0-9-]+)";', _APP)[1]
+    landing = _landing_markup()
+    figure = landing[landing.index('<figure class="landing__shot-figure">'):]
+    assert f'<a class="landing__shot-link" href="/samples/{slug}">' in figure, "the capture opens the page it is a capture of"
+    scores = samples.read_sample_scores(slug)
+    english, chinese = _landing_strings("English"), _landing_strings("Simplified Chinese")
+    # What the picture's description says is in it is what that sample's page shows.
+    assert f'{scores["overall_score"]:.1f} / 100' in english["landing_shot_alt"] and "Strong" in english["landing_shot_alt"]
+    assert scores["overall_score"] >= 70, "the grade the description names"
+    assert f'{scores["overall_score"]:.1f} / 100' in chinese["landing_shot_alt"] and "较强" in chinese["landing_shot_alt"]
+    assert "November 2026" in english["landing_shot_caption"] and "2026 年 11 月" in chinese["landing_shot_caption"]
+    assert "continuous glucose monitoring" in english["landing_shot_caption"]
+    sample = next(entry for entry in samples.SAMPLES if entry.slug == slug)
+    assert sample.title_zh in chinese["landing_shot_caption"]
+    assert re.search(r'alt="([^"]+)"', figure)[1] == english["landing_shot_alt"], "served as it is then painted"
+
+
+def test_the_pictures_are_served_and_revalidated_like_every_page_file():
+    from fastapi.testclient import TestClient
+
+    from api.main import app
+
+    with TestClient(app) as client:
+        for name in _SHOT_NAMES:
+            reply = client.get(f"/static/landing/{name}")
+            assert reply.status_code == 200 and reply.headers["content-type"] == "image/png", name
+            assert reply.headers["cache-control"] == "no-cache", name
+
+
+# The services the landing may name as where evidence comes from: each with
+# the thing in the code that asks it.
+_SOURCE_CLIENTS = {"OpenAlex": "class OpenAlexClient", "Crossref": "class CrossrefClient", "PubMed": "class PubMedClient",
+                   "arXiv": "class ArxivClient", "Semantic Scholar": "class SemanticScholarClient"}
+
+
+def test_the_landing_names_only_sources_the_pipeline_asks():
+    """A line of names is a claim about each. Every service named is one the
+    retrieval code has a client for and constructs in the default run, or,
+    for patents, the Google Patents pages the pipeline searches and reads;
+    and each is in the privacy page's list of who receives a query. Lens is
+    in the code but asked only with a key this deployment does not have, so
+    it is not named."""
+    clients = (_ROOT / "src/academic_agent/source_clients.py").read_text(encoding="utf-8")
+    pipeline = (_ROOT / "src/academic_agent/source_pipeline.py").read_text(encoding="utf-8")
+    services = re.search(r"<strong>Public literature and patent services</strong> \(([^)]+)\)", _PRIVACY_EN)[1]
+    for language in ("English", "Simplified Chinese"):
+        line = _landing_strings(language)["landing_sources"]
+        named = [name for name in (*_SOURCE_CLIENTS, "Google Patents", "Lens", "Scopus", "Web of Science", "Google Scholar",
+                                   "USPTO", "Espacenet", "PatentsView", "Europe PMC") if name in line]
+        assert named == [*_SOURCE_CLIENTS, "Google Patents"], (language, named)
+        for name in named:
+            assert name in services, f"{name} is not in the privacy page's list of who receives a query"
+    for name, definition in _SOURCE_CLIENTS.items():
+        assert definition in clients, name
+        constructor = definition.removeprefix("class ") + "("
+        assert constructor in pipeline, f"{name}: the pipeline never builds its client"
+    assert "site:patents.google.com/patent" in pipeline
+    # Market sources come through the visitor's own search service, which the line says without a name of its own.
+    assert "web search service you choose" in _landing_strings("English")["landing_sources"]
+    assert "The web search service you choose" in _PRIVACY_EN
+    assert 'data-i18n="landing_sources"' in _landing_markup()
+    # Nothing on the landing says the raw data is public: the saved runs are not in the repository.
+    for language in ("English", "Simplified Chinese"):
+        for key, text in _landing_strings(language).items():
+            assert not re.search(r"raw data|原始数据", text), key
+
+
+def _faq() -> list[tuple[str, str]]:
+    landing = _landing_markup()
+    section = landing[landing.index('<section class="landing__faq" id="landing-faq"'):]
+    section = section[:section.index("</section>")]
+    return re.findall(r'<details class="landing__question">\s*<summary data-i18n="(landing_faq_q\d)">[^<]+</summary>'
+                      r'\s*<div class="landing__answer">.*?<p data-i18n="(landing_faq_a\d)">[^<]+</p>\s*</div>\s*</details>',
+                      section, re.S)
+
+
+def test_the_landing_answers_five_questions_and_each_answer_is_already_written_down_somewhere():
+    """How long data is kept, which languages, what a decision context is,
+    whether a paper can be uploaded, how fees are worked out. An answer on a
+    landing page is the easiest place for a claim nobody checked, so each is
+    held here to the page, the constant or the document it repeats."""
+    from api import papers
+
+    assert _faq() == [(f"landing_faq_q{n}", f"landing_faq_a{n}") for n in range(1, 6)]
+    assert "<details class=\"landing__question\" open" not in _INDEX, "closed until asked"
+    english, chinese = _landing_strings("English"), _landing_strings("Simplified Chinese")
+
+    # 1. Kept how long: the deployment's own period, read from /health into
+    # the answer's first line, then what the privacy page says can be deleted.
+    landing = _landing_markup()
+    first = landing[landing.index('data-i18n="landing_faq_q1"'):landing.index('data-i18n="landing_faq_q2"')]
+    assert first.index('id="landing-retention"') < first.index('data-i18n="landing_faq_a1"')
+    assert landing.count('id="landing-retention"') == 1
+    assert not re.search(r"\d+ days|\d+ 天", english["landing_faq_a1"] + chinese["landing_faq_a1"]), (
+        "the period is the deployment's, never written into the page")
+    assert "You can delete any assessment from its page at any time." in _PRIVACY_EN
+    assert "Delete your account from the Account panel." in _PRIVACY_EN
+    assert "The original file is deleted as soon as extraction succeeds." in _PRIVACY_EN
+    assert "You can remove them at any time" in _PRIVACY_EN
+    for said in ("delete any assessment from its page", "your whole account", "deleted as soon as", "until you remove them"):
+        assert said in english["landing_faq_a1"], said
+
+    # 2. Languages: the two the interface has, and every language the composer offers for a report.
+    select = _INDEX[_INDEX.index('<select class="chip-select" id="language"'):]
+    select = select[:select.index("</select>")]
+    offered = re.findall(r'<option value="(\w+)">', select)
+    assert len(offered) == 11
+    for name in offered:
+        assert name in english["landing_faq_a2"], name
+    assert len(re.findall(r"[^；。，、或]+语|中文", chinese["landing_faq_a2"].split("报告可以用", 1)[1].split("撰写", 1)[0])) == 11
+    interface = _INDEX[_INDEX.index('<select class="bare-select" id="ui-lang"'):]
+    assert re.findall(r'<option value="([^"]+)">', interface[:interface.index("</select>")]) == ["English", "Simplified Chinese"]
+    assert "English and Simplified Chinese" in english["landing_faq_a2"]
+    automatic = re.search(r'auto_lang: "([^"]+)"', _STRINGS)[1]
+    assert f"“{automatic}”" in english["landing_faq_a2"], "the option's own name"
+
+    # 3. Decision context: the four starred fields, and what the form's own line says of them.
+    labels = [re.search(rf'    {key}: "([^"*]+) \*"', _STRINGS)[1].lower()
+              for key in ("decision_asset", "decision_application", "decision_owner", "decision_type")]
+    for label in labels:
+        assert label.split(" or ")[0] in english["landing_faq_a3"].lower(), label
+    ready = re.search(r'    decision_status_ready: "([^"]+)"', _STRINGS)[1]
+    assert "the report may give a GO / NO-GO for this decision, bounded by its evidence" in ready
+    assert "may give a GO / NO-GO for that decision, bounded by its evidence" in english["landing_faq_a3"]
+    assert "orientation brief" in english["landing_faq_a3"] and "optional" in english["landing_faq_a3"].lower()
+    # The form's title and the question call it by one name in Chinese.
+    title = re.findall(r'    decision_context_title: "([^"]+)"', _STRINGS)[1]
+    assert "决策场景" in title and "决策场景" in chinese["landing_faq_q3"] and "决策上下文" not in _STRINGS
+
+    # 4. Papers: the size the upload route enforces, and the two deletions the privacy page states.
+    megabytes = papers.MAX_UPLOAD_BYTES // 1024 // 1024
+    assert f"up to {megabytes} MB" in english["landing_faq_a4"] and f"不超过 {megabytes} MB" in chinese["landing_faq_a4"]
+    assert "within 24 hours" in english["landing_faq_a4"] and "24 小时内" in chinese["landing_faq_a4"]
+    assert "if no assessment uses it, it is deleted within 24 hours" in _PRIVACY_EN
+    assert "Upload only papers you are allowed to send to the model provider you chose." in _PRIVACY_EN
+    assert "Upload only papers you are allowed to send to that provider" in english["landing_faq_a4"]
+    assert 'accept=".pdf,application/pdf"' in _INDEX and "PDF" in english["landing_faq_a4"]
+
+    # 5. Fees: the privacy page's term, and no sum of its own (the table has them).
+    assert "This service does not charge you and cannot refund them." in _PRIVACY_EN
+    assert "charges nothing and cannot refund" in english["landing_faq_a5"]
+    assert "不收费" in chinese["landing_faq_a5"]
+    faq_at, table_at = landing.index('id="landing-faq"'), landing.index('id="landing-costs"')
+    assert table_at < faq_at and "table above" in english["landing_faq_a5"] and "上面的表格" in chinese["landing_faq_a5"]
+    # Each question is a control a finger can press.
+    assert re.search(r"\.landing__question > summary \{[^}]*min-height: 48px", _CSS)
