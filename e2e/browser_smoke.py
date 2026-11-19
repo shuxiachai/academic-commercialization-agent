@@ -33,13 +33,16 @@ from e2e.isolated_app import (
     DECISION_OWNER,
     DECISION_STATEMENT,
     DECISION_TYPE,
+    DRAFT_SENTINEL,
     FIXTURE_TOPIC,
+    OPERATOR_CONTACT,
     REPORT_SENTINEL,
     _configure_isolated_app,
     _saved_source_fixture,
     _serve,
     _write_completed_run,
     _write_decision_run,
+    _write_resumed_pair,
 )
 
 
@@ -802,7 +805,7 @@ def _exercise_sample_contents(page: Page, base_url: str) -> int:
 def _exercise_browser(
     base_url: str, run_id: str, fault_ids: tuple[str, str, str],
     runtime_ids: tuple[str, str, str], cap_run_id: str, foreign_run_id: str,
-    decision_run_id: str,
+    decision_run_id: str, resumed_pair: tuple[str, str],
 ) -> dict[str, int]:
     external_requests: list[str] = []
     mutation_attempts: list[str] = []
@@ -1245,9 +1248,63 @@ def _exercise_browser(
                 "button", name="Resume from checkpoint", exact=True)).to_have_class("btn btn--secondary")
             expect(page.locator("#run-actions .btn--primary")).to_have_count(0)
             expect(page.locator("#run-fix")).to_have_count(0)
+            # A failure only the operator can look into: the sentence above
+            # names the run ID, and the line under it now shows that ID, a
+            # button that copies it and the contact the deployment publishes.
+            run_help = page.locator("#run-help")
+            expect(run_help).to_be_visible()
+            expect(page.locator("#run-help-id")).to_have_text(valid_resume_id)
+            expect(page.locator("#run-help-copy")).to_have_text("Copy")
+            contact = page.locator("#run-help-contact a")
+            expect(contact).to_have_text(OPERATOR_CONTACT)
+            expect(contact).to_have_attribute("href", re.compile(rf"^mailto:{re.escape(OPERATOR_CONTACT)}\?subject=Run%20{valid_resume_id}$"))
             page.goto(f"{base_url}/run/{bad_resume_id}", wait_until="domcontentloaded")
             expect(outcome).to_have_text("The analysis failed. Retry or contact the operator with the run ID.")
             expect(resume_note).to_be_hidden()
+            expect(page.locator("#run-help-id")).to_have_text(bad_resume_id)
+            # The completed fixture is nobody's to report.
+            page.goto(f"{base_url}/run/{run_id}", wait_until="domcontentloaded")
+            expect(page.locator("#run-pill")).to_have_text("completed")
+            expect(run_help).to_be_hidden()
+            expect(page.locator("#run-lineage")).to_be_hidden()
+
+            # A run that stopped in scoring, after its writer and reviewer had
+            # answered: the page shows what the writer wrote, named for what it
+            # is before any of it is read, and says "no report" nowhere.
+            stopped_id, resumed_id = resumed_pair
+            page.goto(f"{base_url}/run/{stopped_id}", wait_until="domcontentloaded")
+            expect(page.locator("#run-pill")).to_have_text("failed")
+            draft_tab = page.locator('button.tab[data-view="draft"]')
+            expect(draft_tab).to_have_text("Draft (not reviewed or scored)")
+            expect(draft_tab).to_have_attribute("aria-selected", "true")
+            expect(page.locator('button.tab[data-view="report"]')).to_have_count(0)
+            draft_note = page.locator(".draft-note")
+            expect(draft_note).to_contain_text("This is an unreviewed, unscored draft.")
+            draft_text = page.locator("article.prose--draft")
+            expect(draft_text).to_contain_text(DRAFT_SENTINEL)
+            assert draft_note.bounding_box()["y"] < draft_text.bounding_box()["y"], "The notice is read before the draft"
+            expect(page.locator(".reliability-none")).to_contain_text("is shown below as a draft")
+            expect(page.locator("#run-body")).not_to_contain_text("produced no report")
+            expect(page.locator("#run-help-id")).to_have_text(stopped_id)
+            expect(page.locator("#run-lineage")).to_be_hidden()
+            # A draft is read, not exported or compared: no report download is offered for it.
+            expect(page.locator(f'#run-actions a[href$="/api/runs/{stopped_id}/report.pdf"]')).to_have_count(0)
+
+            # Its resume: what was reused and what both runs took, in words
+            # under the header, with the earlier run one click away.
+            page.goto(f"{base_url}/run/{resumed_id}", wait_until="domcontentloaded")
+            expect(page.locator("#run-pill")).to_have_text("completed")
+            lineage = page.locator("#run-lineage")
+            expect(lineage).to_have_text(
+                "This run continues an earlier run. Reused from it: Sources, Evidence, Report, Review. "
+                "Run here: Scoring. In all: 29:19 (3:48 here + 25:31 before) · at least 176.2k tokens "
+                "(35.0k here + at least 141.2k before).")
+            expect(page.locator("#run-recovery")).to_have_text("")
+            expect(page.locator("#run-elapsed")).to_have_text("3:48")
+            page.locator("#run-lineage-earlier").click()
+            expect(page).to_have_url(f"{base_url}/run/{stopped_id}")
+            expect(page.locator("#run-pill")).to_have_text("failed")
+            expect(page.locator("article.prose--draft")).to_contain_text(DRAFT_SENTINEL)
 
             # A BYOK history GET failing transiently is not a failed worker.
             # Keep its capability entry visible, unknown and non-destructive,
@@ -1374,6 +1431,7 @@ def main() -> None:
         foreign_run_id = _write_completed_run(output_root, access.owner_id("another-visitors-code"))
         # Also someone else's, so the owner's history and counts stay as they were.
         decision_run_id = _write_decision_run(output_root, access.owner_id("another-visitors-code"))
+        resumed_pair = _write_resumed_pair(output_root, access.owner_id("another-visitors-code"))
         cap_scores = json.loads((output_root / run_id / "commercialization_scores.json").read_text(encoding="utf-8"))
         cap_scores["market_cap_audit"] = capture_cap(5, cap_scores)
         save_scores(json.dumps(cap_scores), cap_run_id, output_root)
@@ -1440,7 +1498,7 @@ def main() -> None:
                     api_runs._write_daily_charge(output_root / runtime_id, date.today())
             terminal_path.write_text(json.dumps(record), encoding="utf-8")
         with _serve(app) as base_url:
-            audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id, damaged_audit_id), runtime_ids, cap_run_id, foreign_run_id, decision_run_id)
+            audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id, damaged_audit_id), runtime_ids, cap_run_id, foreign_run_id, decision_run_id, resumed_pair)
 
     print(
         json.dumps(

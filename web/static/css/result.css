@@ -1385,3 +1385,16 @@
   color: var(--text-primary);
   line-height: var(--leading-relaxed);
 }
+
+/* Above the writer's draft of a run that stopped before its report: what the
+   text is and is not, read before any paragraph of it. */
+.draft-note {
+  margin: 0 0 var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--warning);
+  border-radius: var(--radius-sm);
+  background: var(--warning-subtle);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}

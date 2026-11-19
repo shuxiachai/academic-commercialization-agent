@@ -136,7 +136,10 @@ Both `/api/runs/{id}` and `/api/runs/{id}/progress` expose separate fields:
   plus the source id, reused nodes, first node still requiring execution, and
   explicit inspection results.
 
-The browser shows reused-stage counts and checkpoint degradation. It offers
+The browser says which stages a resumed run took from the run it continues,
+in a line under its header and in its stage list, with the time and usage of
+both runs added up (`lineage` on both reads), and shows checkpoint
+degradation. It offers
 the resume action only for a terminal failure that reports a committed
 retrieval checkpoint. "No reusable checkpoint" and "recovery not requested"
 therefore cannot be mistaken for a successful cache hit.

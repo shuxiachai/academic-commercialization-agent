@@ -481,12 +481,12 @@ semantic correctness of all report prose; see the
 | POST | `/api/runs/{run_id}/feedback` | One click on a delivered report: did it change the reader's view (`yes`/`no`/`unsure`) and which part mattered. Fixed words, no text; one record per responder, replaced on a later answer; kept in the run's `feedback.json` for `scripts/ops_report.py`. Not a paid operation |
 | POST | `/api/runs` | Start an assessment; shared capacity can return 429 |
 | GET | `/api/receipts` | Read an acceptance receipt using the `Idempotency-Key` header; never dispatches work |
-| GET | `/api/runs` | Owner-filtered run history when access control is enabled; `limit` (1–200) and `offset` page through it, `total` is the whole history |
+| GET | `/api/runs` | Owner-filtered run history when access control is enabled; `limit` (1–200) and `offset` page through it, `total` is the whole history. Each entry names the run it was resumed from (`resumed_from`). For an account the reply also says what that account has going: `active_runs` (its own live runs, newest first) and `at_capacity` (one more would be refused as `account_busy`) |
 | GET | `/api/runs/{id}` | State, stage, execution identity and available artifacts, and `viewer_can_modify`: whether this caller passes the rule that guards Cancel, Delete and Resume (`null` when the run has no owner on record) |
 | GET | `/api/runs/{id}/progress` | Progress plus the same observable runtime contract, and the same `viewer_can_modify` |
 | GET | `/api/runs/{id}/report` | Final Markdown |
 | GET | `/api/runs/{id}/decision` | For a completed decision-support run: the decision owner and decision from its saved request, and the conclusion its report states (`stated`, `conflicting` or `not_stated`, with the statements as written). `asked: false` and nothing else for any other run. Read from the saved report on each request; no model call. Open to whoever can read the report |
-| GET | `/api/runs/{id}/{artifact}` | Supported source, score, check and diagnostic artifacts |
+| GET | `/api/runs/{id}/{artifact}` | Supported source, score, check and diagnostic artifacts; and `draft`, the report writer's saved text of a run that stopped without a report (listed in `artifacts` only then) |
 | DELETE | `/api/runs/{id}?intent=cancel` or `?intent=delete` | Only the requested operation, subject to state and ownership rules |
 | POST | `/api/runs/{id}/resume` | New immutable recovery child, not mutation of the old result |
 | GET | `/api/samples` | Committed example reports (allowlist in `api/samples.py`); no access code needed |
@@ -929,12 +929,29 @@ Scoring's duration includes report finalization. The run header shows them
 folded under "Stage timing"; the live stage list shows them per row. Runs
 started before this field have none.
 
-A running run also carries `eta`: the typical time left, from the medians of
-up to 30 recent completed runs (per stage once at least three recorded stage
-times, else the total), cached for ten minutes. It is `null` with fewer than
-three completed runs, and goes negative once a run is slower than usual,
-which the header shows as "slower than usual" rather than a countdown past
-zero. When a run the page watched finishes in a background tab, the tab
+A running run also carries `eta`: a range, not one figure. It is what recent
+completed runs took from the run's current point to their end, the rest of
+the current stage plus every later stage, as `low_seconds` and
+`high_seconds`, the fastest and the slowest of them (`api/eta.py`). The runs
+asked are the newest ten on the run's own model, which the worker records at
+its start as `llm_model`; with fewer than three of those, the newest ten of
+any model stand in and `same_model` is false, which the header says in words
+("going by runs on other models"). A resumed run is never one of them: it ran
+only what its parent had not finished. Nor is a resumed run given an estimate
+while it is still in its first stage: until its worker has read the
+checkpoints, an estimate would be for a whole run. Only runs whose current stage lasted
+at least as long as this run's already has are asked about the rest of it;
+when none did, `overdue` is true and the range is what the later stages
+alone took, which the header shows as "slower at this step than the last N
+runs" instead of a countdown past zero. The history is read newest first up
+to thirty completed runs and cached for ten minutes; `eta` is `null` with
+fewer than three. `/health` carries `run_minutes`, the fastest and slowest
+whole run of the newest ten in minutes with their count, which is the
+sentence the landing and the sign-in card show about how long a run takes
+(nothing is shown with fewer than three). Before 2026-11-19 the estimate was
+one median over the last thirty completed runs of any model, and the pages
+said "6 to 15 minutes": a run on 2026-11-18 was told "about 7 min" and took
+24 min 40 s. When a run the page watched finishes in a background tab, the tab
 title changes; a browser notification is added only if the user opted in
 from the run header.
 
@@ -1225,6 +1242,18 @@ it shows a code holder, and a refusal says which cap it was
 (`X-Error-Code: account_busy` or `account_daily_quota_exceeded`, both 429).
 Admin accounts are not exempt; the operator raises the number instead.
 
+An account is told it has an assessment going before it asks for another.
+The run list carries `active_runs` and `at_capacity` for the calling account,
+by the same count the admission makes and without admitting anything. The
+page shows a line above the workbench with the way to that run (on a phone
+too, where the history is off screen; not on that run's own page), and turns
+off the run button, the plan's Start and the upload, with the reason beside
+them; what was typed stays. While something is going the page reads the list
+again every fifteen seconds, so the line clears by itself. Before 2026-11-19
+the refusal was the first the page said: a second topic went through its plan
+preview, a small request on the account's key, and was refused at Start.
+Nothing is queued: a queue would change when a run is admitted and charged.
+
 #### The console
 
 `/admin` is the operator's page. It shows the service's state (revision,
@@ -1407,6 +1436,40 @@ ending ("worker failed", "hard timeout") is under "Technical details", as
 odds with the state stays in the header line. While a run is going the page
 says it can be closed, and offers the finish email to an account that has
 not turned it on.
+
+A run that stopped after its report writer had answered shows what the writer
+wrote, under a tab named "Draft (not reviewed or scored)" and a notice that
+says the same before the text. The report file is written only after the
+reviewer and the scorer have both returned, so such a run has none; the text
+is the writer's checkpoint, the one a resume reuses, read through the
+artifact route as `draft` and listed in `artifacts` only for a run that
+stopped without a report (`runs.draft_report`). It opens to whoever can read
+the run, like every other artifact, through the same route; a checkpoint
+that does not match its own manifest is no draft. "This run produced no
+report" is said only where there is no draft either.
+
+Under a failure its reader cannot fix alone the page shows the run's ID with
+a button that copies it, and the operator's contact: the cause the API could
+not name (`unknown`), and, for a run the reader's own keys did not pay for,
+the causes `FAILURE_NEXT` gives no next step. The contact is
+`OPERATOR_CONTACT` as the sign-in configuration and `/health` carry it; where
+none is set the line says the deployment has published none.
+
+A resumed run says, directly under its header line, which stages it took
+from the run it continues and which it ran, with that run one click away,
+and what the two took together: time, and tokens under the usage rule. The
+sum is said plainly only when every run's count is complete; a floor in any
+run (a failed run's count nearly always is one) makes the sum "at least",
+and a run whose record was deleted is said to be missing and left out. Both
+run reads carry this as `lineage` (`earlier`, nearest first, and `combined`),
+read from the earlier runs' own records on each request. In the stage list a
+stage taken whole from the earlier run reads "reused from the earlier run"
+in place of a time. The worker now records the stage of the first task that
+really runs: before 2026-11-19 a resume with only scoring left read "Phase 1"
+from its first second to its last, and its scoring time was filed under the
+evidence stage. In the history a resumed run keeps its row and the runs it
+continues are folded under it (`resumed_from` on each entry of
+`GET /api/runs`).
 
 ### Email verification
 

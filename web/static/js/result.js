@@ -1646,6 +1646,10 @@ export async function render(container, runId, progress) {
   const views = [];
   if (artifacts.includes("scores")) views.push({ id: "score", label: t("tab_score") });
   if (artifacts.includes("report")) views.push({ id: "report", label: t("tab_report") });
+  // A run that stopped after its writer had answered: the writer's text,
+  // under a tab and a notice that both say what it is (hasDraft).
+  const draft = hasDraft(progress);
+  if (draft) views.push({ id: "draft", label: t("tab_draft") });
   if (artifacts.includes("sources")) views.push({ id: "sources", label: t("tab_sources") });
   // The three checks of a finished report share one tab (renderChecks). Each
   // had a tab of its own beside the scorecard, the report and the sources:
@@ -1747,7 +1751,10 @@ export async function render(container, runId, progress) {
   const scoresOnce = () => (scoresRequest ??= api.getArtifact(runId, "scores"));
   let reportRequest = null;
   const reportOnce = () => (reportRequest ??= api.getReport(runId));
-  const indexOnce = () => (indexRequest ??= reportOnce().then(citationIndex));
+  let draftRequest = null;
+  const draftOnce = () => (draftRequest ??= api.getArtifact(runId, "draft"));
+  // The citations of whichever text this run has: its report, or its draft.
+  const indexOnce = () => (indexRequest ??= (draft ? draftOnce() : reportOnce()).then(citationIndex));
   const hasSources = artifacts.includes("sources");
   let sourcesRequest = null;
   const sourcesOnce = () => (sourcesRequest ??= api.getArtifact(runId, "sources"));
@@ -1809,13 +1816,19 @@ export async function render(container, runId, progress) {
   // One load a view, and one promise for it: a second call while the first
   // is still reading waits for the same panel instead of returning early.
   const opening = new Map();
-  async function select(id) {
+  /* `reveal` brings the chosen tab into view, for a strip that scrolls
+   * sideways on a narrow screen. Not for the tab the page opens on: bringing
+   * it into view also scrolls the page, and on a phone, where the pane is
+   * one scroll, a run whose tabs start below the fold (a stopped run, under
+   * its reason, its run ID and its draft notice) opened part-way down, past
+   * its own header. The first tab is at the strip's start anyway. */
+  async function select(id, { reveal = true } = {}) {
     for (const tab of tabs.children) {
       const selected = tab.dataset.view === id;
       tab.dataset.active = String(selected);
       tab.setAttribute("aria-selected", String(selected));
       tab.tabIndex = selected ? 0 : -1;       // one tab stop for the strip
-      if (selected) tab.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+      if (selected && reveal) tab.scrollIntoView?.({ block: "nearest", inline: "nearest" });
     }
     for (const panel of panels.children) panel.hidden = panel.dataset.view !== id;
     hintOverflow();
@@ -1855,6 +1868,17 @@ export async function render(container, runId, progress) {
         article.innerHTML = renderMarkdown(md);
         panel.append(article);
         attachCitations(article, indexOnce, { onShowInSources: hasSources ? showInSources : null });
+      } else if (id === "draft") {
+        const md = await draftOnce();
+        indexRequest ??= Promise.resolve(citationIndex(md));
+        panel.innerHTML = "";
+        // Above the text, not after it: nobody should read a paragraph of
+        // this as the assessment's conclusion before learning what it is.
+        panel.append(el("p", "draft-note", t("draft_note")));
+        const article = el("article", "prose prose--draft");
+        article.innerHTML = renderMarkdown(md);
+        panel.append(article);
+        attachCitations(article, indexOnce, { onShowInSources: hasSources ? showInSources : null });
       } else if (id === "checks") {
         // No request yet: each check's one line comes from the status the
         // page already holds, and its details are read when they are opened.
@@ -1885,7 +1909,7 @@ export async function render(container, runId, progress) {
     }
   }
 
-  select(views[0].id);
+  select(views[0].id, { reveal: false });
 }
 
 /* ── Citation check ────────────────────────────────────────────────────
@@ -2652,6 +2676,17 @@ export function ranWithoutReport(progress) {
     && !(progress.artifacts ?? []).includes("report");
 }
 
+/* A run with no report that still has what its writer wrote. The page said
+ * "this run produced no report" of a run whose analysts, writer and reviewer
+ * had all returned and whose scorer had not (production, 2026-11-18). The
+ * server advertises the writer's saved text as the artifact `draft`, only
+ * for a run that stopped without a report (runs.draft_report); the page
+ * shows it marked as what it is, and says "no report" only where there is
+ * no draft either. */
+export function hasDraft(progress) {
+  return ranWithoutReport(progress) && (progress.artifacts ?? []).includes("draft");
+}
+
 export function reliabilityRows(progress) {
   const rows = [];
 
@@ -2901,7 +2936,9 @@ export function groundingNumbers(progress) {
 export function renderReliability(progress) {
   // No count of checks for a run with no report: one sentence that says so.
   // Not "no problem found": nothing ran, and that is what is said.
-  if (ranWithoutReport(progress)) return el("p", "empty-note reliability-none", t("rel_no_report"));
+  if (ranWithoutReport(progress)) {
+    return el("p", "empty-note reliability-none", t(hasDraft(progress) ? "rel_no_report_draft" : "rel_no_report"));
+  }
   const rows = reliabilityRows(progress);
   if (!rows.length) return null;
 

@@ -375,12 +375,62 @@ class StageTiming(BaseModel):
 
 class RunEta(BaseModel):
     remaining_seconds: int = Field(
-        description="Typical time left; negative once the run is slower than usual.",
+        ge=0, description="The middle of the range below, for a client that shows one figure.",
     )
-    basis_runs: int = Field(description="Recent completed runs the estimate is drawn from.")
+    low_seconds: int = Field(
+        ge=0, description="What the fastest of the runs in the pool took from this point to its end.")
+    high_seconds: int = Field(ge=0, description="What the slowest of them took.")
+    basis_runs: int = Field(description="Recent completed runs the range is drawn from.")
     basis: Literal["stages", "total"] = Field(
-        description="Per-stage medians when enough runs recorded stage times, else the median total.",
+        description="`stages`: the rest of the current stage plus every later stage, run by run. "
+                    "`total`: whole-run times, where too few runs recorded their stages.",
     )
+    model: str | None = Field(
+        default=None,
+        description="The model whose runs make the range; null when they are runs of other models.")
+    same_model: bool = Field(
+        default=False,
+        description="True when the range is drawn from at least three completed runs on this run's own "
+                    "model; false when there were too few and runs of any model stand in.")
+    overdue: bool = Field(
+        default=False,
+        description="This run has been in its current stage longer than every run in the pool was; the "
+                    "range is then what the later stages alone took.")
+
+
+class EarlierRun(BaseModel):
+    """A run this one was resumed from, with what its own record says it took."""
+
+    run_id: str
+    record: Literal["available", "missing"] = Field(
+        description="`missing`: the earlier run was deleted or has expired; nothing is known of it but its id.")
+    state: RunState | None = None
+    elapsed_seconds: int | None = None
+    total_tokens: int | None = None
+    usage_state: Literal["complete", "lower_bound", "unavailable"] = "unavailable"
+    cost_usd: float | None = None
+    cost_complete: bool = False
+
+
+class CombinedSpend(BaseModel):
+    """This run and every run it continues, added up."""
+
+    runs: int = Field(description="Runs in the chain, this one included.")
+    elapsed_seconds: int | None = Field(description="The sum of the run times that are known.")
+    elapsed_complete: bool = Field(description="False when a run's time is not known and is left out.")
+    total_tokens: int | None = Field(description="The sum of the token counts on record.")
+    usage_state: Literal["complete", "lower_bound", "unavailable"] = Field(
+        description="`complete` only when every run's count is complete; `lower_bound` when any is a floor "
+                    "or missing; `unavailable` when no run has a count.")
+    cost_usd: float | None = None
+    cost_complete: bool = False
+
+
+class RunLineage(BaseModel):
+    """For a resumed run: the runs it continues, nearest first, and the totals."""
+
+    earlier: list[EarlierRun]
+    combined: CombinedSpend
 
 
 class DailyQuota(BaseModel):
@@ -471,9 +521,17 @@ class RunProgress(BaseModel):
     )
     eta: RunEta | None = Field(
         default=None,
-        description="For a running run, the typical time left from recent completed "
-                    "runs; None without at least three of them.",
+        description="For a running run, the range recent completed runs took from this "
+                    "point to their end; None without at least three of them.",
     )
+    llm_model: str | None = Field(
+        default=None,
+        description="The model the worker was configured with, as it recorded at its start; for a run "
+                    "from before that record, the model its usage names. Null when neither says.")
+    lineage: RunLineage | None = Field(
+        default=None,
+        description="For a run resumed from an earlier one: those runs and the combined time and usage. "
+                    "Null for a run that was not a resume.")
     source_counts: dict[str, int] | None = None
     evidence_incomplete: bool = Field(
         default=False,
@@ -670,9 +728,17 @@ class RunStatus(BaseModel):
     )
     eta: RunEta | None = Field(
         default=None,
-        description="For a running run, the typical time left from recent completed "
-                    "runs; None without at least three of them.",
+        description="For a running run, the range recent completed runs took from this "
+                    "point to their end; None without at least three of them.",
     )
+    llm_model: str | None = Field(
+        default=None,
+        description="The model the worker was configured with, as it recorded at its start; for a run "
+                    "from before that record, the model its usage names. Null when neither says.")
+    lineage: RunLineage | None = Field(
+        default=None,
+        description="For a run resumed from an earlier one: those runs and the combined time and usage. "
+                    "Null for a run that was not a resume.")
     source_counts: dict[str, int] | None = None
     evidence_incomplete: bool = Field(
         default=False,
@@ -791,6 +857,9 @@ class RunSummary(BaseModel):
     topic: str
     started_at: str
     duration: str
+    resumed_from: str | None = Field(
+        default=None,
+        description="The run this one was resumed from, so a list can show the two as one piece of work.")
     owner_label: str | None = Field(
         default=None,
         description="Which access code created this run — set only when the "
@@ -799,9 +868,25 @@ class RunSummary(BaseModel):
     )
 
 
+class ActiveRun(BaseModel):
+    """A run of the caller's own account that is going now."""
+
+    run_id: str
+    topic: str
+
+
 class RunList(BaseModel):
     runs: list[RunSummary]
     total: int
+    active_runs: list[ActiveRun] = Field(
+        default_factory=list,
+        description="The calling account's own runs that are going now, newest first. Always the caller's, "
+                    "also for an administrator whose list holds everyone's runs. Empty for a caller that is "
+                    "not an account.")
+    at_capacity: bool = Field(
+        default=False,
+        description="True when the calling account already has as many paid operations going as it may "
+                    "(one, by default): starting another would be refused as `account_busy`.")
 
 
 class MaintenanceTiming(BaseModel):
@@ -903,6 +988,14 @@ class MailStatus(BaseModel):
     last_failed_at: AwareDatetime | None = None
 
 
+class RunMinutes(BaseModel):
+    """The fastest and slowest of the newest completed runs, in whole minutes."""
+
+    low: int = Field(ge=1)
+    high: int = Field(ge=1)
+    runs: int = Field(ge=3, description="Completed runs the two figures are drawn from.")
+
+
 class HealthStatus(BaseModel):
     status: Literal["ok"]
     active_runs: int = Field(
@@ -932,6 +1025,14 @@ class HealthStatus(BaseModel):
                     "here instead of naming one. Null when no provider or model is "
                     "configured. A name is not proof the provider serves it.",
     )
+    run_minutes: RunMinutes | None = Field(
+        default=None,
+        description="How long the newest completed assessments on this deployment took, for the pages that "
+                    "say how long a run takes; null with fewer than three of them.")
+    contact: str | None = Field(
+        default=None,
+        description="The operator's contact line (OPERATOR_CONTACT), if set: the same value the privacy page "
+                    "shows, here for the run page of a failure only the operator can look into.")
     pipeline_revision: str | None = Field(
         default=None,
         description="Code this process serves: git:<commit> where the platform exposes "

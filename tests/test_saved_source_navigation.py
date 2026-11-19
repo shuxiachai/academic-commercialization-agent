@@ -69,6 +69,7 @@ function runtime({ old = false, absent = false } = {}) {
   // Use the shipped $ helper with the same DOM API as the composer harness.
   const context = { document: { querySelector: sel => ids[sel.slice(1)] ?? null }, location: { pathname: '/' }, topic,
     history: { pushState() {} }, stopClock() {}, refreshSidebar() {}, scheduleCapacity() {}, refreshQuota() {}, toast() {}, t: x => x,
+    paintActiveRun() {},   // the line about the account's own run in progress, repainted when the pane changes
     openRun: id => { context.opened = id; } };
   const active = 'let activeRunId = null; let follower = null;';
   const oldShowRun = showRun.replace('  syncSourceLocatorLink();\n', '');

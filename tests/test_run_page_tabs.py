@@ -60,7 +60,7 @@ setImmediate(async()=>{
  const press=async(key)=>{let prevented=false; for(const heard of strip.listeners.keydown??[]) await heard({key,preventDefault(){prevented=true;}}); await new Promise(r=>setImmediate(r)); return prevented;};
  out.steps=[];
  for(const key of input.presses){const prevented=await press(key); const now=view(); out.steps.push({key,prevented,selected:now.tabs.find(t=>t['aria-selected']==='true')?.view,
-  stops:now.tabs.filter(t=>t.tabIndex===0).map(t=>t.view),shown:now.panels.filter(p=>!p.hidden).map(p=>p.view),focused:now.tabs.map(t=>t.focused)});}
+  stops:now.tabs.filter(t=>t.tabIndex===0).map(t=>t.view),shown:now.panels.filter(p=>!p.hidden).map(p=>p.view),focused:now.tabs.map(t=>t.focused),scrolled:now.tabs.map(t=>t.scrolled)});}
  // A strip wider than its box: the hint follows where it has been scrolled to.
  Object.assign(strip,{clientWidth:300,scrollWidth:520,scrollLeft:0}); for(const heard of strip.listeners.scroll??[]) heard(); out.hints=[strip.dataset.more];
  strip.scrollLeft=110; for(const heard of strip.listeners.scroll??[]) heard(); out.hints.push(strip.dataset.more);
@@ -146,6 +146,19 @@ def test_the_arrow_keys_move_along_the_strip_and_select_as_they_go():
     # Focus goes with the selection: the tab moved to is focused, once per move.
     assert steps[5]["focused"] == [2, 1, 1, 0, 2], steps[5]["focused"]
     assert steps[7]["focused"] == steps[5]["focused"], "a key it does not act on moves nothing"
+
+
+def test_the_tab_the_page_opens_on_is_selected_without_moving_the_page():
+    """Bringing a tab into view scrolls the page too. A stopped run on a
+    phone, whose one tab sits under its reason, its run ID and its draft
+    notice, opened part-way down, past its own header (seen 2026-11-19 in a
+    local preview). The first tab is selected in place; a tab the reader
+    moves to is still brought into view, which is what the call is for."""
+    seen = _run(_ALL, presses=["ArrowRight", "End"])
+    assert [tab["scrolled"] for tab in seen["first"]["tabs"]] == [0, 0, 0, 0, 0]
+    assert seen["first"]["tabs"][0]["aria-selected"] == "true"
+    assert seen["steps"][0]["scrolled"] == [0, 1, 0, 0, 0]
+    assert seen["steps"][1]["scrolled"] == [0, 1, 0, 0, 1]
 
 
 def test_the_strip_shows_which_way_it_can_still_be_scrolled():

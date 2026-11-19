@@ -298,6 +298,24 @@ class ProgressTracker:
 
         completed = self.completed
         return completed if completed < self._total else None
+
+    def current_stage(self) -> str:
+        """The stage label for the work that is next to run.
+
+        A resumed run restores a prefix of finished tasks, and CrewAI fires
+        no completion callback for them, so nothing moved the public stage
+        past the evidence phase: a run that only had scoring left read
+        "Phase 1" from its first second to its last (production,
+        2026-11-18), and its scoring time was filed under the evidence
+        stage. This is the label `on_complete` would have left behind had
+        the restored tasks completed here.
+        """
+
+        with self._lock:
+            if self._parallel_done < self._parallel_count:
+                return self._parallel_stage
+            index = min(self._sequential_done, len(self._sequential_stages) - 1)
+            return self._sequential_stages[index]
     def on_complete(self) -> tuple[int, str, int | None]:
         """Record one completion. Returns (finished_idx, stage, next_idx)."""
         with self._lock:
@@ -453,6 +471,7 @@ def _merge_status_fields(
     topic: str | None,
     pipeline_revision: str | None = None,
     now: str | None = None,
+    llm_model: str | None = None,
 ) -> dict:
     """Build the next status.json payload from the previous one plus updates.
 
@@ -483,12 +502,17 @@ def _merge_status_fields(
         "component_coverage", "evidence_gap_shadow", "decision_gate", "report_audit",
         "quality_review",
         "checkpointing", "recovery",
-        "pipeline_revision",
+        "pipeline_revision", "llm_model",
     ):
         if existing.get(sticky) is not None:
             data[sticky] = existing[sticky]
     if pipeline_revision is not None and existing.get("pipeline_revision") is None:
         data["pipeline_revision"] = pipeline_revision
+    # The model this worker was configured with, said once at its start. The
+    # usage record names it too, but only after the first agent has answered,
+    # and the time estimate is asked for from the first second.
+    if llm_model is not None and existing.get("llm_model") is None:
+        data["llm_model"] = llm_model
     if source_counts is not None:
         data["source_counts"] = source_counts
     if topic is not None:
@@ -621,6 +645,7 @@ def main() -> None:
         source_counts: dict | None = None,
         topic: str | None = None,
         pipeline_revision: str | None = None,
+        llm_model: str | None = None,
         evidence_incomplete: bool | None = None,
         failed_domains: list[str] | None = None,
         usage: dict | None = None,
@@ -652,6 +677,7 @@ def main() -> None:
                 topic=topic,
                 pipeline_revision=pipeline_revision,
                 now=datetime.now(UTC).isoformat(),
+                llm_model=llm_model,
             )
             if evidence_incomplete is not None:
                 data["evidence_incomplete"] = evidence_incomplete
@@ -756,6 +782,7 @@ def main() -> None:
     telemetry = start_run_telemetry(args.run_id, topic_length=len(args.topic))
     write_status(
         _STAGE_INITIAL, topic=args.topic, pipeline_revision=revision,
+        llm_model=_configured_model(),
         observability=telemetry.snapshot(),
         runtime_budget=runtime_budget.public_snapshot(),
     )
@@ -1045,7 +1072,11 @@ def main() -> None:
             "academic_agent.source.failed_domains": len(source_collection.failed_domains),
         })
         write_status(
-            _PARALLEL_STAGE,
+            # A resumed run does not know yet which stage it will start in:
+            # that is decided when the checkpoints are inspected, below. Its
+            # stage stays where it is until then, so the evidence stage is
+            # not given a second of its own in a run that reuses it.
+            _STAGE_INITIAL if resume_directory is not None else _PARALLEL_STAGE,
             source_counts=source_counts,
             output_language=source_collection.output_language,
             failed_domains=sorted(source_collection.failed_domains) or None,
@@ -1155,7 +1186,9 @@ def main() -> None:
         checkpoint_runtime.install_task_callbacks()
         checkpoint_snapshot = checkpoint_runtime.snapshot()
         write_status(
-            _PARALLEL_STAGE,
+            # The stage of the first task that will really run: the evidence
+            # phase for a fresh run, a later one when a resume restored it.
+            tracker.current_stage(),
             output_language=source_collection.output_language,
             **checkpoint_snapshot,
         )
@@ -1462,6 +1495,22 @@ def main() -> None:
     finally:
         auxiliary.finish()
         auxiliary_scope.close()
+
+
+def _configured_model() -> str | None:
+    """The model this worker's environment names, or None when it names none.
+
+    Only the name: the same resolution the crew's own factory uses, so a
+    fallback variable or a stripped vendor prefix reads the same in both. A
+    configuration that cannot be resolved is not this function's to report;
+    the crew fails on it by name a moment later.
+    """
+    from academic_agent.llm_config import resolve_provider_config
+
+    try:
+        return resolve_provider_config().model
+    except RuntimeError:
+        return None
 
 
 def _error_text(exc: BaseException) -> str:
