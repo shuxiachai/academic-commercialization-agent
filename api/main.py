@@ -48,7 +48,9 @@ from academic_agent.checkpoint_runtime import pipeline_revision  # noqa: E402
 # report can read it without importing the API.
 from academic_agent import report_feedback as feedback  # noqa: E402
 from academic_agent.decision_verdict import card_text, find_verdict  # noqa: E402
-from academic_agent.report_display import display_parts, report_for_display  # noqa: E402
+from academic_agent.report_display import (  # noqa: E402
+    conclusion_for_display, display_parts, report_for_display,
+)
 from academic_agent.llm_config import (  # noqa: E402
     _detect_provider,
     resolve_provider_config,
@@ -1976,8 +1978,9 @@ def read_sample_report(
     view: Literal["saved", "display"] = Query(
         default="display",
         description="'display' (the default, what the sample reader fetches) is the report as the "
-                    "page shows it: the code-owned applicability paragraph as sentences and a "
-                    "cleaned reference list; 'saved' is the committed file, every byte as committed",
+                    "page shows it: the code-owned applicability paragraph as sentences, a cleaned "
+                    "reference list, the required headings in the report's language and 'GO / NO-GO' "
+                    "for 'GO/NO_GO'; 'saved' is the committed file, every byte as committed",
     ),
 ) -> PlainTextResponse:
     """One example report as Markdown. Unknown or missing samples are 404."""
@@ -2726,7 +2729,8 @@ def get_report(
     view: Literal["saved", "display"] = Query(
         default="saved",
         description="'display' is the report as the page shows it: the code-owned applicability paragraph "
-                    "as sentences and a cleaned reference list; 'saved' is every byte as saved",
+                    "as sentences, a cleaned reference list, the required headings in the report's "
+                    "language and 'GO / NO-GO' for 'GO/NO_GO'; 'saved' is every byte as saved",
     ),
 ) -> PlainTextResponse:
     """The final Markdown report, as saved unless view=display."""
@@ -2743,7 +2747,9 @@ def get_report(
         )
     text = path.read_text(encoding="utf-8")
     return PlainTextResponse(
-        report_for_display(text) if view == "display" else text,
+        # The run's recorded language names the headings of a report that
+        # names its language nowhere itself (report_display._heading_language).
+        report_for_display(text, state.get("output_language")) if view == "display" else text,
         media_type="text/markdown; charset=utf-8",
     )
 
@@ -2774,7 +2780,11 @@ def _run_decision(run_id: str, state: dict, report_path: Path) -> RunDecision:
         context = None
     if context is not None:
         question = {"decision_owner": context.decision_owner, "decision_type": context.decision_type}
-    conclusion = find_verdict(report_path.read_text(encoding="utf-8"))
+    report = report_path.read_text(encoding="utf-8")
+    # Read from the saved report, then put in the words the page and the PDF
+    # show it in: the card names a section and quotes a sentence, and the
+    # page looks for both in the report it drew.
+    conclusion = conclusion_for_display(find_verdict(report), report, state.get("output_language"))
     return RunDecision(run_id=run_id, asked=True, question=question, conclusion=conclusion)
 
 
@@ -3244,7 +3254,7 @@ def get_report_pdf(run_id: str) -> FileResponse:
 
     pdf_path = markdown_path.parent / "commercialization_report.pdf"
     from ui.pdf_export import (
-        _generate_pdf, pdf_cache_complete, pdf_cache_lock, pdf_carries_decision_card,
+        _generate_pdf, pdf_cache_complete, pdf_cache_lock, pdf_carries_decision_card, pdf_carries_display,
     )
 
     try:
@@ -3254,18 +3264,21 @@ def get_report_pdf(run_id: str) -> FileResponse:
         # Check inside the lock. Atomic publication prevents torn reads, but
         # alone still lets simultaneous first downloads build the same report.
         with pdf_cache_lock(markdown_path.parent):
+            # An export is cached for good. One drawn by earlier display
+            # rules (English headings over a Chinese report, "GO/NO_GO") is
+            # complete and stale: it is rendered once more, and then its mark holds.
+            current = pdf_cache_complete(pdf_path) and pdf_carries_display(pdf_path)
             if not decision.asked:
-                if not pdf_cache_complete(pdf_path):
+                if not current:
                     # The PDF is read like the page, not like the audit file.
                     _generate_pdf(
-                        report_for_display(markdown_path.read_text(encoding="utf-8")),
+                        report_for_display(markdown_path.read_text(encoding="utf-8"), language),
                         markdown_path.parent,
                         output_language=language,
                     )
-            # An export cached before the card existed is complete and lacks
-            # it; such a run is rendered once more, and then the mark holds.
-            elif not (pdf_cache_complete(pdf_path) and pdf_carries_decision_card(pdf_path)):
-                head, rest = display_parts(markdown_path.read_text(encoding="utf-8"))
+            # The same for an export cached before the card existed.
+            elif not (current and pdf_carries_decision_card(pdf_path)):
+                head, rest = display_parts(markdown_path.read_text(encoding="utf-8"), language)
                 _generate_pdf(
                     head + rest,
                     markdown_path.parent,

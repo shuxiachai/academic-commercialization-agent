@@ -15,6 +15,19 @@ Two code-written parts of it read badly as delivered:
   English heading. A Chinese report shows that heading in Chinese; the notes
   stay as saved.
 
+- The section headings are a fixed set (evidence._REQUIRED_REPORT_HEADINGS).
+  A report in another language is written under translations of them, and
+  until 2026-11-19 a model call made that translation at the start of every
+  such run. When the call failed, the writer was given the English headings
+  and the report was saved with them: a Chinese report read "Executive
+  Summary", "1. Technology Overview & Maturity" and so on over Chinese text,
+  and nothing said why. HEADING_TRANSLATIONS is that translation as a table.
+  A run now takes its headings from it (language.translate_headings), and a
+  report saved with the English ones is shown under the table's.
+- The writer's contract spells the verdict vocabulary "GO/NO_GO" and reports
+  repeat it; the page writes "GO / NO-GO" everywhere else. Shown, the report
+  writes it the page's way.
+
 Which language a report is in comes from its applicability paragraph where
 it has one. A report made from the command line has none, and was taken for
 English whatever it was written in; it is now known by the legend evidence.py
@@ -27,24 +40,33 @@ codes in the saved paragraph, and an unknown code keeps the saved wording.
 from __future__ import annotations
 
 import re
+from typing import Any
 
 from academic_agent.report_applicability import (
     _COPY,
     _OPENING_TITLE,
     _OWNED_BLOCK,
-    applicability_for_display,
 )
+
+# The verdict vocabulary as the writer's contract and the gate's own
+# paragraph spell it, in or out of code marks. Upper case only: "a go/no-go
+# decision" is English prose, and seven saved reports use it that way. The
+# edges are Latin letters and not \b: Chinese text runs straight into the
+# word ("未进行GO/NO_GO决策评估"), and to Python a Chinese character is a
+# word character.
+_GO_NO_GO = re.compile(r"`GO\s*/\s*NO[_-]GO`|(?<![A-Za-z0-9_])GO\s*/\s*NO[_-]GO(?![A-Za-z0-9_])")
+GO_NO_GO = "GO / NO-GO"
 
 _SCOPE: dict[str, dict[str, str]] = {
     "English": {
         "label": "Scope of this assessment",
         "orientation": "An orientation brief: no decision context was given, so it gives no "
-                       "GO/NO_GO for a particular decision-maker.",
-        "decision_context_incomplete": "The decision context is incomplete, so no GO/NO_GO is "
+                       f"{GO_NO_GO} for a particular decision-maker.",
+        "decision_context_incomplete": f"The decision context is incomplete, so no {GO_NO_GO} is "
                                        "given for a particular decision-maker.",
-        "decision_support": "Decision support: the context given allows a GO/NO_GO for this "
+        "decision_support": f"Decision support: the context given allows a {GO_NO_GO} for this "
                             "decision-maker; the cited evidence still governs it.",
-        "not_allowed": "No GO/NO_GO is given for a particular decision-maker.",
+        "not_allowed": f"No {GO_NO_GO} is given for a particular decision-maker.",
         "not_established": "No success criteria were given, so any thresholds in the report are "
                            "the analyst's proposals.",
         "user_supplied_unapproved": "Success criteria were supplied but not confirmed by the "
@@ -53,10 +75,10 @@ _SCOPE: dict[str, dict[str, str]] = {
     },
     "Simplified Chinese": {
         "label": "评估范围",
-        "orientation": "方向性简报：没有提供具体决策场景，因此不针对任何决策者给出 GO/NO_GO。",
-        "decision_context_incomplete": "决策场景信息不完整，因此不针对具体决策者给出 GO/NO_GO。",
-        "decision_support": "决策支持：已提供的决策场景允许针对该决策者给出 GO/NO_GO，结论仍以引用证据为准。",
-        "not_allowed": "不针对具体决策者给出 GO/NO_GO。",
+        "orientation": f"方向性简报：没有提供具体决策场景，因此不针对任何决策者给出 {GO_NO_GO}。",
+        "decision_context_incomplete": f"决策场景信息不完整，因此不针对具体决策者给出 {GO_NO_GO}。",
+        "decision_support": f"决策支持：已提供的决策场景允许针对该决策者给出 {GO_NO_GO}，结论仍以引用证据为准。",
+        "not_allowed": f"不针对具体决策者给出 {GO_NO_GO}。",
         "not_established": "未提供成功标准，报告中的决策门槛均为分析者建议。",
         "user_supplied_unapproved": "已提供成功标准，但未经决策者确认。",
         "owner_approved": "成功标准已获决策者批准。",
@@ -92,6 +114,120 @@ _LEGENDS: dict[str, str] = {
 }
 _NOTES = "\n## Reviewer Notes\n"
 _NOTES_ZH = "\n## 自动校对记录\n"       # result.js NOTES_HEADING finds the fold by either
+
+# evidence._REQUIRED_REPORT_HEADINGS, in the order the writer is given them.
+# A copy, for the reason _LEGENDS is one; tests/test_report_headings.py holds
+# it to the original.
+REPORT_HEADINGS: tuple[str, ...] = (
+    "# Academic Commercialization Assessment:",
+    "## Executive Summary",
+    "## 1. Technology Overview & Maturity",
+    "## 2. Patent Landscape & White Spaces",
+    "## 3. Target Industries & Use Cases",
+    "## 4. Competitive Landscape",
+    "## 5. Commercialization Opportunities & Recommendations",
+    "## Evidence Limitations",
+    "## References",
+)
+# The nine in each language a report can be asked for: the eleven the topic's
+# language is detected among (language.LANGUAGE_REGISTRY) and Hindi, which the
+# page's menu offers. The title is the product's name in that language.
+#
+# Simplified Chinese is the wording the model itself chose most often in the
+# 57 Chinese reports saved on the maintainer's machine (2026-11-19): 执行摘要,
+# 竞争格局 and 证据局限性 in all 57, 技术概述与成熟度 in 53, 目标行业与应用场景
+# in 55, 商业化机遇与建议 in 39 (the other 18 wrote 机会), 专利布局与空白领域
+# in 25 (24 wrote 格局). consistency.py, decision_verdict.py and the page's
+# brief read these words, so a different choice here must be made there too.
+# Japanese and Korean follow the three saved reports in those languages. The
+# others were written for this table and no native reader has reviewed them;
+# before it, each run's own model translation was reviewed by nobody either.
+HEADING_TRANSLATIONS: dict[str, tuple[str, ...]] = {
+    "Simplified Chinese": (
+        "# 学术成果商业化评估：", "## 执行摘要", "## 1. 技术概述与成熟度",
+        "## 2. 专利布局与空白领域", "## 3. 目标行业与应用场景", "## 4. 竞争格局",
+        "## 5. 商业化机遇与建议", "## 证据局限性", "## 参考文献",
+    ),
+    "Traditional Chinese": (
+        "# 學術成果商業化評估：", "## 執行摘要", "## 1. 技術概述與成熟度",
+        "## 2. 專利布局與空白領域", "## 3. 目標產業與應用場景", "## 4. 競爭格局",
+        "## 5. 商業化機會與建議", "## 證據侷限性", "## 參考文獻",
+    ),
+    "Japanese": (
+        "# 学術成果の商業化評価：", "## エグゼクティブサマリー", "## 1. 技術概要と成熟度",
+        "## 2. 特許状況と空白領域", "## 3. 対象産業とユースケース", "## 4. 競合状況",
+        "## 5. 商業化の機会と推奨事項", "## エビデンスの限界", "## 参考文献",
+    ),
+    "Korean": (
+        "# 학술 성과 상업화 평가:", "## 요약", "## 1. 기술 개요 및 성숙도",
+        "## 2. 특허 환경 및 공백 영역", "## 3. 대상 산업 및 사용 사례", "## 4. 경쟁 환경",
+        "## 5. 상업화 기회 및 권장 사항", "## 증거의 한계", "## 참고문헌",
+    ),
+    "German": (
+        "# Bewertung der Kommerzialisierung akademischer Forschung:", "## Zusammenfassung",
+        "## 1. Technologieüberblick und Reifegrad", "## 2. Patentlandschaft und Freiräume",
+        "## 3. Zielbranchen und Anwendungsfälle", "## 4. Wettbewerbsumfeld",
+        "## 5. Kommerzialisierungschancen und Empfehlungen", "## Grenzen der Evidenz",
+        "## Quellenverzeichnis",
+    ),
+    "French": (
+        "# Évaluation de la commercialisation de la recherche académique :", "## Résumé exécutif",
+        "## 1. Aperçu de la technologie et maturité", "## 2. Paysage des brevets et espaces libres",
+        "## 3. Secteurs cibles et cas d'usage", "## 4. Paysage concurrentiel",
+        "## 5. Opportunités de commercialisation et recommandations",
+        "## Limites des éléments probants", "## Références",
+    ),
+    "Spanish": (
+        "# Evaluación de la comercialización de la investigación académica:", "## Resumen ejecutivo",
+        "## 1. Panorama tecnológico y madurez", "## 2. Panorama de patentes y espacios en blanco",
+        "## 3. Sectores objetivo y casos de uso", "## 4. Panorama competitivo",
+        "## 5. Oportunidades de comercialización y recomendaciones",
+        "## Limitaciones de la evidencia", "## Referencias",
+    ),
+    "Italian": (
+        "# Valutazione della commercializzazione della ricerca accademica:", "## Sintesi esecutiva",
+        "## 1. Panoramica tecnologica e maturità", "## 2. Panorama brevettuale e spazi liberi",
+        "## 3. Settori target e casi d'uso", "## 4. Panorama competitivo",
+        "## 5. Opportunità di commercializzazione e raccomandazioni",
+        "## Limiti delle evidenze", "## Riferimenti",
+    ),
+    "Portuguese": (
+        "# Avaliação da comercialização da pesquisa acadêmica:", "## Resumo executivo",
+        "## 1. Visão geral da tecnologia e maturidade", "## 2. Panorama de patentes e espaços em branco",
+        "## 3. Setores-alvo e casos de uso", "## 4. Panorama competitivo",
+        "## 5. Oportunidades de comercialização e recomendações",
+        "## Limitações das evidências", "## Referências",
+    ),
+    "Russian": (
+        "# Оценка коммерциализации научных разработок:", "## Краткое резюме",
+        "## 1. Обзор технологии и уровень зрелости", "## 2. Патентный ландшафт и свободные ниши",
+        "## 3. Целевые отрасли и сценарии применения", "## 4. Конкурентная среда",
+        "## 5. Возможности коммерциализации и рекомендации",
+        "## Ограничения доказательной базы", "## Список источников",
+    ),
+    "Arabic": (
+        "# تقييم التسويق التجاري للبحث الأكاديمي:", "## الملخص التنفيذي",
+        "## 1. نظرة عامة على التقنية ومستوى النضج", "## 2. مشهد براءات الاختراع والمساحات غير المغطاة",
+        "## 3. القطاعات المستهدفة وحالات الاستخدام", "## 4. المشهد التنافسي",
+        "## 5. فرص التسويق التجاري والتوصيات", "## حدود الأدلة", "## المراجع",
+    ),
+    "Hindi": (
+        "# शैक्षणिक शोध के व्यावसायीकरण का आकलन:", "## कार्यकारी सारांश",
+        "## 1. प्रौद्योगिकी का अवलोकन और परिपक्वता", "## 2. पेटेंट परिदृश्य और रिक्त क्षेत्र",
+        "## 3. लक्षित उद्योग और उपयोग के मामले", "## 4. प्रतिस्पर्धी परिदृश्य",
+        "## 5. व्यावसायीकरण के अवसर और सिफ़ारिशें", "## साक्ष्य की सीमाएँ", "## संदर्भ",
+    ),
+}
+
+
+def fixed_headings(language: str | None) -> tuple[str, ...] | None:
+    """The nine required headings in `language`, or None where no table has it."""
+    return HEADING_TRANSLATIONS.get(language or "")
+
+
+def text_for_display(text: str) -> str:
+    """Report prose with the verdict vocabulary written the page's way."""
+    return _GO_NO_GO.sub(GO_NO_GO, text)
 
 
 def _delivered_block(report: str) -> re.Match[str] | None:
@@ -152,6 +288,64 @@ def _report_language(report: str) -> str:
     return _legend_language(report) or "English"
 
 
+
+
+def _heading_language(report: str, language: str | None = None) -> str:
+    """The language whose headings the report should be shown under.
+
+    What the report itself says comes first, and its paragraph still decides
+    where there is one (_report_language). But the paragraph has copy in six
+    languages and the legend in four: a delivered Korean report has an
+    English paragraph over a Korean legend, and a Portuguese one names its
+    language nowhere. So an English paragraph leaves room only for a language
+    it has no copy in, named by the legend or, failing that, by `language`,
+    the run's recorded output language. A sample and a file have no record.
+    """
+    block = _delivered_block(report)
+    legend = _legend_language(report)
+    if block is None:
+        if legend is not None:
+            return legend
+        return str(language) if language in HEADING_TRANSLATIONS else "English"
+    own = _block_language(block.group()) or "English"
+    if own != "English":
+        return own
+    for named in (legend, language):
+        if named in HEADING_TRANSLATIONS and named not in _COPY:
+            return str(named)
+    return "English"
+
+
+def _title(line: str, language: str) -> str:
+    """The opening title under the table's name for the product; any other line as it is."""
+    fixed = HEADING_TRANSLATIONS.get(language)
+    english = REPORT_HEADINGS[0]
+    if fixed is None or not line.startswith(english):
+        return line
+    topic = line[len(english):].lstrip(" \t")
+    # A Latin colon is followed by a space, a full-width one is not.
+    gap = " " if topic.strip() and fixed[0].endswith(":") else ""
+    return fixed[0] + gap + topic
+
+
+def _sections(body: str, language: str) -> str:
+    """The seven section headings between the title and the reference list.
+
+    Only a line that is exactly one of them changes. A report whose headings
+    were translated has none, and a heading the writer made up is not ours.
+    """
+    fixed = HEADING_TRANSLATIONS.get(language)
+    if fixed is None:
+        return body
+    known = dict(zip(REPORT_HEADINGS[1:-1], fixed[1:-1], strict=True))
+    lines = body.split("\n")
+    for index, line in enumerate(lines):
+        bare = line.rstrip()
+        if bare in known:
+            lines[index] = known[bare] + line[len(bare):]
+    return "\n".join(lines)
+
+
 def _notes_heading(report: str, language: str) -> str:
     """The last such heading is the pipeline's (evidence.py reads it with rpartition)."""
     if language != "Simplified Chinese":
@@ -192,19 +386,24 @@ def _references(report: str, language: str) -> str:
     return body + refs
 
 
-def report_for_display(report: str) -> str:
-    """The report as the page and the PDF show it. The saved bytes stay as they are."""
-    language = _report_language(report)
-    block = _delivered_block(report)
-    shown = applicability_for_display(report)
-    if block is not None:
-        paragraph = _scope_paragraph(block.group(), language)
-        if paragraph is not None:
-            shown = report[:block.start()] + paragraph + report[block.end():]
+def _after_the_scope(rest: str, language: str, heading_language: str) -> str:
+    """Everything after the scope paragraph (or the title), as shown.
+
+    The verdict vocabulary is respelt in the report's prose and in the
+    proofreading record, which quotes that prose. The reference list between
+    them is left alone: a source's title is the source's. Its heading and
+    its labels are translated for a Chinese report only, as before; in other
+    languages the list is shown as evidence.py wrote it.
+    """
+    at = rest.find(_REFERENCES)
+    body, tail = (rest, "") if at == -1 else (rest[:at], rest[at:])
+    notes_at = tail.rfind(_NOTES)
+    refs, notes = (tail, "") if notes_at == -1 else (tail[:notes_at], tail[notes_at:])
+    shown = text_for_display(_sections(body, heading_language)) + refs + text_for_display(notes)
     return _notes_heading(_references(shown, language), language)
 
 
-def display_parts(report: str) -> tuple[str, str]:
+def display_parts(report: str, language: str | None = None) -> tuple[str, str]:
     """The displayed report in two parts: through its scope paragraph, and the rest.
 
     The PDF puts the decision-conclusion card between them, where the page
@@ -212,20 +411,81 @@ def display_parts(report: str) -> tuple[str, str]:
     report. Joined, the two are report_for_display(report), byte for byte. A
     report with no delivered scope paragraph is cut after its opening title,
     or has an empty first part.
+
+    Each part is rewritten by itself, so the cut is where it is in the
+    displayed text whatever a rewrite does to the length of a line before it.
+
+    `language` is the run's recorded output language (see _heading_language).
     """
-    shown = report_for_display(report)
+    own = _report_language(report)
+    heading_language = _heading_language(report, language)
     block = _delivered_block(report)
     if block is None:
         title = _OPENING_TITLE.match(report)
         cut = title.end() if title is not None else 0
+        head, paragraph, rest = report[:cut], "", report[cut:]
     else:
-        paragraph = _scope_paragraph(block.group(), _report_language(report))
+        paragraph = _scope_paragraph(block.group(), own)
         if paragraph is None:
-            # applicability_for_display kept the saved words: the marker line
-            # dropped, then each line without its "> ".
+            # The saved words, as report_applicability.applicability_for_display
+            # gives them: the marker line dropped, each line without its "> ".
             lines = block.group().splitlines()[1:]
-            paragraph = "\n".join(re.sub(r"^>[ \t]?", "", line) for line in lines if line.strip())
-        cut = block.start() + len(paragraph)
-    # What display rewrites after this point (the reference list, the notes
-    # heading) stands after it, so the offset holds in the displayed text.
-    return shown[:cut], shown[cut:]
+            paragraph = text_for_display(
+                "\n".join(re.sub(r"^>[ \t]?", "", line) for line in lines if line.strip())
+            )
+        head, rest = report[:block.start()], report[block.end():]
+    opening = _OPENING_TITLE.match(head)
+    if opening is not None:
+        line = opening.group()
+        bare = line.rstrip("\r\n")
+        head = head[:opening.start()] + text_for_display(_title(bare, heading_language)) + line[len(bare):] \
+            + head[opening.end():]
+    return head + paragraph, _after_the_scope(rest, own, heading_language)
+
+
+def report_for_display(report: str, language: str | None = None) -> str:
+    """The report as the page and the PDF show it. The saved bytes stay as they are."""
+    head, rest = display_parts(report, language)
+    return head + rest
+
+
+def _plain_heading(heading: str) -> str:
+    """A heading as decision_verdict names a section: without its "#" marks."""
+    return heading.lstrip("#").strip()
+
+
+def conclusion_for_display(conclusion: dict[str, Any], report: str,
+                           language: str | None = None) -> dict[str, Any]:
+    """decision_verdict.find_verdict's answer, in the words the displayed report uses.
+
+    The verdict is read from the saved report, and the page then looks for
+    the quoted sentence, or failing that its section's heading, in the report
+    it drew. Both are the displayed text, so a section named "Executive
+    Summary" would not be found under "执行摘要", nor a sentence saying
+    "GO/NO_GO" where the page shows "GO / NO-GO". The same rewrites are made
+    here; nothing about the verdict changes.
+    """
+    heading_language = _heading_language(report, language)
+    fixed = HEADING_TRANSLATIONS.get(heading_language)
+    names = {} if fixed is None else {
+        _plain_heading(english): _plain_heading(shown)
+        for english, shown in zip(REPORT_HEADINGS[1:-1], fixed[1:-1], strict=True)
+    }
+
+    def said(item: dict[str, Any]) -> dict[str, Any]:
+        out = dict(item)
+        for key in ("statement", "needle"):
+            if isinstance(out.get(key), str):
+                out[key] = text_for_display(out[key])
+        if isinstance(out.get("follows"), list):
+            out["follows"] = [text_for_display(s) if isinstance(s, str) else s for s in out["follows"]]
+        section = out.get("section")
+        if isinstance(section, str):
+            title = _plain_heading(_title(f"# {section}", heading_language))
+            out["section"] = names.get(section, text_for_display(title))
+        return out
+
+    shown = said(conclusion)
+    if isinstance(conclusion.get("statements"), list):
+        shown["statements"] = [said(s) if isinstance(s, dict) else s for s in conclusion["statements"]]
+    return shown

@@ -387,6 +387,21 @@
   color: var(--text-secondary);
   font-size: var(--text-sm);
 }
+/* Above a report saved with English headings in another language. A fact
+   about the page, not a warning about the report: no colour of its own.
+   The article's measure and its left edge, so the two read as one column. */
+.report-note {
+  max-width: 820px;
+  margin: 0 0 var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
 .report-score__open {
   margin-left: auto;
   padding: 0;

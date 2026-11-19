@@ -990,7 +990,7 @@ const ABOUT_THE_REPORT = new RegExp("^(?:"
   + "|this\\s+" + REPORT_QUALIFIER + "{0,2}brief\\b"
   + "|(?:this|it) is an?\\s+(?:[\\w-]+\\s+){0,3}(?:assessment|report|analysis|evaluation|brief)\\b"
   + "|it is written in (?:orientation|decision[- ]support)\\b"
-  + "|assessment mode\\b|no actor-specific\\b|actor-specific go\\/no[_-]go\\b"
+  + "|assessment mode\\b|no actor-specific\\b|actor-specific go\\s*\\/\\s*no[_-]go\\b"
   + "|(?:all )?(?:conclusions|findings) (?:are|remain) (?:provisional|preliminary|tentative)\\b"
   + "|本(?:报告|评估|分析|文)|需要(?:明确|说明|指出)的是|评估模式"
   + ")", "iu");
@@ -1137,7 +1137,7 @@ const LABEL_LIMIT = 80;
 // own APIs (2026-11-12): "**Cost, capital and time:** not established." and
 // "**Provenance legend.** *Observed facts* are…". The contract asks for both
 // statements and leaves their labels to the model.
-const SECTION_NOTE = /^(?:mode|go\/no[_-]go status|note|evidence bas(?:is|es|e)|rationale|cost, capital and time|provenance legend|责任决策者|证据基础|推荐理由)\s*[:：.。]/iu;
+const SECTION_NOTE = /^(?:mode|go\s*\/\s*no[_-]go status|note|evidence bas(?:is|es|e)|rationale|cost, capital and time|provenance legend|责任决策者|证据基础|推荐理由)\s*[:：.。]/iu;
 // A label in front of the step, on the step's own line: the route's
 // ("**Primary Commercialization Route**: A partnership…", or written as a
 // sentence with a remark in brackets) and the recommendation's own
@@ -1502,6 +1502,37 @@ function renderReportScoreLine(scores, onOpenScorecard) {
   return line;
 }
 
+// The seven section headings every report is written under, in English
+// (report_display.REPORT_HEADINGS; tests/test_report_headings.py holds the two
+// lists together). The server shows a report in another language under its
+// table's translations of them, so one of these on such a page means the
+// report was saved with English headings in a language the table lacks.
+const ENGLISH_SECTION_HEADINGS = new Set([
+  "## Executive Summary",
+  "## 1. Technology Overview & Maturity",
+  "## 2. Patent Landscape & White Spaces",
+  "## 3. Target Industries & Use Cases",
+  "## 4. Competitive Landscape",
+  "## 5. Commercialization Opportunities & Recommendations",
+  "## Evidence Limitations",
+]);
+
+/** Whether a report written in `language` is shown under English section
+ * headings. The headings are translated before the report is written; when
+ * that failed they stayed English, and until now nothing said so. */
+export function headingsLeftEnglish(markdown, language) {
+  if (typeof language !== "string" || !language.trim() || language.trim() === "English") return false;
+  return String(markdown ?? "").split("\n").some(line => ENGLISH_SECTION_HEADINGS.has(line.trimEnd()));
+}
+
+/** The line above such a report, or null. */
+export function renderHeadingsNote(markdown, language) {
+  if (!headingsLeftEnglish(markdown, language)) return null;
+  const note = el("p", "report-note", t("report_headings_english"));
+  note.setAttribute("role", "note");
+  return note;
+}
+
 /* ── Public ────────────────────────────────────────────────────────── */
 
 /* ── Reader feedback ───────────────────────────────────────────────────
@@ -1818,6 +1849,8 @@ export async function render(container, runId, progress) {
         panel.innerHTML = "";
         const line = renderReportScoreLine(scores, () => select("score"));
         if (line) panel.append(line);
+        const headingsNote = renderHeadingsNote(md, progress.output_language);
+        if (headingsNote) panel.append(headingsNote);
         const article = el("article", "prose");
         article.innerHTML = renderMarkdown(md);
         panel.append(article);

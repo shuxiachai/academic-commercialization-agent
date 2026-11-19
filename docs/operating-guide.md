@@ -689,6 +689,21 @@ in a language without a phrase table is left unchecked, which the reliability
 panel shows as "not run", never as consistent. See the
 [Chinese calibration](results-2026-10-25-report-score-consistency-chinese.md).
 
+The section headings of a report are a fixed set. In another language they
+come from a table (`report_display.HEADING_TRANSLATIONS`: the eleven languages
+a topic is detected among, and Hindi), so a run in one of those makes no
+`heading_translation` call; a language outside the table is still translated by
+that one auxiliary call. Until 2026-11-19 every non-English run made it, and
+when it failed the report was written and saved under the English headings.
+Such a report is shown under the table's headings on the page, in the PDF and
+in the decision card; the saved file and its Markdown download keep the English
+ones. A resumed run asks for its headings again only when the earlier run
+committed no agent output, because the headings are part of every agent's
+checkpoint identity. Where a report is still shown under English headings (a
+language the table lacks), the report tab says so in one line. The page and the
+PDF also write the report's "GO/NO_GO" as "GO / NO-GO"; a PDF exported before
+either rule is rebuilt once on its next download.
+
 The checks write their reasons into the artifacts as English sentences, and
 artifacts are never rewritten. The page says each recognised sentence again in
 the interface language from its parts: the report-versus-scorecard finding (its

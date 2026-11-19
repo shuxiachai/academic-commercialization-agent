@@ -64,6 +64,44 @@ def _resolve_resume_directory(output_root: Path, run_id: str) -> Path:
 
 
 
+def _retry_untranslated_headings(source_collection: Any, resume_directory: Path | None) -> bool:
+    """Give a resumed run its headings again when the earlier run's stayed English.
+
+    The headings are translated once, before retrieval is saved, so a failed
+    translation used to be carried into every resume: the saved collection
+    held the English originals, which read as "already translated", and the
+    resume skipped the language step altogether. The Chinese run that showed
+    this (production, 2026-11-18) failed the call twice, and its resumed child
+    made no auxiliary call at all.
+
+    The headings are part of every agent's checkpoint identity (the crew
+    inputs and the collection are both hashed), so changing them makes none of
+    the earlier run's agent outputs reusable. A resume exists to save that paid
+    work, and a report already written under English headings is shown under
+    the table's (report_display) or, in a language the table lacks, with a
+    line saying so. The retry is therefore made only where it costs nothing:
+    the earlier run committed no agent output. Returns True when the headings
+    changed.
+    """
+    from academic_agent.checkpoints import CheckpointStore
+    from academic_agent.language import headings_untranslated, translate_headings
+
+    language = str(getattr(source_collection, "output_language", "") or "")
+    if resume_directory is None or not headings_untranslated(source_collection.localized_headings, language):
+        return False
+    # The first agent's commit: without it the reusable prefix is empty
+    # (CheckpointRuntime.restore_contiguous_prefix stops at the first gap).
+    if CheckpointStore(resume_directory).inspect_existing("academic").state != "missing":
+        return False
+    from academic_agent.evidence import _REQUIRED_REPORT_HEADINGS
+
+    headings = translate_headings(_REQUIRED_REPORT_HEADINGS, language)
+    if headings_untranslated(headings, language):
+        return False
+    source_collection.localized_headings = list(headings)
+    return True
+
+
 def _select_report_and_scores(
     tasks_output: list, fallback_raw: str | None,
 ) -> tuple[str | None, str | None]:
@@ -932,6 +970,10 @@ def main() -> None:
                     )
                     if translated_topic and translated_topic != source_collection.display_topic:
                         source_collection.display_topic = translated_topic
+        if retrieval_reused and _retry_untranslated_headings(source_collection, resume_directory):
+            # The collection is no longer the bytes the earlier run saved:
+            # commit, and hash, what the crew will be given.
+            retrieval_payload = ""
         # Phase 1 stops at observation. The worker intentionally injects no
         # planner callback, so even an eligible run proposes and executes zero
         # searches. Keeping this between retrieval and source serialization

@@ -117,14 +117,30 @@ class ReportPdfTests(_EndpointTestBase):
     def test_existing_pdf_is_served_without_re_rendering(self):
         run_id, directory = self._run_dir()
         (directory / "commercialization_report.md").write_text("# R", encoding="utf-8")
-        (directory / "commercialization_report.pdf").write_bytes(b"%PDF-1.4 cached\n%%EOF")
+        # A cached export names the display rules it was drawn by (ui.pdf_export.DISPLAY_MARK).
+        from ui.pdf_export import DISPLAY_MARK
+
+        cached = b"%PDF-1.4 cached " + DISPLAY_MARK.encode("ascii") + b"\n%%EOF"
+        (directory / "commercialization_report.pdf").write_bytes(cached)
 
         with patch("ui.pdf_export._generate_pdf") as render:
             r = self.client.get(f"/api/runs/{run_id}/report.pdf")
 
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.headers["content-type"], "application/pdf")
+        self.assertEqual(r.content, cached)
         render.assert_not_called()
+
+    def test_a_pdf_drawn_by_earlier_display_rules_is_rendered_again(self):
+        run_id, directory = self._run_dir()
+        (directory / "commercialization_report.md").write_text("# R", encoding="utf-8")
+        (directory / "commercialization_report.pdf").write_bytes(b"%PDF-1.4 cached\n%%EOF")
+
+        with patch("ui.pdf_export._generate_pdf") as render:
+            r = self.client.get(f"/api/runs/{run_id}/report.pdf")
+
+        self.assertEqual(r.status_code, 200)
+        render.assert_called_once()
 
     def test_pdf_is_rendered_on_first_request(self):
         run_id, directory = self._run_dir()

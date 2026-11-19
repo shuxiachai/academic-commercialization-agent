@@ -50,6 +50,23 @@ def pdf_carries_decision_card(path: Path) -> bool:
         return False
 
 
+#: Written into the document information of every PDF, naming the display
+#: rules its text was drawn by (report_display.py). An export is cached beside
+#: the report for good, so one made before a rule existed keeps the old text:
+#: a PDF of a Chinese report saved under English headings, exported before
+#: the heading table, would have kept those headings after it. Raise the
+#: number when report_display changes what a saved report is shown as.
+DISPLAY_MARK = "report-display:v2"
+
+
+def pdf_carries_display(path: Path) -> bool:
+    """Whether a cached export was drawn by the current display rules. A read fault is "no"."""
+    try:
+        return DISPLAY_MARK.encode("ascii") in path.read_bytes()
+    except OSError:
+        return False
+
+
 # Reportlab built-in CID fonts — no font file needed, cross-platform.
 # Resolved via pdfmetrics.registerFont(UnicodeCIDFont(...)) in _resolve_font.
 _CID_FONT_MAP: dict[str, str] = {
@@ -457,7 +474,7 @@ def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English
     With `decision_card` (decision_verdict.card_text) the card is drawn after
     the first `card_at` characters of the report, which the caller sets to
     the end of the scope paragraph, and the document information carries
-    DECISION_CARD_MARK.
+    DECISION_CARD_MARK. It always carries DISPLAY_MARK.
 
 
     Failures used to be swallowed and returned as None, on the reasoning that
@@ -498,7 +515,7 @@ def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English
             str(temporary), pagesize=A4,
             rightMargin=2 * cm, leftMargin=2 * cm,
             topMargin=2 * cm,   bottomMargin=2 * cm,
-            **({"subject": DECISION_CARD_MARK} if decision_card is not None else {}),
+            subject=DISPLAY_MARK if decision_card is None else f"{DISPLAY_MARK} {DECISION_CARD_MARK}",
         )
         doc.build(story)
         temporary.replace(pdf_path)

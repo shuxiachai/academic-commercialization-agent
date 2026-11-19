@@ -1,0 +1,104 @@
+{
+  "read": "2026-11-19, GET /api/runs/{run_id} on the deployment, with the maintainer's consent; only the fields kept here",
+  "failed_run": {
+    "run_id": "20261118T090017Z-7d84b0d1c8958f2678a75bd43371899b",
+    "state": "failed",
+    "stage": "Error",
+    "error_code": "unknown",
+    "output_language": "Simplified Chinese",
+    "pipeline_revision": "git:a2079f9c93f957e816010d903872485c7710261c",
+    "elapsed_seconds": 1531,
+    "source_collection_seconds": 77,
+    "auxiliary_usage": {
+      "accounting_scope": "auxiliary_llm",
+      "call_count": 2,
+      "calls": [
+        {
+          "model": "qwen3.8-2.4t-a95b",
+          "observed_cost_usd": null,
+          "outcome": "call_failed",
+          "price_basis": null,
+          "provider_attempt_count": 1,
+          "stage": "heading_translation",
+          "state": "settled",
+          "tokens": null,
+          "total_tokens": null,
+          "unit": "http_attempt",
+          "sequence": 0
+        },
+        {
+          "model": "qwen3.8-2.4t-a95b",
+          "observed_cost_usd": null,
+          "outcome": "call_failed",
+          "price_basis": null,
+          "provider_attempt_count": 1,
+          "stage": "heading_translation",
+          "state": "settled",
+          "tokens": null,
+          "total_tokens": null,
+          "unit": "http_attempt",
+          "sequence": 1
+        }
+      ],
+      "cost_complete": false,
+      "coverage": "partial",
+      "end_to_end_cost_complete": false,
+      "observed_cost_usd": null,
+      "observed_tokens": null,
+      "pdf_reference": null,
+      "provider_attempt_count": 2,
+      "record_state": "recorded",
+      "schema_version": 1,
+      "total_tokens": null
+    },
+    "checkpointing": {
+      "committed_nodes": [
+        "retrieval",
+        "academic",
+        "patent",
+        "market",
+        "writer",
+        "reviewer"
+      ],
+      "errors": [],
+      "state": "partial"
+    }
+  },
+  "resumed_run": {
+    "run_id": "20261118T094559Z-6a59d6f9d435d933a1411169f222436e",
+    "state": "completed",
+    "stage": "Done",
+    "error_code": null,
+    "output_language": "Simplified Chinese",
+    "pipeline_revision": "git:a2079f9c93f957e816010d903872485c7710261c",
+    "elapsed_seconds": 228,
+    "auxiliary_usage": {
+      "accounting_scope": "auxiliary_llm",
+      "call_count": 0,
+      "calls": [],
+      "cost_complete": true,
+      "coverage": "complete",
+      "end_to_end_cost_complete": false,
+      "observed_cost_usd": 0,
+      "observed_tokens": 0,
+      "pdf_reference": null,
+      "provider_attempt_count": 0,
+      "record_state": "recorded",
+      "schema_version": 1,
+      "total_tokens": 0
+    },
+    "recovery": {
+      "state": "reused",
+      "source_run_id": "20261118T090017Z-7d84b0d1c8958f2678a75bd43371899b",
+      "reused_nodes": [
+        "retrieval",
+        "academic",
+        "patent",
+        "market",
+        "writer",
+        "reviewer"
+      ],
+      "next_node": "scorer"
+    }
+  }
+}

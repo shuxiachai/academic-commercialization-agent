@@ -172,12 +172,21 @@ def test_the_sentences_the_rehearsal_validates_are_still_the_ones_it_expects():
 
 def test_the_interface_writes_go_no_go_as_words_not_as_an_identifier():
     """"GO/NO_GO" with its underscore is how the code names the decision.
-    The interface's own sentences now write "GO / NO-GO". Report text, which
-    the pipeline writes and the page shows as saved, is not touched, and
-    neither are the strings the Python side composes."""
+    The interface's own sentences write "GO / NO-GO". Until 2026-11-19 the
+    report's lines kept the pipeline's spelling on the page; they are now
+    shown the same way (report_display.text_for_display), and the sentences
+    the Python side composes for the scope line say it that way themselves.
+    The saved report and the writer's contract keep the identifier."""
     assert "GO/NO_GO" not in _I18N and "NO_GO" not in _I18N
     assert _ENGLISH.count("GO / NO-GO") >= 10 and _CHINESE.count("GO / NO-GO") >= 8
     index = (_REPO / "web" / "index.html").read_text(encoding="utf-8")
     assert "GO/NO_GO" not in index
-    display = (_REPO / "src" / "academic_agent" / "report_display.py").read_text(encoding="utf-8")
-    assert "GO/NO_GO" in display, "the report's own lines keep the pipeline's spelling"
+    from academic_agent import report_display
+
+    assert report_display.GO_NO_GO == "GO / NO-GO"
+    for scope in report_display._SCOPE.values():
+        assert not any("NO_GO" in sentence for sentence in scope.values())
+    assert report_display.text_for_display("no actor-specific GO/NO_GO is assessed") == (
+        "no actor-specific GO / NO-GO is assessed")
+    tasks = (_REPO / "src" / "academic_agent" / "config" / "tasks.yaml").read_text(encoding="utf-8")
+    assert "GO/NO_GO" in tasks, "the writer's contract keeps the identifier"
