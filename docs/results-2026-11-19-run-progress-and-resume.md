@@ -4,8 +4,10 @@
 **Status:** a reading of the code on `main` at `57d82e9` behind seven
 observations made on production on 2026-11-18, and a count of what run records
 exist on the maintainer's machine. No search or model request was made, and no
-production record was read for this document: the production figures below are
-the ones the maintainer reported from the run pages on 2026-11-18.
+production record was read for the change itself: the production figures in
+the first sections are the ones the maintainer reported from the run pages on
+2026-11-18. The deployment's run records were read afterwards, on 2026-11-19,
+and are in the last section.
 **Production:** the changes named under "What changed" are in the change that
 carries this file. How a failure is classified, what a run is charged, and
 when a resume is admitted are unchanged.
@@ -102,7 +104,8 @@ runs on the same model, and it has to be a range.
 **Not measured.** How wide the range is on production for the model in use
 there, and how often a run falls outside it. That needs the deployment's own
 run records, which this change did not read. The page shows the count of runs
-behind every figure so that a reader can weigh it.
+behind every figure so that a reader can weigh it. (Those records were read
+on 2026-11-19 after the change shipped: see the last section.)
 
 ## What changed
 
@@ -173,3 +176,68 @@ Three things seen there were changed afterwards:
   only its link is not handed another run by that.
 - The draft's notice told every reader that resuming reuses the text. A
   reader of someone else's run cannot resume it and is no longer told to.
+
+## The deployment's own run records (read 2026-11-19)
+
+Read after both changes had shipped, with the maintainer's consent, signed in
+as the administrator, with GET requests only: the run list and each run's
+status (state, model, time, stage times, whether it was a resume). No topic
+and no report text was taken. The deployment keeps runs for 90 days and held
+17: 12 completed (one of them the resume), 4 failed, 1 cancelled.
+
+The eleven completed runs that ran every stage themselves, newest first,
+in seconds:
+
+| Started (UTC) | Model | Whole run | Sources | Evidence | Report | Review | Scoring |
+|---|---|---|---|---|---|---|---|
+| 2026-11-18 | qwen3.8-2.4t-a95b | 1,480 | 27 | 217 | 493 | 544 | 189 |
+| 2026-11-09 | deepseek-v4.1-flash-1017 | 343 | 54 | 46 | 127 | 89 | 15 |
+| 2026-11-09 | deepseek-v4-pro-0813 | 1,072 | 52 | 46 | 715 | 59 | 189 |
+| 2026-11-08 | deepseek-v4-pro-0813 | 781 | 39 | 362 | 282 | 50 | 40 |
+| 2026-10-25 | qwen3.7-max-2026-06-08 | 389 | 42 | 44 | 84 | 38 | 168 |
+| 2026-10-23 | qwen3.7-max-preview | 641 | 84 | 241 | 223 | 48 | 33 |
+| 2026-10-21 | qwen3.8-27b | 988 | stage times not recorded then |||||
+| 2026-10-21 | qwen3.8-27b | 333 | |||||
+| 2026-10-21 | qwen3.8-27b | 423 | |||||
+| 2026-10-21 | qwen3.8-27b | 275 | |||||
+| 2026-09-29 | qwen3.5-plus | 250 | |||||
+
+Not among them: the resume (228 s), four failures (after 125, 190, 1,523 and
+1,531 s) and a cancellation (at 728 s).
+
+What they show:
+
+- **The two figures the page gave are reproduced exactly.** The old estimate
+  was the median of each stage over the completed runs with stage times.
+  Before the run of 2026-11-18 those were the five runs under it in the
+  table: 52 + 46 + 223 + 50 + 40 = 411 s, shown as "about 7 min". The run took
+  1,480. With that run added, a run whose stage read "Phase 1" was told the
+  evidence median and everything after it, 131 + 252 + 54 + 104 = 541 s:
+  "about 9 min" from its first seconds. That was the resume, which ran
+  scoring only and took 228 s.
+- **No model has three completed runs with stage times.** Eleven runs carry
+  eight model names; the one model with four runs ran them before stage
+  times were recorded. So on production every estimate today is drawn from
+  other models' runs, and says so. The same-model range, the main change,
+  has not yet been in effect there.
+- **The new method would not have covered that run either, and says why.** On
+  the history as it stood before 2026-11-18, the range at a run's start is
+  what the five runs took, 331 to 1,061 s: "about 5–18 min left, going by
+  runs on other models". The run took 24 min 40 s. A model new to the
+  deployment and slower than every earlier one cannot be foreseen from the
+  others' runs. What changes is that the page says whose runs the figure
+  comes from, gives the spread instead of a middle, and, once a run outlasts
+  them, says it is slower than all of them instead of counting down. Today,
+  with that run in the pool: 331 to 1,470 s, "about 5–25 min left".
+- **The spread is inside the stages, and it moves.** Across the six runs:
+  sources 27 to 84 s, evidence 44 to 362, report 84 to 715, review 38 to 544,
+  scoring 15 to 189. The two runs on one model, a day apart, took 781 and
+  1,072 s, with evidence at 362 against 46 and the report at 282 against
+  715: a different stage was the slow one each time. That fits a link that
+  stalls on some requests (`api/link_probe.py`) more than a model being slow,
+  and it means a same-model range will be wide too.
+- **The pages' sentence.** The newest ten whole runs took 275 to 1,480 s,
+  which `/health` gives as 4 to 25 minutes and the landing shows.
+
+**Still not measured:** how often a run falls outside its range. Six runs with
+stage times cannot say, and none of them was estimated by the new method.
