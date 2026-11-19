@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Sample reports (no key needed)
+    url: https://academic-agent.cc/samples
+    about: Six finished assessments you can read without an account or API keys.
+  - name: Documentation map
+    url: https://github.com/shuxiachai/academic-commercialization-agent/blob/main/docs/README.md
+    about: Where each part of the repository lives.
+  - name: Operating guide
+    url: https://github.com/shuxiachai/academic-commercialization-agent/blob/main/docs/operating-guide.md
+    about: Running the app, keys and day-to-day operation.
