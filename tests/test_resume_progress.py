@@ -401,6 +401,100 @@ def test_both_run_reads_carry_the_lineage_whole(root: Path) -> None:
         assert client.get(path).json()["lineage"] is None, path
 
 
+# ── The other direction: the run that continued this one ────────────────────
+
+
+def _resumed_child(root: Path, serial: int, parent: str, *, owner: str | None = None, **more) -> str:
+    """A run resumed from `parent`, with the snapshot the API takes for every resume."""
+    child = _run(root, serial, resumed=parent, usage=_usage(1), **more)
+    (root / child / runs.RESUME_SNAPSHOT_DIRECTORY / "checkpoints").mkdir(parents=True)
+    if owner is not None:
+        (root / child / ".owner").write_text(owner, encoding="utf-8")
+    return child
+
+
+def test_a_stopped_run_names_the_newest_run_that_continued_it(root: Path) -> None:
+    parent = _run(root, 1, state="failed", usage=_usage(1))
+    assert runs.continued_by(parent) is None
+    first = _resumed_child(root, 2, parent, state="failed")
+    assert runs.continued_by(parent) == first
+    second = _resumed_child(root, 3, parent)
+    assert runs.continued_by(parent) == second
+    # A resume of the first resume continues that one, not the run before it.
+    third = _resumed_child(root, 4, first)
+    assert runs.continued_by(first) == third
+    assert runs.continued_by(parent) == second
+    assert runs.continued_by(third) is None
+
+
+def test_only_a_run_with_the_resume_snapshot_and_the_same_owner_counts(root: Path) -> None:
+    alice, bob = access.owner_id("for-alice"), access.owner_id("for-bob")
+    parent = _run(root, 1, state="failed", usage=_usage(1))
+    (root / parent / ".owner").write_text(alice, encoding="utf-8")
+    # Says it continues the parent, under the same owner, and has no snapshot:
+    # not a resume the API launched.
+    unsnapshotted = _run(root, 2, resumed=parent, usage=_usage(1))
+    (root / unsnapshotted / ".owner").write_text(alice, encoding="utf-8")
+    assert runs.continued_by(parent) is None
+    # Someone else's resume of it (an administrator's, say) is theirs to open, not the owner's.
+    _resumed_child(root, 3, parent, owner=bob)
+    assert runs.continued_by(parent) is None
+    own = _resumed_child(root, 4, parent, owner=alice)
+    assert runs.continued_by(parent) == own
+    assert runs.continued_by("../outside") is None
+    assert runs.continued_by("20260101T000000Z-" + "0" * 32) is None
+
+
+def test_a_child_whose_status_cannot_be_read_is_passed_over(root: Path) -> None:
+    parent = _run(root, 1, state="failed", usage=_usage(1))
+    good = _resumed_child(root, 2, parent)
+    broken = _resumed_child(root, 3, parent)
+    (root / broken / "status.json").write_bytes(b"{broken")
+    assert runs.continued_by(parent) == good
+
+
+def test_both_run_reads_tell_whoever_may_modify_the_run_and_nobody_else(root: Path) -> None:
+    """Naming a run hands over its link. A reader of a failed run is not given its resume's report."""
+    alice = access.owner_id("for-alice")
+    parent = _run(root, 1, state="failed", usage=_usage(1))
+    (root / parent / ".owner").write_text(alice, encoding="utf-8")
+    child = _resumed_child(root, 2, parent, owner=alice)
+    ownerless = _run(root, 3, state="failed", usage=_usage(1))
+    _resumed_child(root, 4, ownerless)
+    with patch.object(access, "ACCESS_CODES", "for-alice,for-bob"), patch.object(access, "ADMIN_CODE", "for-admin"):
+        client = TestClient(app)
+        for path in (f"/api/runs/{parent}", f"/api/runs/{parent}/progress"):
+            told = {who: client.get(path, headers=headers).json()["continued_by"] for who, headers in (
+                ("owner", {"X-Access-Code": "for-alice"}), ("administrator", {"X-Access-Code": "for-admin"}),
+                ("another code", {"X-Access-Code": "for-bob"}), ("no code", {}))}
+            assert told == {"owner": child, "administrator": child, "another code": None, "no code": None}, path
+        # A run with no owner on record: the server cannot say who is asking, and names nothing.
+        for headers in ({}, {"X-Access-Code": "for-alice"}):
+            assert client.get(f"/api/runs/{ownerless}", headers=headers).json()["viewer_can_modify"] is None
+            assert client.get(f"/api/runs/{ownerless}", headers=headers).json()["continued_by"] is None
+        # The run that continued it has not been continued itself, and a finished run cannot be.
+        assert client.get(f"/api/runs/{child}", headers={"X-Access-Code": "for-alice"}).json()["continued_by"] is None
+
+
+def test_only_a_run_that_stopped_is_looked_up(root: Path) -> None:
+    done = _run(root, 1, usage=_usage(1))
+    _resumed_child(root, 2, done)       # a record that says so; a completed run cannot be resumed
+    client = TestClient(app)
+    assert runs.continued_by(done) is not None
+    for path in (f"/api/runs/{done}", f"/api/runs/{done}/progress"):
+        assert client.get(path).json()["continued_by"] is None, path
+    stopped = _run(root, 3, state="failed", usage=_usage(1))
+    resumed = _resumed_child(root, 4, stopped)
+    for path in (f"/api/runs/{stopped}", f"/api/runs/{stopped}/progress"):
+        assert client.get(path).json()["continued_by"] == resumed, path
+
+
+def test_it_is_about_the_caller_and_not_part_of_the_runs_state(root: Path) -> None:
+    parent = _run(root, 1, state="failed", usage=_usage(1))
+    _resumed_child(root, 2, parent)
+    assert "continued_by" not in runs.get_state(parent)
+
+
 def test_the_run_list_names_the_run_each_resume_continues(root: Path) -> None:
     parent = _run(root, 1, state="failed", usage=_usage(1))
     child = _run(root, 2, usage=_usage(1), resumed=parent)

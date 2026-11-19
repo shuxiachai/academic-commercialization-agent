@@ -728,6 +728,13 @@
                under the header line, where "6 checkpoint stages reused" used
                to trail after the usage fold. -->
           <p class="run-outcome run-lineage" id="run-lineage" hidden></p>
+          <!-- The other direction: a run that stopped and was resumed later
+               says so, with the run that continued it one click away. Said
+               only to whoever may modify this run (the reads' `continued_by`). -->
+          <p class="run-outcome run-continued" id="run-continued" hidden>
+            <span id="run-continued-text"></span>
+            <button type="button" class="run-lineage__link" id="run-continued-open"></button>
+          </p>
           <p class="run-outcome" id="run-outcome" hidden></p>
           <!-- For a failure its reader cannot fix alone: the run's ID with a
                button that copies it, and the operator's contact where the

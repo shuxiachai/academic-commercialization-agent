@@ -316,7 +316,7 @@ function paintHeader({
   topic, state, elapsed_seconds, source_counts, usage, usage_accounting, auxiliary_usage,
   terminal, status_record_state, checkpointing, recovery, runtime_metadata_unreadable, steps_read_state,
   stage_timings, eta, pipeline_revision, error, error_code, funded_by, daily_charge, daily_charge_reason,
-  llm_model, lineage, run_id,
+  llm_model, lineage, run_id, continued_by,
 }) {
   if (topic) $("#run-title").textContent = topic;
 
@@ -368,7 +368,7 @@ function paintHeader({
   // Where the time went, folded the same way. The stage list shows it while
   // the run is going; the finished view replaces that list.
   const timingEl = $("#run-timing");
-  timingEl.textContent = runView.timingSummary(stage_timings);
+  timingEl.textContent = runView.timingSummary(stage_timings, recovery);
   $("#run-timing-details").hidden = !timingEl.textContent;
   $("#run-timing-label").textContent = `· ${runView.headerLabel("stage_timing")}`;
 
@@ -404,6 +404,7 @@ function paintHeader({
   outcomeEl.hidden = !outcome;
   paintRunHelp({ state, error_code, funded_by, run_id });
   paintLineage({ state, recovery, lineage, elapsed_seconds, usage, usage_accounting });
+  paintContinued(continued_by);
 
   // A run takes minutes and does not need the page. Said to whoever started
   // it; an account that has not asked for the finish email is offered it.
@@ -469,6 +470,21 @@ function paintLineage(facts) {
     }
     line.append(after);
   });
+}
+
+/* On a run that stopped and was resumed later: that it was, and the way to
+ * the run that continued it. The failed run of 2026-11-18 went on offering
+ * "Resume from checkpoint" as if nobody had, and only the history showed
+ * that a finished report existed. The server names that run only to whoever
+ * may modify this one, so a reader of a shared link sees nothing here. */
+function paintContinued(runId) {
+  const line = $("#run-continued");
+  const known = typeof runId === "string" && runId !== "";
+  line.hidden = !known;
+  $("#run-continued-text").textContent = known ? runView.headerLabel("continued_note") : "";
+  const open = $("#run-continued-open");
+  open.textContent = known ? runView.headerLabel("continued_open") : "";
+  open.onclick = known ? () => openRun(runId) : null;
 }
 
 /* Under the reason a run failed, when it is one the reader cannot fix alone:

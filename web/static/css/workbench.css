@@ -1792,6 +1792,8 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
   cursor: pointer;
 }
 .run-lineage__link:hover { color: var(--accent-hover); }
+/* "This run was resumed later." and the way to the run that continued it. */
+.run-continued .run-lineage__link { margin-left: var(--space-2); }
 
 /* The run's ID to copy and the operator's contact, under a failure the
    reader cannot fix alone. The ID is selected whole by one click. */

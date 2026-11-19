@@ -2076,6 +2076,44 @@ def resumed_from(recovery: object, run_id: str) -> str | None:
     return source
 
 
+def continued_by(run_id: str) -> str | None:
+    """The newest run that was resumed from this one, or None.
+
+    A resume names its parent; nothing told the parent's page that it had
+    been resumed, so the failed run of 2026-11-18 went on offering "Resume
+    from checkpoint" as if nobody had, beside a report that existed one
+    click away in the history.
+
+    Found by looking, newest first, at the runs started after this one that
+    carry the snapshot the API takes for a resume, and reading which run
+    each says it continues. Only among runs recorded under the same owner:
+    a run an administrator resumed for someone is the administrator's.
+
+    Whoever is told this can open that run, so it is not part of the run's
+    state: the caller decides who is told (api.main: whoever may modify
+    this run, never a reader holding only its link).
+    """
+    if not _is_valid_run_id(run_id):
+        return None
+    try:
+        owner = _read_owner(run_dir_for(run_id))
+    except OwnerMarkerUnreadable:
+        return None
+    for directory in run_directories():
+        if directory.name <= run_id:
+            break
+        if not (directory / RESUME_SNAPSHOT_DIRECTORY).is_dir():
+            continue
+        try:
+            recovery = _read_status(directory).get("recovery")
+            same_owner = _read_owner(directory) == owner
+        except (StatusUnreadable, OwnerMarkerUnreadable):
+            continue
+        if same_owner and resumed_from(recovery, directory.name) == run_id:
+            return directory.name
+    return None
+
+
 def _spend(state: dict) -> dict:
     """One run's time and usage, in the terms the totals are added up in."""
     usage = state.get("usage") if isinstance(state.get("usage"), dict) else None

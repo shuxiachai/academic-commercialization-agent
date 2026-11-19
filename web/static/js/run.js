@@ -46,14 +46,38 @@ function stageIndex(stage) {
   return STAGES.findIndex((s) => stage.includes(s.match));
 }
 
-/** Seconds spent in each stage, by stage id, from the API's stage_timings. */
-function stageSeconds(timings) {
+/**
+ * Seconds spent in each stage, by stage id, from the API's stage_timings.
+ *
+ * With `recovery`, a resumed run's seconds are shown where they were spent.
+ * Until 2026-11-19 the worker left a resume's stage on the evidence phase
+ * until its first task completed, so a resume that only scored recorded its
+ * scoring time under "Phase 1": the production resume of 2026-11-18 still
+ * read "Evidence 3:33" in its timing fold. Those records are not rewritten.
+ * But a stage a run took whole from the earlier run ran nothing in it, so
+ * seconds recorded under one were spent in the first step the run did run,
+ * which its own record names (`recovery.next_node`), and are shown there.
+ * The first stage is left alone: its seconds are the run starting up, under
+ * that label then and now. A record written since has no seconds under a
+ * reused stage, and a run that reused nothing has no reused stage: for
+ * both, nothing moves.
+ */
+function stageSeconds(timings, recovery = null) {
   const seconds = {};
   for (const timing of Array.isArray(timings) ? timings : []) {
     const index = stageIndex(timing?.stage);
     if (index === -1 || !Number.isFinite(timing.duration_seconds)) continue;
     const { id } = STAGES[index];
     seconds[id] = (seconds[id] ?? 0) + timing.duration_seconds;
+  }
+  const reused = reusedStages(recovery);
+  const began = STAGES.find((s) => s.nodes.includes(recovery?.next_node));
+  if (began && !reused.has(began.id)) {
+    for (const stage of STAGES.slice(1)) {
+      if (!reused.has(stage.id) || seconds[stage.id] == null) continue;
+      seconds[began.id] = (seconds[began.id] ?? 0) + seconds[stage.id];
+      delete seconds[stage.id];
+    }
   }
   return seconds;
 }
@@ -72,7 +96,7 @@ export function stageStates(stage, state, timings = [], recovery = null) {
   const done = state === "completed";
   const failed = state === "failed" || state === "timeout";
   const current = stageIndex(stage);
-  const seconds = stageSeconds(timings);
+  const seconds = stageSeconds(timings, recovery);
   const reused = reusedStages(recovery);
 
   const stateOf = (i) => {
@@ -392,6 +416,9 @@ const HEADER_STRINGS = {
     lineage_cost: " · estimated cost {cost}",
     lineage_at_least: "at least {value}",
     lineage_missing: "The earlier run's record has been deleted, so these figures cover this run only.",
+    // On the run a resume continued (the reads' continued_by).
+    continued_note: "This run was resumed later.",
+    continued_open: "Open the run that continued it",
     // While the account's own assessment is going (activeRunNotice).
     busy_banner: "You have an assessment in progress: {topic}.",
     busy_banner_plain: "You have an assessment in progress.",
@@ -478,6 +505,8 @@ const HEADER_STRINGS = {
     lineage_cost: "；估算费用 {cost}",
     lineage_at_least: "至少 {value}",
     lineage_missing: "上一次运行的记录已被删除，所以这些数字只包含本次运行。",
+    continued_note: "这次运行后来已被续跑。",
+    continued_open: "打开接着它做的那次运行",
     busy_banner: "你有一份评估正在进行：{topic}。",
     busy_banner_plain: "你有一份评估正在进行。",
     busy_view: "查看",
@@ -836,9 +865,10 @@ const STAGE_SHORT_LABELS = {
 };
 
 /** "Sources 0:40 · Evidence 1:00 · Report 0:25…" from stage_timings; "" without any. */
-export function timingSummary(timings) {
+export function timingSummary(timings, recovery = null) {
   const labels = STAGE_SHORT_LABELS[uiLanguage()] ?? STAGE_SHORT_LABELS.English;
-  const seconds = stageSeconds(timings);
+  // `recovery` puts a resume's seconds under the step it ran (stageSeconds).
+  const seconds = stageSeconds(timings, recovery);
   const active = new Set((Array.isArray(timings) ? timings : [])
     .filter((timing) => timing?.active)
     .map((timing) => STAGES[stageIndex(timing.stage)]?.id));
