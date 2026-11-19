@@ -599,6 +599,37 @@ def _account_active_locked(owner: str) -> int:
     return sum(1 for handle in _registry.values() if handle.owner == owner) + inline
 
 
+def account_activity(owner: str | None) -> dict | None:
+    """What an account has going right now, for that account's own page.
+
+    An account runs one assessment at a time (`API_ACCOUNT_MAX_CONCURRENT`),
+    and the refusal used to be the first the page heard of it: a second
+    topic went through its plan preview, one small request on the account's
+    key, and was told "already has an assessment in progress" only when
+    Start was pressed (production, 2026-11-18). This is the same count the
+    admission makes (`_admit_paid_operation_locked`), read without admitting
+    anything, so the page can say so before either request is made.
+
+    `active_runs` are the account's live worker runs, newest first, each with
+    its topic; `at_capacity` is whether one more paid operation would be
+    refused as `account_busy`. The two can differ: an upload being read
+    holds the slot without being a run. None for a caller that is not an
+    account: a code holder and a keys-only visitor have no such limit.
+    """
+    if not accounts.is_user_owner(owner):
+        return None
+    with _registry_lock:
+        # Counted first, as the admission does: this reaps workers that have exited.
+        _active_paid_operation_count_locked()
+        going = _account_active_locked(owner)
+        live = sorted(((run_id, handle.topic) for run_id, handle in _registry.items() if handle.owner == owner),
+                      reverse=True)
+    return {
+        "active_runs": [{"run_id": run_id, "topic": topic or ""} for run_id, topic in live],
+        "at_capacity": bool(ACCOUNT_MAX_CONCURRENT) and going >= ACCOUNT_MAX_CONCURRENT,
+    }
+
+
 def capacity_counts() -> tuple[int, int]:
     """Atomic (worker runs, all paid operations) capacity snapshot."""
     with _registry_lock:
@@ -1962,11 +1993,50 @@ def _funded_by(run_dir: Path) -> str | None:
 
 def artifact_names() -> list[str]:
     """Every artifact name the API can serve, whether or not a given run has it."""
-    return sorted(_ARTIFACTS)
+    return sorted([*_ARTIFACTS, DRAFT_ARTIFACT])
 
 
 def available_artifacts(run_dir: Path) -> list[str]:
     return [name for name, fname in _ARTIFACTS.items() if (run_dir / fname).exists()]
+
+
+#: The name the draft is advertised and fetched under. Not a file of its own:
+#: the text is the writer's committed checkpoint (see draft_report).
+DRAFT_ARTIFACT = "draft"
+_STOPPED_STATES = frozenset({"failed", "cancelled", "timeout"})
+
+
+def draft_report(run_id: str, state: str) -> str | None:
+    """What the writer wrote, for a run that stopped before it had a report.
+
+    The report file is written once, after the reviewer and the scorer have
+    both returned. A run that failed in scoring (production, 2026-11-18: 25
+    minutes and 141,000 tokens in, writer and reviewer both done) therefore
+    had no report file, and its page said the run "produced no report". The
+    writer's own answer was on disk the whole time, as the checkpoint a
+    resume would reuse.
+
+    It is the writer's text and nothing later: the reviewer's corrections,
+    the applicability paragraph and the scorecard belong to steps this run did
+    not finish, and the page says so above it. Only for a run that has
+    stopped and has no report; a finished run shows its report, and a running
+    one has not been asked. The checkpoint is checked against its own
+    manifest, so a truncated or replaced file is no draft at all. Readable by
+    whoever can read the run, like the report it stands in for.
+    """
+    if not _is_valid_run_id(run_id) or state not in _STOPPED_STATES:
+        return None
+    run_dir = run_dir_for(run_id)
+    if (run_dir / _ARTIFACTS["report"]).exists():
+        return None
+    inspection = CheckpointStore(run_dir).inspect_existing("writer")
+    if inspection.state != "reusable":
+        return None
+    try:
+        text = inspection.text()
+    except (RuntimeError, UnicodeDecodeError):
+        return None
+    return text if text.strip() else None
 
 
 def artifact_path(run_id: str, name: str) -> Path | None:
@@ -1987,7 +2057,116 @@ def artifact_path(run_id: str, name: str) -> Path | None:
     return path if path.exists() else None
 
 
-def get_state(run_id: str) -> dict:
+#: How many earlier runs a resumed run's totals look back through. A resume
+#: of a resume of a resume is rare; this only bounds a damaged record.
+_LINEAGE_DEPTH = 8
+
+
+def resumed_from(recovery: object, run_id: str) -> str | None:
+    """The run this one was resumed from, as its own record names it.
+
+    None for a run that was not a resume, and for a name that cannot be one:
+    a run id starts with its start time, so a source that does not sort
+    before its child is a damaged record, not a parent, and following it
+    could go round in a circle.
+    """
+    source = recovery.get("source_run_id") if isinstance(recovery, dict) else None
+    if not isinstance(source, str) or not _is_valid_run_id(source) or source >= run_id:
+        return None
+    return source
+
+
+def _spend(state: dict) -> dict:
+    """One run's time and usage, in the terms the totals are added up in."""
+    usage = state.get("usage") if isinstance(state.get("usage"), dict) else None
+    accounting = state.get("usage_accounting") if isinstance(state.get("usage_accounting"), dict) else None
+    tokens = usage.get("total_tokens") if usage else None
+    counted = type(tokens) is int and tokens >= 0 and not (usage or {}).get("collection_error")
+    # No accounting beside a count is an old record: the count is what was
+    # seen, and nothing says it was everything.
+    usage_state = accounting.get("state") if accounting else ("lower_bound" if counted else "unavailable")
+    if not counted:
+        usage_state = "unavailable"
+    cost = usage.get("cost_usd") if counted else None
+    cost = float(cost) if isinstance(cost, (int, float)) and not isinstance(cost, bool) and cost >= 0 else None
+    elapsed = state.get("elapsed_seconds")
+    return {
+        "elapsed_seconds": elapsed if type(elapsed) is int and elapsed >= 0 else None,
+        "total_tokens": tokens if counted else None,
+        "usage_state": usage_state,
+        "cost_usd": cost,
+        "cost_complete": cost is not None and usage.get("cost_complete") is True,
+    }
+
+
+def _lineage(run_id: str, state: dict, *, depth: int) -> dict | None:
+    """The runs a resumed run continues, and what all of them took together.
+
+    A resumed run's own record covers only what it ran: the page of the
+    production resume of 2026-11-18 read 3:48 and about 35,000 tokens for a
+    report that had taken 29 minutes and at least 176,000. The earlier runs'
+    figures are read from their own records each time, never copied, so they
+    cannot drift from what those pages say.
+
+    The total follows the usage rule: it is `complete` only when every run in
+    the chain is; one run whose count is a floor makes the sum a floor (a
+    failed run's nearly always is: an interrupted request is not free), and a
+    run whose record is gone or has no count is left out of the sum, which is
+    then a floor too. `unavailable` only when no run has a count. Time is
+    summed the same way, with `elapsed_complete` saying whether every run's
+    time was known.
+    """
+    source = resumed_from(state.get("recovery"), run_id)
+    if source is None or depth <= 0:
+        return None
+    earlier: list[dict] = []
+    try:
+        parent = get_state(source, _depth=depth - 1)
+    except RunNotFound:
+        # Deleted by its owner or by retention. Said, not guessed at.
+        earlier.append({"run_id": source, "record": "missing"})
+    else:
+        earlier.append({"run_id": source, "record": "available", "state": parent["state"], **_spend(parent)})
+        earlier.extend((parent.get("lineage") or {}).get("earlier", []))
+
+    own = _spend(state)
+    chain = [own, *earlier]
+    known_time = [row["elapsed_seconds"] for row in chain if row.get("elapsed_seconds") is not None]
+    counted = [row for row in chain if row.get("total_tokens") is not None]
+    priced = [row for row in chain if row.get("cost_usd") is not None]
+    if not counted:
+        usage_state = "unavailable"
+    elif len(counted) == len(chain) and all(row["usage_state"] == "complete" for row in chain):
+        usage_state = "complete"
+    else:
+        usage_state = "lower_bound"
+    return {
+        "earlier": earlier,
+        "combined": {
+            "runs": len(chain),
+            "elapsed_seconds": sum(known_time) if known_time else None,
+            "elapsed_complete": len(known_time) == len(chain),
+            "total_tokens": sum(row["total_tokens"] for row in counted) if counted else None,
+            "usage_state": usage_state,
+            "cost_usd": round(sum(row["cost_usd"] for row in priced), 6) if priced else None,
+            "cost_complete": len(priced) == len(chain) and all(row.get("cost_complete") for row in chain),
+        },
+    }
+
+
+def run_model(status: dict, usage: object) -> str | None:
+    """The model a run was configured with: its worker's word, else its usage record's."""
+    named = status.get("llm_model")
+    if isinstance(named, str) and named.strip():
+        return named.strip()[:200]
+    for agent in (usage.get("agents") if isinstance(usage, dict) else None) or []:
+        model = agent.get("model") if isinstance(agent, dict) else None
+        if isinstance(model, str) and model.strip():
+            return model.strip()[:200]
+    return None
+
+
+def get_state(run_id: str, *, _depth: int = _LINEAGE_DEPTH) -> dict:
     """Derive the full state of a run from disk plus the live registry."""
     if not _is_valid_run_id(run_id):
         raise RunNotFound(f"Invalid run id: {run_id!r}")
@@ -2108,13 +2287,25 @@ def get_state(run_id: str) -> dict:
         running=state == "running",
         ended_at=terminal_record.ended_at if terminal_record is not None else None,
     )
-    from api.eta import estimate  # api.eta reads run history through this module
+    from api.eta import estimate, stage_key  # api.eta reads run history through this module
+
+    # A resumed run sits in its first stage for a few seconds, until its
+    # worker has inspected the checkpoints and knows where it really starts.
+    # An estimate made then would be for a whole run ("about 9 min" for a
+    # resume that had only scoring left); none is given until the stage is
+    # the run's real one. The snapshot the API took before launch is what
+    # says, from the first second, that this run is a resume.
+    awaiting_resume_stage = (run_dir / RESUME_SNAPSHOT_DIRECTORY).is_dir() and stage_key(stage) in (None, "sources")
 
     from academic_agent.auxiliary_usage import FILE_NAME, read_summary
     auxiliary = read_summary(run_dir / FILE_NAME,
         storage_failed=status.get("auxiliary_usage_storage_failed") is True,
         fallback=status.get("auxiliary_usage_snapshot"))
-    return {
+    llm_model = run_model(status, runtime["usage"])
+    artifacts = available_artifacts(run_dir)
+    if draft_report(run_id, state) is not None:
+        artifacts.append(DRAFT_ARTIFACT)
+    projection = {
         "run_id": run_id,
         "state": state,
         "status_record_state": status_record_state,
@@ -2130,6 +2321,9 @@ def get_state(run_id: str) -> dict:
         # None therefore means unknown (principally historical runs), not the
         # current deployment.
         "pipeline_revision": status.get("pipeline_revision"),
+        # The model the worker was configured with, known from its first
+        # second; the usage record names it only once an agent has answered.
+        "llm_model": llm_model,
         "decision_gate": status.get("decision_gate"),
         "error": error,
         # The recognised cause behind `error`, the same for every reader, so
@@ -2145,8 +2339,9 @@ def get_state(run_id: str) -> dict:
         "daily_charge_reason": _read_refund_reason(run_dir),
         "elapsed_seconds": elapsed,
         "stage_timings": timings,
-        # A typical figure from recent completed runs, for a running run only.
-        "eta": estimate(stage, elapsed, timings) if state == "running" else None,
+        # What recent completed runs took from this stage on, for a running run only.
+        "eta": (estimate(stage, elapsed, timings, model=llm_model)
+                if state == "running" and not awaiting_resume_stage else None),
         "source_counts": status.get("source_counts"),
         # True when the run finished but its per-agent evidence files could not
         # be written. The report is still valid; what is missing is the record
@@ -2216,8 +2411,12 @@ def get_state(run_id: str) -> dict:
         # because checkpointing itself was healthy.
         "checkpointing": runtime["checkpointing"],
         "recovery": runtime["recovery"],
-        "artifacts": available_artifacts(run_dir),
+        "artifacts": artifacts,
     }
+    # After the rest: the totals are added up from this run's own figures
+    # above and the earlier runs' own projections.
+    projection["lineage"] = _lineage(run_id, projection, depth=_depth)
+    return projection
 
 
 # Stage strings that mark the end of the run rather than a stage of it.
@@ -2498,6 +2697,9 @@ def list_runs(limit: int = 50, owner: str | None = None, offset: int = 0) -> tup
             # fault: that second read used to turn one bad row into HTTP 500
             # for the entire owner's history. The same snapshot owns duration.
             "duration": _format_duration(projection["elapsed_seconds"]),
+            # The run this one continues, so the list can show the pair as
+            # one piece of work instead of two rows with one name.
+            "resumed_from": resumed_from(projection["recovery"], d.name),
             # Not part of RunSummary — the API layer strips this back out
             # for everyone except an admin request, which resolves it to a
             # readable code via access.label_for_owner() first. Included

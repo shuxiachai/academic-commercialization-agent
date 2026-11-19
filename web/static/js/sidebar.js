@@ -39,6 +39,38 @@ const TRASH_ICON = `
           stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`;
 
+/* A resumed run and the run it continues are one piece of work.
+ *
+ * The list showed them as two rows with one name, one failed and one
+ * completed, and nothing to say which led to which (production, 2026-11-18).
+ * Here the newest run of such a chain keeps its row and the runs it continues
+ * are folded under it, nearest first.
+ *
+ * `runs` is newest first, as the list is; each may name the run it was
+ * resumed from (`resumed_from`). Returns [{ run, earlier }] in the same
+ * order. Only runs that are in the list can be folded: a parent on a page
+ * not loaded yet stays where it is until it is. A run resumed twice goes
+ * under its newest resume; the older resume keeps a row of its own, since
+ * it is a separate attempt and not a step on the way to the newest. */
+export function grouped(runs) {
+  const byId = new Map(runs.map((run) => [run.run_id, run]));
+  const folded = new Set();
+  const earlierOf = new Map();
+  for (const run of runs) {
+    if (folded.has(run.run_id)) continue;
+    const chain = [];
+    let source = run.resumed_from;
+    while (typeof source === "string" && byId.has(source) && !folded.has(source) && source !== run.run_id) {
+      folded.add(source);
+      chain.push(byId.get(source));
+      source = byId.get(source).resumed_from;
+    }
+    if (chain.length) earlierOf.set(run.run_id, chain);
+  }
+  return runs.filter((run) => !folded.has(run.run_id))
+    .map((run) => ({ run, earlier: earlierOf.get(run.run_id) ?? [] }));
+}
+
 export function render(container, runs, { activeId, onSelect, onDelete, emptyKey = "no_runs" }) {
   container.innerHTML = "";
 
@@ -50,8 +82,91 @@ export function render(container, runs, { activeId, onSelect, onDelete, emptyKey
     return;
   }
 
+  // A chain is listed where its newest run belongs.
   const groups = new Map(GROUP_ORDER.map((name) => [name, []]));
-  for (const run of runs) groups.get(groupOf(run.started_at)).push(run);
+  for (const entry of grouped(runs)) groups.get(groupOf(entry.run.started_at)).push(entry);
+
+  /* One row. `earlier` marks a run folded under the run that continued it:
+   * its topic is the row above's, so it is named by how it ended and how
+   * long it had run. */
+  const rowFor = (run, { earlier = false } = {}) => {
+    const row = document.createElement("div");
+    row.className = earlier ? "runitem-row runitem-row--earlier" : "runitem-row";
+
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "runitem";
+    item.dataset.runId = run.run_id;
+    if (run.run_id === activeId) item.setAttribute("aria-current", "true");
+
+    const dot = document.createElement("span");
+    dot.className = "runitem__state";
+    dot.dataset.state = run.state;
+    // The dot says the state by colour alone. Every state gets its word:
+    // as the dot's tooltip, and as text only a screen reader meets, after
+    // the topic. The state nobody could read keeps the sentence it had.
+    let spoken = null;
+    if (run.state === "unknown") {
+      dot.title = t("run_state_unknown");
+      item.setAttribute("aria-label", `${run.topic || run.run_id} — ${t("run_state_unknown")}`);
+    } else if (STATE_WORDS.has(run.state)) {
+      dot.title = t(`run_state_${run.state}`);
+      if (!earlier) {
+        spoken = document.createElement("span");
+        spoken.className = "visually-hidden";
+        spoken.textContent = ` — ${t(`run_state_${run.state}`)}`;
+      }
+    }
+
+    const label = document.createElement("span");
+    label.className = "runitem__label";
+    const stateWord = STATE_WORDS.has(run.state) ? t(`run_state_${run.state}`) : t("run_state_unknown");
+    const lasted = typeof run.duration === "string" && run.duration && run.duration !== "—" ? run.duration : "";
+    label.textContent = !earlier ? (run.topic || run.run_id)
+      : lasted ? t("run_earlier_row").replace("{state}", stateWord).replace("{duration}", lasted) : stateWord;
+    // The rail truncates aggressively, so the full topic lives in the title.
+    item.title = run.topic || run.run_id;
+
+    // Only ever present for an admin request (api/access.py owner_label) —
+    // an unlabelled merge of every code's history answers "what ran", not
+    // "who ran it", which is the entire reason to hold that code rather
+    // than just leaving the gate unfiltered for everyone.
+    if (run.owner_label && !earlier) {
+      const owner = document.createElement("span");
+      owner.className = "runitem__owner";
+      owner.textContent = run.owner_label;
+      item.title = `${run.owner_label} · ${item.title}`;
+      // Under the topic rather than beside it: beside it, the badge and the
+      // delete button left the topic about a dozen characters of the rail.
+      const text = document.createElement("span");
+      text.className = "runitem__text";
+      text.append(label, owner);
+      item.className = "runitem runitem--owned";
+      item.append(dot, text);
+    } else {
+      item.append(dot, label);
+    }
+    if (spoken) item.append(spoken);
+    item.addEventListener("click", () => onSelect(run.run_id));
+    row.append(item);
+
+    // Buttons cannot nest inside a <button>, hence the wrapping row rather
+    // than appending this into `item` itself.
+    if (onDelete && DELETABLE_STATES.has(run.state)) {
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "runitem__delete icon-btn";
+      del.setAttribute("aria-label", t("delete_run"));
+      del.title = t("delete_run");
+      del.innerHTML = TRASH_ICON;
+      del.addEventListener("click", (e) => {
+        e.stopPropagation();
+        onDelete(run.run_id, run.topic || run.run_id);
+      });
+      row.append(del);
+    }
+    return row;
+  };
 
   for (const name of GROUP_ORDER) {
     const entries = groups.get(name);
@@ -62,79 +177,22 @@ export function render(container, runs, { activeId, onSelect, onDelete, emptyKey
     heading.textContent = t(`group_${name.toLowerCase()}`);
     container.append(heading);
 
-    for (const run of entries) {
-      const row = document.createElement("div");
-      row.className = "runitem-row";
-
-      const item = document.createElement("button");
-      item.type = "button";
-      item.className = "runitem";
-      item.dataset.runId = run.run_id;
-      if (run.run_id === activeId) item.setAttribute("aria-current", "true");
-
-      const dot = document.createElement("span");
-      dot.className = "runitem__state";
-      dot.dataset.state = run.state;
-      // The dot says the state by colour alone. Every state gets its word:
-      // as the dot's tooltip, and as text only a screen reader meets, after
-      // the topic. The state nobody could read keeps the sentence it had.
-      let spoken = null;
-      if (run.state === "unknown") {
-        dot.title = t("run_state_unknown");
-        item.setAttribute("aria-label", `${run.topic || run.run_id} — ${t("run_state_unknown")}`);
-      } else if (STATE_WORDS.has(run.state)) {
-        dot.title = t(`run_state_${run.state}`);
-        spoken = document.createElement("span");
-        spoken.className = "visually-hidden";
-        spoken.textContent = ` — ${t(`run_state_${run.state}`)}`;
-      }
-
-      const label = document.createElement("span");
-      label.className = "runitem__label";
-      label.textContent = run.topic || run.run_id;
-      // The rail truncates aggressively, so the full topic lives in the title.
-      item.title = run.topic || run.run_id;
-
-      // Only ever present for an admin request (api/access.py owner_label) —
-      // an unlabelled merge of every code's history answers "what ran", not
-      // "who ran it", which is the entire reason to hold that code rather
-      // than just leaving the gate unfiltered for everyone.
-      if (run.owner_label) {
-        const owner = document.createElement("span");
-        owner.className = "runitem__owner";
-        owner.textContent = run.owner_label;
-        item.title = `${run.owner_label} · ${item.title}`;
-        // Under the topic rather than beside it: beside it, the badge and the
-        // delete button left the topic about a dozen characters of the rail.
-        const text = document.createElement("span");
-        text.className = "runitem__text";
-        text.append(label, owner);
-        item.className = "runitem runitem--owned";
-        item.append(dot, text);
-      } else {
-        item.append(dot, label);
-      }
-      if (spoken) item.append(spoken);
-      item.addEventListener("click", () => onSelect(run.run_id));
-      row.append(item);
-
-      // Buttons cannot nest inside a <button>, hence the wrapping row rather
-      // than appending this into `item` itself.
-      if (onDelete && DELETABLE_STATES.has(run.state)) {
-        const del = document.createElement("button");
-        del.type = "button";
-        del.className = "runitem__delete icon-btn";
-        del.setAttribute("aria-label", t("delete_run"));
-        del.title = t("delete_run");
-        del.innerHTML = TRASH_ICON;
-        del.addEventListener("click", (e) => {
-          e.stopPropagation();
-          onDelete(run.run_id, run.topic || run.run_id);
-        });
-        row.append(del);
-      }
-
-      container.append(row);
+    for (const { run, earlier } of entries) {
+      container.append(rowFor(run));
+      if (!earlier.length) continue;
+      // Folded by default: the newest run is the one to open. Open when the
+      // run on screen is one of the folded ones, so the row that is current
+      // is never out of sight.
+      const fold = document.createElement("details");
+      fold.className = "runitem-earlier";
+      fold.open = earlier.some((older) => older.run_id === activeId);
+      const summary = document.createElement("summary");
+      summary.className = "runitem-earlier__summary";
+      summary.textContent = earlier.length === 1 ? t("runs_earlier_one")
+        : t("runs_earlier_many").replace("{count}", String(earlier.length));
+      fold.append(summary);
+      for (const older of earlier) fold.append(rowFor(older, { earlier: true }));
+      container.append(fold);
     }
   }
 }
@@ -179,16 +237,23 @@ async function load(count) {
       if (!seen.has(run.run_id)) { seen.add(run.run_id); runs.push(run); }
     }
   }
-  return { runs, total };
+  // What the caller's own account has going, as the newest reply says it.
+  return { runs, total, activity: { activeRuns: first?.active_runs ?? [], atCapacity: first?.at_capacity === true } };
 }
 
-export async function refresh(container, { activeId, onSelect, onDelete, onChange = () => {}, isCurrent = () => true }) {
+export async function refresh(container, {
+  activeId, onSelect, onDelete, onChange = () => {}, isCurrent = () => true, onActivity = () => {},
+}) {
   try {
     const searching = Boolean(query);
-    const { runs, total } = await load(searching ? SEARCH_CAP : wanted);
+    const { runs, total, activity } = await load(searching ? SEARCH_CAP : wanted);
     // A cancelled fetch is only an optimization; a late successful response
     // must independently prove it still belongs to this view and identity.
     if (!isCurrent()) return null;
+    // Whether the account has a run going rides on the list (GET /api/runs):
+    // handed on before the rows are drawn, so a list that fails to draw
+    // cannot leave the composer saying the opposite of the server.
+    onActivity(activity);
     const needle = query.toLocaleLowerCase();
     const shown = searching ? runs.filter((run) => matches(run, needle)) : runs;
     render(container, shown, { activeId, onSelect, onDelete, emptyKey: searching ? "runs_no_match" : "no_runs" });

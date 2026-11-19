@@ -13,12 +13,22 @@ import { t, language as uiLanguage } from "./i18n.js";
  * and the labels carry en dashes and interpuncts that are easy to mistype.
  */
 const STAGES = [
-  { id: "sources",  match: "Source Collection", key: "stage_sources" },
-  { id: "evidence", match: "Phase 1",           key: "stage_evidence" },
-  { id: "report",   match: "Agent 4",           key: "stage_report" },
-  { id: "review",   match: "Agent 5",           key: "stage_review" },
-  { id: "scoring",  match: "Agent 6",           key: "stage_scoring" },
+  { id: "sources",  match: "Source Collection", key: "stage_sources",  nodes: ["retrieval"] },
+  { id: "evidence", match: "Phase 1",           key: "stage_evidence", nodes: ["academic", "patent", "market"] },
+  { id: "report",   match: "Agent 4",           key: "stage_report",   nodes: ["writer"] },
+  { id: "review",   match: "Agent 5",           key: "stage_review",   nodes: ["reviewer"] },
+  { id: "scoring",  match: "Agent 6",           key: "stage_scoring",  nodes: ["scorer"] },
 ];
+
+/* The stages a resumed run took whole from the run it continues: every
+ * checkpoint behind the stage was reused (the node names are the
+ * checkpoints' own, checkpoint_runtime.TASK_NODES plus "retrieval"; a test
+ * holds the lists together). A stage of which only part was reused ran here
+ * and is not one of these. Empty for a run that reused nothing. */
+export function reusedStages(recovery) {
+  const reused = recovery?.state === "reused" && Array.isArray(recovery.reused_nodes) ? recovery.reused_nodes : [];
+  return new Set(STAGES.filter((s) => s.nodes.every((node) => reused.includes(node))).map((s) => s.id));
+}
 
 // "unknown" is absent on purpose: a runtime record was unreadable, which says
 // nothing about whether the run finished. Treating it as terminal would stop
@@ -55,7 +65,7 @@ function stageSeconds(timings) {
  * completed run marks every stage done instead of leaving the final one
  * looking stuck.
  */
-export function stageStates(stage, state, timings = []) {
+export function stageStates(stage, state, timings = [], recovery = null) {
   // The mutable stage can still say Done when a stronger outcome is damaged
   // or the process failed during finalization. Only verified completion may
   // paint every stage green; unknown cannot certify even a partial prefix.
@@ -63,20 +73,27 @@ export function stageStates(stage, state, timings = []) {
   const failed = state === "failed" || state === "timeout";
   const current = stageIndex(stage);
   const seconds = stageSeconds(timings);
+  const reused = reusedStages(recovery);
 
   const stateOf = (i) => {
     if (state === "unknown") return "pending";
-    if (done) return "done";
+    // A finished stage this run did not run itself is said to be the earlier
+    // run's: "done" with a time beside it would claim work that was not done
+    // here. Only a finished row: the stage a run is in, or stopped in, is its own.
+    const finished = reused.has(STAGES[i].id) ? "reused" : "done";
+    if (done) return finished;
     if (current === -1) return "pending";
-    if (i < current) return "done";
+    if (i < current) return finished;
     if (i > current) return "pending";
     return failed ? "failed" : "active";
   };
   // A pending row shows no time, even when an unverifiable outcome has
-  // repainted stages the worker did record as finished.
+  // repainted stages the worker did record as finished. Nor does a reused
+  // one: the seconds it took were the earlier run's.
   return STAGES.map((s, i) => {
     const rowState = stateOf(i);
-    return { ...s, state: rowState, seconds: rowState === "pending" ? null : seconds[s.id] ?? null };
+    const timed = rowState !== "pending" && rowState !== "reused";
+    return { ...s, state: rowState, seconds: timed ? seconds[s.id] ?? null : null };
   });
 }
 
@@ -258,15 +275,8 @@ export function usageHeadline(usage, accounting = null) {
   if (accounting?.state === "unavailable") return "";
   const tokens = usage?.total_tokens;
   if (!Number.isFinite(tokens) || tokens <= 0) return "";
-  const say = (key, values = {}) => Object.entries(values).reduce(
-    (text, [name, value]) => text.replace(`{${name}}`, () => String(value)), headerLabel(key));
   const floor = accounting?.state === "lower_bound";
-  const chinese = uiLanguage() === "Simplified Chinese";
-  // 105,500 is "105.5k" in English and "10.6 万" in Chinese; small counts are said as they are.
-  const amount = chinese
-    ? (tokens >= 10_000 ? `${(tokens / 10_000).toFixed(1)} 万` : String(tokens))
-    : (tokens >= 1000 ? `${(tokens / 1000).toFixed(1)}k` : String(tokens));
-  const head = say(floor ? "usage_head_tokens_floor" : "usage_head_tokens", { tokens: amount });
+  const head = say(floor ? "usage_head_tokens_floor" : "usage_head_tokens", { tokens: tokenAmount(tokens) });
 
   const names = (list) => [...new Set((Array.isArray(list) ? list : []).filter((name) => typeof name === "string" && name))];
   const models = names((usage.agents ?? []).map((agent) => agent?.model));
@@ -357,10 +367,44 @@ const HEADER_STRINGS = {
     usage_head_no_cost: "cost cannot be estimated: no price on record for {models}",
     usage_head_no_cost_plain: "cost cannot be estimated",
     stage_timing: "Stage timing",
-    eta_left: "about {minutes} min left",
+    eta_left: "about {range} left",
+    eta_left_others: "about {range} left, going by runs on other models",
+    eta_range: "{low}–{high} min",
+    eta_range_one: "{high} min",
     eta_soon: "under a minute left",
-    eta_over: "slower than usual",
-    eta_title: "Typical time from the last {runs} completed runs on this deployment; not a guarantee.",
+    eta_over: "slower than the last {runs} runs",
+    eta_over_later: "slower at this step than the last {runs} runs; the steps after it took {range}",
+    eta_title: "What the last {runs} completed runs on {model} here took from this step to the end, fastest to slowest. Not a guarantee.",
+    eta_title_others: "{model} has fewer than three completed runs here, so this is what the last {runs} completed runs on other models took from this step to the end, fastest to slowest. Not a guarantee.",
+    eta_title_any: "What the last {runs} completed runs here took from this step to the end, fastest to slowest. Not a guarantee.",
+    // A resumed run, under its header (lineageSummary).
+    stage_reused: "reused from the earlier run",
+    lineage_reused: "This run continues {earlier}. Reused from it: {reused}. Run here: {ran}.",
+    lineage_reused_all: "This run continues {earlier}. Everything was reused from it: {reused}.",
+    lineage_cold: "This run was started to continue {earlier}, but nothing that run had saved could be reused, so every step ran again.",
+    lineage_earlier: "an earlier run",
+    lineage_sep: ", ",
+    lineage_total: "In all: {time} ({own} here + {before} before){usage}.",
+    lineage_total_running: "Before this run: {before}{usage}.",
+    lineage_usage: " · {tokens} tokens ({own} here + {before} before)",
+    lineage_usage_before: " · {before} tokens",
+    lineage_usage_none: " · token use before this run is not on record",
+    lineage_cost: " · estimated cost {cost}",
+    lineage_at_least: "at least {value}",
+    lineage_missing: "The earlier run's record has been deleted, so these figures cover this run only.",
+    // While the account's own assessment is going (activeRunNotice).
+    busy_banner: "You have an assessment in progress: {topic}.",
+    busy_banner_plain: "You have an assessment in progress.",
+    busy_view: "View it",
+    busy_reason: "Your account cannot preview or start another assessment while one is in progress. Wait for it to finish, or cancel it; what you typed stays here.",
+    busy_reason_other: "Your account has an operation in progress, such as an uploaded paper being read. Another can be previewed or started when it has finished; what you typed stays here.",
+    // A failure the reader cannot fix alone (operatorHelp).
+    help_run_id: "Run ID",
+    help_copy: "Copy",
+    help_copied: "Run ID copied.",
+    help_copy_failed: "The run ID could not be copied. Select it and copy it by hand.",
+    help_contact: "Operator: {contact}",
+    help_no_contact: "This deployment has published no operator contact.",
     notify: "Notify me when done",
     notify_title: "Shows a browser notification when this run finishes while the tab is in the background.",
     finished_ok: "Assessment complete",
@@ -410,10 +454,41 @@ const HEADER_STRINGS = {
     usage_head_no_cost: "费用无法估算：{models} 没有记录价格",
     usage_head_no_cost_plain: "费用无法估算",
     stage_timing: "阶段耗时",
-    eta_left: "预计还需约 {minutes} 分钟",
+    eta_left: "预计还需约 {range}",
+    eta_left_others: "预计还需约 {range}（按其他模型的运行）",
+    eta_range: "{low}–{high} 分钟",
+    eta_range_one: "{high} 分钟",
     eta_soon: "预计不到 1 分钟",
-    eta_over: "比平时慢",
-    eta_title: "按本站最近 {runs} 次完成运行的典型用时估算，仅供参考。",
+    eta_over: "比最近 {runs} 次运行都慢",
+    eta_over_later: "这一步比最近 {runs} 次运行都慢；之后的步骤它们用了 {range}",
+    eta_title: "本站最近 {runs} 次用 {model} 完成的运行，从这一步到结束的实际用时（最快到最慢）。仅供参考，不是保证。",
+    eta_title_others: "{model} 在本站完成的运行还不到 3 次，所以这是最近 {runs} 次其他模型完成的运行从这一步到结束的实际用时（最快到最慢）。仅供参考，不是保证。",
+    eta_title_any: "本站最近 {runs} 次完成的运行，从这一步到结束的实际用时（最快到最慢）。仅供参考，不是保证。",
+    stage_reused: "沿用上次结果",
+    lineage_reused: "这是一次续跑，接着{earlier}做。沿用上次结果：{reused}。本次重做：{ran}。",
+    lineage_reused_all: "这是一次续跑，接着{earlier}做。全部沿用上次结果：{reused}。",
+    lineage_cold: "这次运行本来要接着{earlier}做，但那次保存的结果都用不上，所以每一步都重做了。",
+    lineage_earlier: "上一次运行",
+    lineage_sep: "、",
+    lineage_total: "合计用时 {time}（本次 {own} + 之前 {before}）{usage}。",
+    lineage_total_running: "在这次之前：{before}{usage}。",
+    lineage_usage: "；合计 {tokens} token（本次 {own} + 之前 {before}）",
+    lineage_usage_before: "，{before} token",
+    lineage_usage_none: "；之前的 token 用量没有记录",
+    lineage_cost: "；估算费用 {cost}",
+    lineage_at_least: "至少 {value}",
+    lineage_missing: "上一次运行的记录已被删除，所以这些数字只包含本次运行。",
+    busy_banner: "你有一份评估正在进行：{topic}。",
+    busy_banner_plain: "你有一份评估正在进行。",
+    busy_view: "查看",
+    busy_reason: "有评估在进行时，你的账号不能预览或开始另一份。等它结束，或先取消它；已输入的内容会保留。",
+    busy_reason_other: "你的账号有一项操作正在进行，比如正在读取上传的论文。等它结束后才能预览或开始另一份；已输入的内容会保留。",
+    help_run_id: "运行 ID",
+    help_copy: "复制",
+    help_copied: "运行 ID 已复制。",
+    help_copy_failed: "运行 ID 没能复制。请手动选中后复制。",
+    help_contact: "运营者：{contact}",
+    help_no_contact: "本站没有公布运营者的联系方式。",
     notify: "完成时提醒我",
     notify_title: "标签页在后台时，运行结束后弹出浏览器通知。",
     finished_ok: "评估已完成",
@@ -479,17 +554,201 @@ export function identitySummary(usage, pipelineRevision) {
   return parts.filter(Boolean).join(" · ");
 }
 
-/** "about 6 min left" for a running run's eta; "" without one. */
-export function etaSummary(eta) {
-  const seconds = eta?.remaining_seconds;
-  if (!Number.isFinite(seconds)) return "";
-  if (seconds <= 0) return headerLabel("eta_over");
-  if (seconds < 60) return headerLabel("eta_soon");
-  return headerLabel("eta_left").replace("{minutes}", String(Math.ceil(seconds / 60)));
+/* Header text with its {names} filled in. A function as the replacement, so
+ * a "$" in a model name or a contact line is text and not a pattern. */
+function say(key, values = {}) {
+  return Object.entries(values).reduce(
+    (text, [name, value]) => text.replace(`{${name}}`, () => String(value)), headerLabel(key));
 }
 
-export function etaTitle(eta) {
-  return Number.isFinite(eta?.basis_runs) ? headerLabel("eta_title").replace("{runs}", String(eta.basis_runs)) : "";
+/* "12–25 min" from a range in seconds. The low end is rounded down and the
+ * high end up, so the range said is never narrower than the one measured. */
+function minutesRange(low, high) {
+  const from = Math.max(1, Math.floor(low / 60));
+  const to = Math.max(from, Math.ceil(high / 60));
+  return from === to ? say("eta_range_one", { high: to }) : say("eta_range", { low: from, high: to });
+}
+
+/**
+ * "about 12–25 min left" for a running run; "" without an estimate.
+ *
+ * The range is what recent completed runs took from this step to their end
+ * (api/eta.py), not one typical figure: the page said "about 7 min" at the
+ * start of a run that took 24 min 40 s. Where the range comes from runs of
+ * other models the line says so, since a model's speed is most of the
+ * answer. A run slower at its step than every run in the pool is told that,
+ * with what the later steps took, instead of a countdown that has run out.
+ */
+export function etaSummary(eta) {
+  const low = eta?.low_seconds;
+  const high = eta?.high_seconds;
+  if (!Number.isFinite(low) || !Number.isFinite(high) || low < 0 || high < low) return "";
+  const runs = Number.isFinite(eta.basis_runs) ? eta.basis_runs : "";
+  if (eta.overdue) {
+    return high < 60 ? say("eta_over", { runs }) : say("eta_over_later", { runs, range: minutesRange(low, high) });
+  }
+  if (high < 60) return headerLabel("eta_soon");
+  return say(eta.same_model ? "eta_left" : "eta_left_others", { range: minutesRange(low, high) });
+}
+
+/** Where the range comes from: whose runs, and how many. `model` is the run's own. */
+export function etaTitle(eta, model = null) {
+  if (!Number.isFinite(eta?.basis_runs)) return "";
+  const runs = eta.basis_runs;
+  if (eta.same_model && eta.model) return say("eta_title", { runs, model: eta.model });
+  return model ? say("eta_title_others", { runs, model }) : say("eta_title_any", { runs });
+}
+
+/* A token count as a reader says it: 105,500 is "105.5k" in English and
+ * "10.6 万" in Chinese; small counts are said as they are. */
+export function tokenAmount(tokens) {
+  if (uiLanguage() === "Simplified Chinese") {
+    return tokens >= 10_000 ? `${(tokens / 10_000).toFixed(1)} 万` : String(tokens);
+  }
+  return tokens >= 1000 ? `${(tokens / 1000).toFixed(1)}k` : String(tokens);
+}
+
+/**
+ * What a resumed run says under its header: what it took from the run it
+ * continues, and what the two took together.
+ *
+ * The header used to end in "6 checkpoint stages reused", a count of
+ * checkpoints in the pipeline's own word, set after the model name and the
+ * usage fold; and the time and tokens beside it were the resume's alone,
+ * 3:48 and about 35,000 for a report that had taken 29 minutes and at least
+ * 176,000 (production, 2026-11-18).
+ *
+ * Returns { reuse, earlier, totals, missing }: `reuse` is the sentence about
+ * the stages, with "{earlier}" where the link to the earlier run goes and
+ * `earlier` that run's id (null when it cannot be opened); `totals` is the
+ * sum, and `missing` the sentence for an earlier run whose record is gone.
+ * Each "" when there is nothing to say; null for a run that is not a resume.
+ *
+ * The usage rule is the server's (runs._lineage) and is only worded here: a
+ * sum that is a floor is said as "at least", a count that is not on record
+ * is said to be missing, and neither is ever shown as a plain total.
+ */
+export function lineageSummary({ state, recovery, lineage, elapsed_seconds, usage, usage_accounting } = {}) {
+  const requested = ["reused", "cold_start"].includes(recovery?.state) && typeof recovery?.source_run_id === "string";
+  if (!requested && !lineage) return null;
+  const labels = STAGE_SHORT_LABELS[uiLanguage()] ?? STAGE_SHORT_LABELS.English;
+  const list = (ids) => ids.map((id) => labels[id]).join(headerLabel("lineage_sep"));
+
+  let reuse = "";
+  if (recovery?.state === "cold_start") {
+    reuse = headerLabel("lineage_cold");
+  } else if (recovery?.state === "reused") {
+    const reused = reusedStages(recovery);
+    const taken = STAGES.filter((s) => reused.has(s.id)).map((s) => s.id);
+    const ran = STAGES.filter((s) => !reused.has(s.id)).map((s) => s.id);
+    if (taken.length) {
+      reuse = ran.length ? say("lineage_reused", { reused: list(taken), ran: list(ran) })
+        : say("lineage_reused_all", { reused: list(taken) });
+    }
+  }
+
+  const nearest = lineage?.earlier?.[0];
+  const earlier = nearest?.record === "available" ? nearest.run_id : null;
+  const combined = lineage?.combined;
+  if (!combined) return { reuse, earlier, totals: "", missing: "" };
+
+  const rows = Array.isArray(lineage.earlier) ? lineage.earlier : [];
+  const missing = rows.some((row) => row.record !== "available") ? headerLabel("lineage_missing") : "";
+  const atLeast = (value, floor) => (floor ? say("lineage_at_least", { value }) : value);
+  const number = (value) => Number.isFinite(value) && value >= 0;
+
+  // Time: this run's and the earlier runs', each said only where it is known.
+  const beforeTimes = rows.map((row) => row.elapsed_seconds).filter(number);
+  const beforeTime = beforeTimes.length
+    ? atLeast(formatDuration(beforeTimes.reduce((a, b) => a + b, 0)), beforeTimes.length < rows.length) : null;
+
+  // Tokens: a floor in any run makes that part, and the sum, a floor.
+  const counted = rows.filter((row) => number(row.total_tokens));
+  const beforeFloor = counted.length < rows.length || counted.some((row) => row.usage_state !== "complete");
+  const beforeTokens = counted.length
+    ? atLeast(tokenAmount(counted.reduce((sum, row) => sum + row.total_tokens, 0)), beforeFloor) : null;
+  const ownCounted = usage_accounting?.state !== "unavailable" && number(usage?.total_tokens);
+  const ownTokens = ownCounted ? atLeast(tokenAmount(usage.total_tokens), usage_accounting?.state !== "complete") : null;
+
+  const running = !isTerminalState(state);
+  let usageText = "";
+  if (running) {
+    usageText = beforeTokens ? say("lineage_usage_before", { before: beforeTokens }) : headerLabel("lineage_usage_none");
+  } else if (number(combined.total_tokens) && combined.usage_state !== "unavailable" && ownTokens && beforeTokens) {
+    usageText = say("lineage_usage", {
+      tokens: atLeast(tokenAmount(combined.total_tokens), combined.usage_state !== "complete"),
+      own: ownTokens, before: beforeTokens,
+    });
+    if (number(combined.cost_usd) && combined.cost_usd > 0) {
+      const sum = combined.cost_usd < 0.01 ? headerLabel("usage_head_under_a_cent") : `$${combined.cost_usd.toFixed(2)}`;
+      usageText += say("lineage_cost", {
+        cost: atLeast(sum, !(combined.cost_complete && combined.usage_state === "complete")),
+      });
+    }
+  } else if (!beforeTokens) {
+    usageText = headerLabel("lineage_usage_none");
+  }
+
+  let totals = "";
+  if (running) {
+    if (beforeTime) totals = say("lineage_total_running", { before: beforeTime, usage: usageText });
+  } else if (number(combined.elapsed_seconds) && number(elapsed_seconds) && beforeTime) {
+    totals = say("lineage_total", {
+      time: atLeast(formatDuration(combined.elapsed_seconds), combined.elapsed_complete === false),
+      own: formatDuration(elapsed_seconds), before: beforeTime, usage: usageText,
+    });
+  }
+  // Chinese sets no space between a word and the "至少" that follows it.
+  return { reuse, earlier, totals: totals.replace(/([一-鿿]) (?=至少)/g, "$1"), missing };
+}
+
+/**
+ * What the workbench says while the account already has an assessment going.
+ *
+ * An account runs one assessment at a time, and the refusal was the first
+ * the page said of it: a second topic went through its plan preview, one
+ * small request on the account's key, and was told only when Start was
+ * pressed (production, 2026-11-18). Nothing on the workbench showed a run in
+ * progress, and on a phone the history is off screen.
+ *
+ * `activeRuns` and `atCapacity` are the server's (GET /api/runs), the same
+ * count its admission makes. Returns:
+ *  - `banner`: the line above the panes, { runId, text, view }, for the
+ *    newest run in progress; null when there is none or its own page is the
+ *    one open (`openRunId`), where the header already says "running";
+ *  - `blocked`: whether another preview, start or upload would be refused;
+ *  - `reason`: the sentence said beside the controls that are off, "" when
+ *    nothing is. The server can be at capacity with no run to point at (an
+ *    uploaded paper being read holds the slot), and says that instead.
+ */
+export function activeRunNotice({ activeRuns, atCapacity = false, openRunId = null } = {}) {
+  const going = (Array.isArray(activeRuns) ? activeRuns : [])
+    .filter((entry) => typeof entry?.run_id === "string" && entry.run_id);
+  const first = going[0] ?? null;
+  const topic = typeof first?.topic === "string" ? first.topic.trim() : "";
+  const banner = first && first.run_id !== openRunId ? {
+    runId: first.run_id,
+    text: topic ? say("busy_banner", { topic }) : headerLabel("busy_banner_plain"),
+    view: headerLabel("busy_view"),
+  } : null;
+  const blocked = atCapacity === true;
+  return { banner, blocked, reason: blocked ? headerLabel(first ? "busy_reason" : "busy_reason_other") : "" };
+}
+
+/* Whether a run's failure is one its reader cannot fix alone, so the page
+ * shows the run's ID to copy and the operator's contact.
+ *
+ * The sentence for an unrecognised failure has always ended "contact the
+ * operator with the run ID", on a page that showed neither the ID nor a
+ * contact (production, 2026-11-18). Those are: a cause the API could not
+ * name (`unknown`, or a code this page does not know), and, for a run the
+ * reader's own keys did not pay for, the causes only the operator can act
+ * on, which FAILURE_NEXT marks with no next step. A cancelled run is the
+ * reader's own doing and needs no one. */
+export function needsOperator({ state, error_code, funded_by } = {}) {
+  if (state !== "failed" && state !== "timeout") return false;
+  if (!Object.hasOwn(FAILURE_NEXT, error_code ?? "") || error_code === "unknown") return true;
+  return funded_by !== "own_keys" && FAILURE_NEXT[error_code][1] === null;
 }
 
 /** Composer line for GET /api/quota; text "" when the deployment has no cap. */
@@ -935,7 +1194,13 @@ export function renderStages(container, stages) {
     label.textContent = t(stage.key);
 
     row.append(dot, label);
-    if (stage.seconds != null) {
+    if (stage.state === "reused") {
+      // In place of a time: the stage was the earlier run's, not done here.
+      const note = document.createElement("span");
+      note.className = "stage__meta stage__meta--reused";
+      note.textContent = headerLabel("stage_reused");
+      row.append(note);
+    } else if (stage.seconds != null) {
       const time = document.createElement("span");
       time.className = "stage__meta";
       time.textContent = formatDuration(stage.seconds);

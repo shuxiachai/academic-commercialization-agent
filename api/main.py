@@ -2013,6 +2013,24 @@ def read_sample_scores(slug: str) -> JSONResponse:
     return JSONResponse(scores)
 
 
+def _run_minutes() -> dict | None:
+    """How long the newest completed assessments here took, for the pages that say it.
+
+    The landing and the sign-in card said "a run takes 6 to 15 minutes", a
+    sentence written once from a few runs on one model; the run that
+    prompted this took 24 min 40 s. They now say this deployment's own
+    recent figure with the number of runs behind it, or nothing. Only two
+    durations and a count leave here: no run, topic or owner is named. A
+    history that cannot be read is no figure, never a failed health check.
+    """
+    from api.eta import typical_minutes
+
+    try:
+        return typical_minutes()
+    except OSError:
+        return None
+
+
 @app.get("/health", response_model=HealthStatus, tags=["meta"])
 def health() -> HealthStatus:
     """Liveness, shared paid-operation capacity, and resolved LLM provider.
@@ -2052,6 +2070,8 @@ def health() -> HealthStatus:
         retention_days=runs.RUN_RETENTION_DAYS,
         llm_provider=provider,
         llm_model=model,
+        run_minutes=_run_minutes(),
+        contact=_operator_contact(),
         pipeline_revision=_PIPELINE_REVISION,
         maintenance=_maintenance_status(),
         source_locator=_source_locator_status(),
@@ -2614,7 +2634,11 @@ def list_runs(http_request: Request, limit: int = Query(default=50, ge=1, le=200
     else:
         for summary in summaries:
             summary.pop("_owner", None)
-    return RunList(runs=summaries, total=total)
+    # What the caller's own account has going, read by its own tag: an
+    # administrator's list holds everyone's runs, and the one-at-a-time rule
+    # is about the administrator's own.
+    activity = runs.account_activity(identity.resolve(http_request).tag) or {}
+    return RunList(runs=summaries, total=total, **activity)
 
 
 @app.get(
@@ -2864,6 +2888,8 @@ def get_progress(run_id: str, http_request: Request, since: int = Query(default=
         elapsed_seconds=state.get("elapsed_seconds"),
         stage_timings=state.get("stage_timings", []),
         eta=state.get("eta"),
+        llm_model=state.get("llm_model"),
+        lineage=state.get("lineage"),
         source_counts=state.get("source_counts"),
         evidence_incomplete=state.get("evidence_incomplete", False),
         failed_domains=state.get("failed_domains", []),
@@ -3415,12 +3441,28 @@ def post_feedback(run_id: str, body: FeedbackRequest, http_request: Request) -> 
         409: {"description": "Artifact not produced by this run"},
     },
 )
-def get_artifact(run_id: str, artifact: str) -> FileResponse:
+def get_artifact(run_id: str, artifact: str) -> Response:
     """Fetch a named run artifact advertised by the status endpoint."""
     try:
         state = runs.get_state(run_id)
     except runs.RunNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    if artifact == runs.DRAFT_ARTIFACT:
+        # The writer's text of a run that stopped before it had a report, in
+        # the words the page shows a report in. Advertised in `artifacts` and
+        # readable by the same people as the report it stands in for; a run
+        # with a report, or still running, has none (runs.draft_report).
+        draft = runs.draft_report(run_id, state["state"])
+        if draft is None:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Run has no draft to show; state is '{state['state']}'. Available: {state['artifacts']}",
+            )
+        return PlainTextResponse(
+            report_for_display(draft, state.get("output_language")),
+            media_type="text/markdown; charset=utf-8",
+        )
 
     path = runs.artifact_path(run_id, artifact)
     if path is None:

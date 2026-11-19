@@ -545,7 +545,9 @@ def _waiting_journey(browser, base: str) -> int:
     run_id = "20261021T000000Z-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
     progress = {"run_id": run_id, "topic": "Sodium-ion batteries", "state": "running",
                 "stage": "Agent 4 — Report Writing", "steps": [], "artifacts": [], "elapsed_seconds": 420,
-                "eta": {"remaining_seconds": 330, "basis_runs": 12, "basis": "stages"}}
+                # The range twelve runs of this model took from here on (api/eta.py).
+                "eta": {"remaining_seconds": 490, "low_seconds": 280, "high_seconds": 700, "basis_runs": 12,
+                        "basis": "stages", "model": "fixture-model", "same_model": True, "overdue": False}}
     page = context.new_page()
     page.on("pageerror", lambda error: errors.append(str(error)))
 
@@ -595,8 +597,9 @@ def _waiting_journey(browser, base: str) -> int:
         _wait_requests(page, posts, 1)
         assert "search_plan" not in posts[0].request.post_data_json
         _json(posts[0], {"run_id": run_id, "topic": progress["topic"], "state": "running"}, status=202)
-        expect(page.locator("#run-eta")).to_have_text("· about 6 min left")
-        expect(page.locator("#run-eta")).to_have_attribute("title", re.compile("last 12 completed runs"))
+        expect(page.locator("#run-eta")).to_have_text("· about 4–12 min left")
+        expect(page.locator("#run-eta")).to_have_attribute(
+            "title", re.compile("last 12 completed runs on fixture-model here"))
 
         # Asked only from the button; once granted, the button goes away.
         notify = page.locator("#run-notify")

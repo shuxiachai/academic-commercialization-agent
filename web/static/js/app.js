@@ -258,6 +258,7 @@ function localizeSourceLocatorLink() {
 function showCompose() {
   stopFollowing();
   activeRunId = null;
+  paintActiveRun();
   syncSourceLocatorLink();
   $("#pane-compose").hidden = false;
   $("#pane-run").hidden = true;
@@ -275,6 +276,8 @@ function showCompose() {
 
 function showRun(runId) {
   activeRunId = runId;
+  // The line about a run in progress is not shown on that run's own page.
+  paintActiveRun();
   syncSourceLocatorLink();
   $("#pane-compose").hidden = true;
   $("#pane-run").hidden = false;
@@ -313,6 +316,7 @@ function paintHeader({
   topic, state, elapsed_seconds, source_counts, usage, usage_accounting, auxiliary_usage,
   terminal, status_record_state, checkpointing, recovery, runtime_metadata_unreadable, steps_read_state,
   stage_timings, eta, pipeline_revision, error, error_code, funded_by, daily_charge, daily_charge_reason,
+  llm_model, lineage, run_id,
 }) {
   if (topic) $("#run-title").textContent = topic;
 
@@ -327,10 +331,10 @@ function paintHeader({
     $("#run-elapsed").textContent = runView.formatDuration(elapsed_seconds);
   }
 
-  // A typical figure from recent runs, for a run still going.
+  // What recent runs on this model took from this step on, for a run still going.
   const etaText = state === "running" ? runView.etaSummary(eta) : "";
   $("#run-eta").textContent = etaText ? `· ${etaText}` : "";
-  $("#run-eta").title = etaText ? runView.etaTitle(eta) : "";
+  $("#run-eta").title = etaText ? runView.etaTitle(eta, llm_model) : "";
   paintNotifyButton(state);
 
   const summary = runView.sourceSummary(source_counts);
@@ -398,6 +402,8 @@ function paintHeader({
   const outcome = runView.outcomeSummary({ state, error, error_code, funded_by, daily_charge, daily_charge_reason, checkpointing });
   outcomeEl.textContent = outcome;
   outcomeEl.hidden = !outcome;
+  paintRunHelp({ state, error_code, funded_by, run_id });
+  paintLineage({ state, recovery, lineage, elapsed_seconds, usage, usage_accounting });
 
   // A run takes minutes and does not need the page. Said to whoever started
   // it; an account that has not asked for the finish email is offered it.
@@ -419,22 +425,85 @@ function paintHeader({
     ? `· ${t("steps_" + steps_read_state)}` : "";
   $("#run-runtime-record").textContent = runtimeFault ? `· ${runtimeFault}` : "";
 
+  // What a resumed run reused is said in words under the header
+  // (paintLineage), where it used to be a count of checkpoints here. This
+  // badge is what is left: a run whose own checkpoints could not all be
+  // saved, which a successful reuse must not hide.
   const recoveryEl = $("#run-recovery");
-  const reused = recovery?.reused_nodes?.length ?? 0;
-  const badges = [];
-  const details = [];
-  if (recovery?.state === "reused" && reused > 0) {
-    badges.push(t("recovery_reused_short").replace("{count}", String(reused)));
-    if (recovery.source_run_id) details.push(recovery.source_run_id);
+  const degraded = checkpointing?.state === "degraded";
+  recoveryEl.textContent = degraded ? `· ${t("recovery_degraded_short")}` : "";
+  recoveryEl.title = degraded ? (checkpointing.errors ?? []).join("\n") : "";
+}
+
+/* A resumed run, under its header line: what it took from the run it
+ * continues, with that run one click away, and what the two took together
+ * (run.js lineageSummary words it; the sums are the server's). */
+function paintLineage(facts) {
+  const line = $("#run-lineage");
+  const view = runView.lineageSummary(facts);
+  line.replaceChildren?.();
+  const parts = view ? [view.reuse, view.totals, view.missing].filter(Boolean) : [];
+  line.hidden = !parts.length;
+  if (!parts.length) return;
+  const space = i18n.language() === "Simplified Chinese" ? "" : " ";
+  parts.forEach((text, index) => {
+    if (index) line.append(space);
+    const [before, after] = text.split("{earlier}");
+    if (after === undefined) {
+      line.append(text);
+      return;
+    }
+    line.append(before);
+    const name = runView.headerLabel("lineage_earlier");
+    if (view.earlier) {
+      // The earlier run is this reader's to open: its id is in this run's own record.
+      const link = document.createElement("button");
+      link.type = "button";
+      link.className = "run-lineage__link";
+      link.id = "run-lineage-earlier";
+      link.textContent = name;
+      link.addEventListener("click", () => openRun(view.earlier));
+      line.append(link);
+    } else {
+      line.append(name);
+    }
+    line.append(after);
+  });
+}
+
+/* Under the reason a run failed, when it is one the reader cannot fix alone:
+ * the run's ID, a button that copies it, and the operator's contact. The
+ * contact is the deployment's own published line (OPERATOR_CONTACT), from
+ * the sign-in configuration or the health reading; none is written here. */
+const MAIL_ADDRESS = /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/;
+function paintRunHelp({ state, error_code, funded_by, run_id }) {
+  const help = $("#run-help");
+  const runId = typeof run_id === "string" && run_id ? run_id : activeRunId;
+  const shown = Boolean(runId) && runView.needsOperator({ state, error_code, funded_by });
+  help.hidden = !shown;
+  if (!shown) return;
+  $("#run-help-label").textContent = runView.headerLabel("help_run_id");
+  $("#run-help-id").textContent = runId;
+  const copy = $("#run-help-copy");
+  copy.textContent = runView.headerLabel("help_copy");
+  copy.onclick = async () => {
+    const copied = await copyText(runId);
+    toast(runView.headerLabel(copied ? "help_copied" : "help_copy_failed"), copied ? "success" : "error");
+  };
+  const where = $("#run-help-contact");
+  where.replaceChildren?.();
+  const published = typeof authConfig?.contact === "string" && authConfig.contact.trim()
+    ? authConfig.contact.trim() : deploymentContact;
+  if (!published) {
+    where.textContent = runView.headerLabel("help_no_contact");
+    return;
   }
-  // Reuse and a failed child-side checkpoint write can coexist. Showing only
-  // the cache hit would turn degraded recoverability into an apparent pass.
-  if (checkpointing?.state === "degraded") {
-    badges.push(t("recovery_degraded_short"));
-    details.push(...(checkpointing.errors ?? []));
-  }
-  recoveryEl.textContent = badges.length ? `· ${badges.join(" · ")}` : "";
-  recoveryEl.title = details.join("\n");
+  const [before, after = ""] = runView.headerLabel("help_contact").split("{contact}");
+  const who = document.createElement(MAIL_ADDRESS.test(published) ? "a" : "span");
+  who.textContent = published;
+  // A message already about this run: the ID is what the operator needs first.
+  if (who.tagName === "A") who.href = `mailto:${published}?subject=${encodeURIComponent(`Run ${runId}`)}`;
+  where.append(before, who, after);
 }
 
 /* The older way to copy, for where a page may not write to the clipboard
@@ -764,6 +833,49 @@ function paintActions(state, checkpointing = null, canModify = true, facts = nul
  * model the page cannot learn is left out of the sentence. */
 let lastActionFacts = null;
 let deploymentModel = null;
+// From the same health reading: the operator's published contact (paintRunHelp)
+// and how long the newest completed runs here took (paintRunTimes).
+let deploymentContact = null;
+let runMinutes = null;
+let healthFactsKnown = false;
+
+function noteHealthFacts(reading) {
+  const { llm_model, contact, run_minutes } = reading ?? {};
+  // The model a run the deployment pays for would use now (paintResumeNote).
+  deploymentModel = typeof llm_model === "string" && llm_model ? llm_model : null;
+  deploymentContact = typeof contact === "string" && contact.trim() ? contact.trim() : null;
+  const { low, high, runs } = run_minutes ?? {};
+  runMinutes = [low, high, runs].every((n) => Number.isInteger(n) && n >= 1) && low <= high ? { low, high, runs } : null;
+  healthFactsKnown = true;
+  paintRunTimes();
+}
+
+/* "Here, the last 10 completed assessments took 5 to 25 minutes each."
+ *
+ * Three places said "a run takes 6 to 15 minutes": the landing, the sign-in
+ * card and the key form. It was written once from a handful of runs on one
+ * model; the deployment's model has changed several times since, and a run
+ * on 2026-11-18 took 24 min 40 s. The sentence is now this deployment's own
+ * newest completed runs, with how many they are, and is left out where
+ * there are too few to say anything: no figure beats one from elsewhere. */
+function paintRunTimes() {
+  const text = !runMinutes ? ""
+    : t(runMinutes.low === runMinutes.high ? "run_time_one" : "run_time")
+      .replace("{runs}", String(runMinutes.runs)).replace("{low}", String(runMinutes.low))
+      .replace("{high}", String(runMinutes.high));
+  for (const node of $$("[data-run-time]")) {
+    node.textContent = text;
+    node.hidden = !text;
+  }
+}
+
+/* For a card shown before any health reading: one read, made once. */
+let healthFactsAsked = false;
+function learnHealthFacts() {
+  if (healthFactsKnown || healthFactsAsked) return;
+  healthFactsAsked = true;
+  api.health().then(noteHealthFacts).catch(() => { healthFactsAsked = false; });
+}
 let resumeNoteAsked = 0;
 async function paintResumeNote() {
   const asked = ++resumeNoteAsked;
@@ -869,12 +981,14 @@ async function openRun(runId, { known } = {}) {
       if (progress.state === "running") watchedActive = true;
       paintHeader(progress);
       paintActions(progress.state, progress.checkpointing, mayModify(progress), progress);
-      runView.renderStages(body, runView.stageStates(progress.stage, progress.state, progress.stage_timings));
+      runView.renderStages(body, runView.stageStates(
+        progress.stage, progress.state, progress.stage_timings, progress.recovery));
     },
     onDone(progress) {
       paintHeader(progress);
       paintActions(progress.state, progress.checkpointing, mayModify(progress), progress);
-      runView.renderStages(body, runView.stageStates(progress.stage, progress.state, progress.stage_timings));
+      runView.renderStages(body, runView.stageStates(
+        progress.stage, progress.state, progress.stage_timings, progress.recovery));
       refreshSidebar();
 
       if (progress.state === "completed") {
@@ -935,6 +1049,46 @@ async function handleDeleteRun(runId, topic) {
   else refreshSidebar();
 }
 
+/* ── The account's own run in progress ─────────────────────────────────
+ * An account runs one assessment at a time. Whether one is going comes with
+ * the run list (GET /api/runs `active_runs`, `at_capacity`), which the page
+ * reads whenever it changes pane, starts a run or sees one end. While one is
+ * going and its own page is not the one open, the list is asked again every
+ * fifteen seconds, so the line clears and the button comes back by itself;
+ * on that run's page the progress poll already sees it end and asks then. */
+let accountActivity = { activeRuns: [], atCapacity: false };
+let activityTimer = null;
+const ACTIVITY_INTERVAL = 15_000;
+
+const activeRunView = () => runView.activeRunNotice({ ...accountActivity, openRunId: activeRunId });
+
+function paintActiveRun() {
+  const view = activeRunView();
+  const line = $("#active-run");
+  line.hidden = !view.banner || viewerMode;
+  $("#active-run-text").textContent = view.banner?.text ?? "";
+  const open = $("#active-run-view");
+  open.textContent = view.banner?.view ?? "";
+  open.onclick = view.banner ? () => openRun(view.banner.runId) : null;
+  const note = $("#busy-note");
+  note.textContent = view.reason;
+  note.hidden = !view.reason;
+}
+
+function noteAccountActivity(activity) {
+  accountActivity = {
+    activeRuns: Array.isArray(activity?.activeRuns) ? activity.activeRuns : [],
+    atCapacity: activity?.atCapacity === true,
+  };
+  paintActiveRun();
+  syncComposer();
+  if (activityTimer) clearTimeout(activityTimer);
+  activityTimer = null;
+  const going = accountActivity.activeRuns.length > 0 || accountActivity.atCapacity;
+  const followed = accountActivity.activeRuns.some((entry) => entry?.run_id === activeRunId);
+  if (going && !followed && !document.hidden) activityTimer = setTimeout(refreshSidebar, ACTIVITY_INTERVAL);
+}
+
 async function refreshSidebar() {
   // A reader has no identity whose history this would be; the list stays
   // behind the gate and asking would only earn a refusal.
@@ -964,6 +1118,8 @@ async function refreshSidebar() {
         return {
           run_id, topic: status.topic || topic, state: status.state,
           started_at: _startedAtFromRunId(run_id),
+          // The run this one continues, so the list shows the two as one (sidebar.js grouped).
+          resumed_from: status.lineage?.earlier?.[0]?.run_id ?? null,
         };
       } catch {
         // The run itself is still a capability URL even if this poll
@@ -988,6 +1144,7 @@ async function refreshSidebar() {
     onSelect: (runId) => openRun(runId),
     onDelete: handleDeleteRun,
     onChange: refreshSidebar,
+    onActivity: noteAccountActivity,
   });
 }
 
@@ -1093,15 +1250,19 @@ function autosize() {
 }
 
 function syncComposer() {
+  // The account's own assessment is going: a preview, a start or an upload
+  // now would be refused (paintActiveRun says why beside the button).
+  const busy = activeRunView().blocked;
   runBtn.disabled = topic.value.trim().length < 3 || extracting || submitting || previewing
-    || paidReceipts.state().uncertain;
+    || paidReceipts.state().uncertain || busy;
   runBtn.title = submitting ? t("msg_submitting")
     : previewing ? runView.planLabel("previewing")
-    : extracting ? t("msg_wait_extract") : t("run_hint");
+    : extracting ? t("msg_wait_extract") : busy ? activeRunView().reason : t("run_hint");
   planPanel.querySelectorAll("button, input").forEach((control) => {
-    control.disabled = submitting || paidReceipts.state().uncertain;
+    // "Change topic" stays: it starts nothing, and is the way back to the field.
+    control.disabled = submitting || paidReceipts.state().uncertain || (busy && control.id === "plan-start");
   });
-  attachBtn.disabled = extracting || submitting || paidReceipts.state().uncertain;
+  attachBtn.disabled = extracting || submitting || paidReceipts.state().uncertain || busy;
   // Keep the submitted payload stable in the visible composer as well. The
   // handler guard still matters for programmatic submits and queued events.
   for (const input of [topic, $("#language"), $("#profile"), ...decisionContextInputs]) {
@@ -1581,15 +1742,14 @@ let capacityReading = null;
 
 async function refreshCapacity() {
   try {
+    const reading = await api.health();
     const {
       active_runs,
       active_paid_operations = active_runs,
       max_concurrent,
       retention_days,
-      llm_model,
-    } = await api.health();
-    // The model a run the deployment pays for would use now (paintResumeNote).
-    deploymentModel = typeof llm_model === "string" && llm_model ? llm_model : null;
+    } = reading;
+    noteHealthFacts(reading);
     const dots = $("#capacity-dots");
     dots.innerHTML = "";
     for (let i = 0; i < max_concurrent; i += 1) {
@@ -2313,7 +2473,9 @@ function drawLandingSamples() {
 async function paintLandingRetention() {
   const node = $("#landing-retention");
   try {
-    const { retention_days } = await api.health();
+    const reading = await api.health();
+    noteHealthFacts(reading);
+    const { retention_days } = reading;
     node.textContent = retention_days
       ? t("byok_retention").replace("{days}", retention_days)
       : t("byok_retention_forever");
@@ -2541,6 +2703,8 @@ function keyProblem(verdict, creds) {
 // `reset` is the token from a reset link: the card opens on the new-password form.
 function showGate(errorKey = null, { keysOnly = false, creating: startCreating = false, back = false, reset = null } = {}) {
   const gate = $("#gate");
+  // The card says how long a run takes, from the health reading (paintRunTimes).
+  learnHealthFacts();
   // The card always sits on one of the two pages. The boot may have kept the
   // workbench back in case this visit ended on the landing; it did not.
   if ($("#landing").hidden) $("#workbench").hidden = false;
@@ -3380,6 +3544,8 @@ langSelect.addEventListener("change", () => {
   i18n.setLanguage(langSelect.value);
   document.title = baseTitle();
   paintAccountIdentity();
+  paintRunTimes();
+  paintActiveRun();
   drawLandingSamples();
   // The capture of the interface is in the interface's language too.
   if (landingShotShown) paintLandingShot();
@@ -3530,9 +3696,13 @@ document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     if (capacityTimer) clearTimeout(capacityTimer);
     capacityTimer = null;
+    if (activityTimer) clearTimeout(activityTimer);
+    activityTimer = null;
   } else {
     refreshCapacity();
     scheduleCapacity();
+    // A run may have ended while the tab was away: the list says.
+    if (accountActivity.activeRuns.length || accountActivity.atCapacity) refreshSidebar();
   }
 });
 

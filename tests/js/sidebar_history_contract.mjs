@@ -28,7 +28,7 @@ function harness(history) {
   const document = { createElement: () => new Element(), querySelector: (selector) => (selector === "#run-search" ? box : null) };
   const t = (key) => key;
   const module = new Function("api", "t", "document",
-    `${source}; return { render, refresh, setQuery, showMore, resetView, matches };`)(api, t, document);
+    `${source}; return { render, refresh, setQuery, showMore, resetView, matches, grouped };`)(api, t, document);
   const list = new Element();
   const shown = () => list.children.filter((node) => node.className === "runitem-row")
     .map((row) => row.children[0].dataset.runId);
@@ -169,6 +169,72 @@ const scenarios = {
     const ids = h.shown();
     assert.equal(new Set(ids).size, ids.length, "No run is listed twice");
     void real;
+  },
+  // A resumed run and the run it continues were two rows with one name, one
+  // failed and one completed, and nothing to say which led to which.
+  async resumed() {
+    const parent = { ...run(1, "sodium-ion storage"), state: "failed", duration: "25m 31s" };
+    const child = { ...run(3, "sodium-ion storage"), resumed_from: parent.run_id, duration: "3m 48s" };
+    const other = run(2, "something else");
+    const h = harness([child, other, parent]);
+    const opened = [];
+    await h.refresh({ onSelect: (id) => opened.push(id), onDelete() {} });
+    assert.deepEqual(h.shown(), [child.run_id, other.run_id], "The run that was continued has no row of its own");
+    const [first, fold, second] = h.list.children.filter((node) => node.className !== "runlist__group");
+    assert.equal(first.children[0].dataset.runId, child.run_id);
+    assert.equal(fold.className, "runitem-earlier", "Directly under the run that continued it");
+    assert.equal(second.children[0].dataset.runId, other.run_id);
+    assert.equal(fold.open, false, "Folded: the newest run is the one to open");
+    const [summary, row] = fold.children;
+    assert.equal(summary.textContent, "runs_earlier_one");
+    assert.equal(row.className, "runitem-row runitem-row--earlier");
+    const item = row.children[0];
+    assert.equal(item.dataset.runId, parent.run_id, "Still a row that opens the earlier run");
+    const flat = (node) => [node, ...(node.children ?? []).flatMap(flat)];
+    const label = flat(item).find((node) => node.className === "runitem__label");
+    // Named by how it ended and how long it ran: its topic is the row above's.
+    assert.equal(label.textContent, "run_earlier_row");
+    assert.equal(flat(item).find((node) => node.className === "runitem__state").dataset.state, "failed");
+    assert.equal(item.title, "sodium-ion storage", "The tooltip stays the topic");
+    assert.ok(row.children[1], "It can still be deleted on its own");
+    item.listeners.click();
+    assert.deepEqual(opened, [parent.run_id]);
+    // Opened from a link or the fold: the row on screen is never out of sight.
+    const again = harness([child, other, parent]);
+    await again.refresh({ activeId: parent.run_id });
+    assert.equal(again.list.children.find((node) => node.className === "runitem-earlier").open, true);
+    assert.equal(again.list.children.find((node) => node.className === "runitem-earlier")
+      .children[1].children[0].attributes["aria-current"], "true");
+  },
+  async chains() {
+    const h = harness([]);
+    const ids = (entries) => entries.map(({ run: top, earlier }) => [top.run_id, earlier.map((older) => older.run_id)]);
+    const r = (id, from) => ({ run_id: id, resumed_from: from ?? null });
+    // A resume of a resume: one row, the two it continues under it, nearest first.
+    assert.deepEqual(ids(h.grouped([r("c", "b"), r("b", "a"), r("a")])), [["c", ["b", "a"]]]);
+    // The run it continues is on a page not loaded yet: nothing to fold, nothing lost.
+    assert.deepEqual(ids(h.grouped([r("c", "gone"), r("x")])), [["c", []], ["x", []]]);
+    // Resumed twice: the earlier run goes under the newest resume, and the older resume keeps its row.
+    assert.deepEqual(ids(h.grouped([r("c2", "a"), r("c1", "a"), r("a")])), [["c2", ["a"]], ["c1", []]]);
+    // Runs that are no resume are untouched, in the order given.
+    assert.deepEqual(ids(h.grouped([r("z"), r("y"), r("x")])), [["z", []], ["y", []], ["x", []]]);
+    // A record naming itself, or two naming each other, folds nothing twice and never loops.
+    assert.deepEqual(ids(h.grouped([r("s", "s")])), [["s", []]]);
+    assert.deepEqual(ids(h.grouped([r("p", "q"), r("q", "p")])), [["p", ["q"]]]);
+    // More than one earlier run is counted in the fold's line.
+    const three = [{ ...run(3), resumed_from: "run-0002" }, { ...run(2), resumed_from: "run-0001", state: "failed" },
+                   { ...run(1), state: "failed" }];
+    const drawn = harness(three);
+    await drawn.refresh();
+    const fold = drawn.list.children.find((node) => node.className === "runitem-earlier");
+    assert.equal(fold.children[0].textContent, "runs_earlier_many");
+    assert.equal(fold.children.length, 3);
+    // A search still finds both: they share the topic, and the fold holds the earlier one.
+    const searched = harness([{ ...run(3, "sodium"), resumed_from: "run-0001" }, run(2, "other"), { ...run(1, "sodium"), state: "failed" }]);
+    searched.setQuery("sodium");
+    await searched.refresh();
+    assert.deepEqual(searched.shown(), ["run-0003"]);
+    assert.ok(searched.list.children.find((node) => node.className === "runitem-earlier"));
   },
   async reset() {
     const h = harness(many(130));

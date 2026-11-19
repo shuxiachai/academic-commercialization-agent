@@ -12,13 +12,15 @@ import os
 import socket
 import threading
 import time
+import uuid
 from contextlib import contextmanager
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 
 import uvicorn
 
+from academic_agent.checkpoints import CheckpointIdentity, CheckpointStore, hash_text
 from academic_agent.run_output import create_run_id, save_report
 from academic_agent.report_audit import save_report_audit
 from academic_agent.run_spec import DecisionContext, RunSpec
@@ -38,6 +40,10 @@ REPORT_SENTINEL = "BROWSER_SMOKE_REPORT_REACHED_CLIENT"
 DECISION_OWNER = "Technology transfer office"
 DECISION_TYPE = "License the technology"
 DECISION_STATEMENT = "In sum, the actor-specific conclusion is DEFER because module-scale validation is missing [P1]."
+# The run that stopped after its writer had answered: what its draft says, and
+# who the deployment's operator is, as the operator would publish it.
+DRAFT_SENTINEL = "BROWSER_SMOKE_DRAFT_REACHED_CLIENT"
+OPERATOR_CONTACT = "operator@example.test"
 
 
 def _saved_source_fixture() -> dict[str, list[dict[str, str]]]:
@@ -82,6 +88,8 @@ def _configure_isolated_app(output_root: Path):
     # A zero-provider journey must stay that way if one ever signs in and
     # saves keys: with the check on, the server would ask real providers.
     os.environ["KEY_CHECK"] = "off"
+    # Set, like the code, so a developer's own .env cannot supply another.
+    os.environ["OPERATOR_CONTACT"] = OPERATOR_CONTACT
     os.environ["ACCESS_CODE"] = ACCESS_CODE
     os.environ.pop("ACCESS_CODES", None)
     os.environ.pop("ACCESS_CODE_ADMIN", None)
@@ -199,6 +207,78 @@ def _write_completed_run(output_root: Path, owner: str) -> str:
         ),
     )
     return run_id
+
+
+_REUSED_BY_THE_RESUME = ("retrieval", "academic", "patent", "market", "writer", "reviewer")
+
+
+def _write_resumed_pair(output_root: Path, owner: str) -> tuple[str, str]:
+    """A run that failed in scoring and the resume that finished it; returns (parent, child).
+
+    The shape of the production pair of 2026-11-18, with made-up content: the
+    parent stopped after 25:31 and 141,193 tokens with its writer's and
+    reviewer's answers saved and no report file; the child reused six
+    checkpoints, ran the scorer and finished in 3:48 on 35,012 tokens. The
+    parent's writer checkpoint is committed by the store itself, so the draft
+    the page shows passes the same integrity check a real one does.
+    """
+    child_id = _write_completed_run(output_root, owner)
+    # A run id starts with its start time, and a resume starts after its parent.
+    earlier = datetime.now(UTC).replace(microsecond=0) - timedelta(hours=1)
+    parent_id = f"{earlier.strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex}"
+    parent_dir = output_root / parent_id
+    parent_dir.mkdir(parents=True)
+    (parent_dir / ".owner").write_text(owner, encoding="utf-8")
+    decision_gate = DecisionContext().gate_snapshot()
+    checkpointing = {"state": "partial", "committed_nodes": list(_REUSED_BY_THE_RESUME), "errors": []}
+    stage_offsets = (
+        ("Source Collection & Validation", 0),
+        ("Phase 1 — Evidence Collection (Academic · Patent · Market)", 77),
+        ("Agent 4 — Report Writing", 597),
+        ("Agent 5 — Quality Review & Citation Check", 1095),
+        ("Agent 6 — Commercialization Scoring", 1425),
+        ("Error", 1531),
+    )
+    (parent_dir / "status.json").write_text(json.dumps({
+        "done": True, "stage": "Error", "topic": FIXTURE_TOPIC, "output_language": "English",
+        "error": "RuntimeError: fixture worker stopped in the scoring step",
+        "decision_gate": decision_gate, "source_counts": {"academic": 3, "patent": 2, "market": 4},
+        "checkpointing": checkpointing,
+        "stage_timings": [{"stage": stage, "started_at": (earlier + timedelta(seconds=offset)).isoformat()}
+                          for stage, offset in stage_offsets],
+    }, indent=2), encoding="utf-8")
+    CheckpointStore(parent_dir).commit(
+        CheckpointIdentity(
+            node_id="writer", input_sha256=hash_text("fixture input"), evidence_sha256=hash_text("fixture evidence"),
+            config_sha256=hash_text("fixture config"), upstream_sha256={}, pipeline_revision="browser-smoke",
+            as_of_date=date(2026, 11, 18), model=None,
+        ),
+        "# Browser smoke draft\n\n## Executive Summary\n\n"
+        f"{DRAFT_SENTINEL}\n\nThis draft is a local fixture; no model wrote it [P1].\n\n"
+        "## References\n\n[P1] Fixture patent. Fixture publisher. https://example.test/p1\n",
+        output_format="markdown",
+    )
+    ended = earlier + timedelta(seconds=1531)
+    commit_terminal_record(parent_dir, TerminalRecord(
+        state="failed", reason_code="worker_exception", termination_method="worker_exit",
+        started_at=earlier, ended_at=ended, elapsed_seconds=1531, last_stage="Error", timeout_seconds=1800,
+        usage={"total_tokens": 141_193, "cost_usd": None, "cost_complete": False, "agents": []},
+        usage_accounting=UsageAccounting(state="lower_bound", snapshot_at=ended, through_stage="Error",
+                                         run_complete=False, in_flight_request_may_have_spent=True),
+        checkpointing=checkpointing,
+    ))
+
+    # The child, as its own worker would have left it. Its terminal record is
+    # rewritten here only because the fixture writer above knows one shape of
+    # run; a real record is written once.
+    recovery = {"state": "reused", "source_run_id": parent_id, "reused_nodes": list(_REUSED_BY_THE_RESUME),
+                "next_node": "scorer"}
+    terminal_path = output_root / child_id / "terminal.json"
+    record = json.loads(terminal_path.read_text(encoding="utf-8"))
+    record.update(elapsed_seconds=228, recovery=recovery)
+    record["usage"]["total_tokens"] = 35_012
+    terminal_path.write_text(json.dumps(record), encoding="utf-8")
+    return parent_id, child_id
 
 
 def _write_decision_run(output_root: Path, owner: str) -> str:

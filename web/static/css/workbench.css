@@ -1766,3 +1766,102 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
 .key-guide li { padding-left: var(--space-1); line-height: var(--leading-normal); }
 .key-guide a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
 .key-guide__trial { margin: 0 0 var(--space-2); }
+
+/* ═══ A run in progress, stopped, or resumed ═══════════════════════════ */
+
+/* A stage a resumed run took whole from the run it continues: finished, but
+   not here. A ring in the finished colour, not the filled dot of work this
+   run did, and the words in place of a time. */
+.stage[data-state="reused"] .stage__dot {
+  border-color: var(--success);
+  background: var(--bg-raised);
+}
+.stage[data-state="reused"] .stage__label { color: var(--text-secondary); }
+.stage__meta--reused { font-variant-numeric: normal; }
+
+/* What a resumed run took from the earlier one and what both took together:
+   one line directly under the header's first. */
+.run-lineage__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.run-lineage__link:hover { color: var(--accent-hover); }
+
+/* The run's ID to copy and the operator's contact, under a failure the
+   reader cannot fix alone. The ID is selected whole by one click. */
+#pane-run .run-help {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+}
+.run-help__id {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+.run-help .gate__switch { align-self: baseline; margin: 0; }
+.run-help a { color: var(--accent); }
+
+/* The runs a resumed run continues, folded under its row in the history. */
+.runitem-earlier { margin: 0 0 var(--space-1) var(--space-5); }
+.runitem-earlier__summary {
+  padding: 2px var(--space-2);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  cursor: pointer;
+}
+.runitem-earlier__summary:hover { color: var(--text-secondary); }
+.runitem-row--earlier .runitem__label {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+
+/* How long the newest completed runs here took (app.js paintRunTimes). */
+.run-time {
+  margin-top: var(--space-2);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+/* The account's own assessment in progress: one line above whichever pane is
+   open, with the way to it. Inside the main column, so a phone shows it too. */
+.active-run {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  padding: var(--space-3) var(--space-10);
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--accent-subtle);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.active-run[hidden] { display: none; }
+.active-run__view {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+/* Why the run button is off: read as a statement, not as fine print. */
+.composer__privacy.composer__busy { color: var(--text-primary); }
+@media (max-width: 640px) {
+  .active-run { padding-inline: var(--space-5); }
+}

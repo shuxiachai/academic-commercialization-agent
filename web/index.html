@@ -170,7 +170,11 @@
       </li>
       <li>
         <h2 data-i18n="landing_step3_title">A decision brief comes out</h2>
-        <p data-i18n="landing_step3_body">A scorecard for TRL, MRL, patent strength, market accessibility and evidence confidence; a cited report; the main risks and a recommended first step. Export Markdown or PDF, or share the link. A run takes 6 to 15 minutes.</p>
+        <p data-i18n="landing_step3_body">A scorecard for TRL, MRL, patent strength, market accessibility and evidence confidence; a cited report; the main risks and a recommended first step. Export Markdown or PDF, or share the link.</p>
+        <!-- How long a run takes, from this deployment's own newest completed
+             runs (/health run_minutes; app.js paintRunTimes). Empty, and
+             hidden, where there are too few to say. -->
+        <p class="run-time" data-run-time hidden></p>
       </li>
     </ol>
     <!-- Where the evidence comes from, by name. Only services the pipeline
@@ -457,6 +461,15 @@
     </section>
 
     <!-- ── Compose ─────────────────────────────────────────────── -->
+    <!-- The account already has an assessment going (GET /api/runs
+         `active_runs`; run.js activeRunNotice). Said above whichever pane is
+         open, so it is seen on a phone too, where the history is off screen;
+         not shown on the page of that very run. -->
+    <p class="active-run" id="active-run" role="status" hidden>
+      <span id="active-run-text"></span>
+      <button type="button" class="active-run__view" id="active-run-view"></button>
+    </p>
+
     <section class="pane" id="pane-compose">
       <div class="pane__body pane__body--centered">
         <div class="compose">
@@ -543,6 +556,10 @@
                 <button type="button" class="composer__need-add" id="keys-needed-add" data-i18n="keys_needed_add">Add API keys</button>
               </p>
               <p class="composer__privacy composer__trial" id="trial-note" hidden></p>
+              <!-- Why the run button and the upload are off while the account's
+                   own assessment is going: said here, before a preview is
+                   asked for, where it used to be said only after Start. -->
+              <p class="composer__privacy composer__busy" id="busy-note" role="status" hidden></p>
               <p class="composer__privacy" data-i18n="paper_privacy">
                 Selected PDF text is sent to the configured model provider. The raw PDF is deleted after successful extraction; extracted metadata expires within 24 hours if no run uses it.
               </p>
@@ -706,7 +723,22 @@
             <span id="run-connection" role="status" aria-live="polite"></span>
             <span id="run-recovery"></span>
           </div>
+          <!-- A resumed run: what it took from the run it continues, and
+               what the two took together (run.js lineageSummary). Directly
+               under the header line, where "6 checkpoint stages reused" used
+               to trail after the usage fold. -->
+          <p class="run-outcome run-lineage" id="run-lineage" hidden></p>
           <p class="run-outcome" id="run-outcome" hidden></p>
+          <!-- For a failure its reader cannot fix alone: the run's ID with a
+               button that copies it, and the operator's contact where the
+               deployment publishes one (run.js needsOperator). The sentence
+               above has always said "contact the operator with the run ID". -->
+          <p class="run-outcome run-help" id="run-help" hidden>
+            <span id="run-help-label"></span>
+            <code class="run-help__id" id="run-help-id"></code>
+            <button type="button" class="gate__switch" id="run-help-copy"></button>
+            <span id="run-help-contact"></span>
+          </p>
           <!-- What the run's own record suggests about its model, when that is
                the likely cause (run.js failureGuide). -->
           <p class="run-outcome run-advice" id="run-advice" hidden></p>
@@ -785,7 +817,8 @@
          and app.js shows it in the create mode. -->
     <form id="account-form" hidden>
       <h2 class="gate__title" id="account-title" data-i18n="account_title">Sign in</h2>
-      <p class="gate__intro" data-i18n="gate_intro">Assess how close a technology is to market: the app searches papers, patents and market sources, then writes a cited report with a readiness score. A run takes 6 to 15 minutes.</p>
+      <p class="gate__intro" data-i18n="gate_intro">Assess how close a technology is to market: the app searches papers, patents and market sources, then writes a cited report with a readiness score.</p>
+      <p class="gate__sub run-time" data-run-time hidden></p>
       <p class="gate__sub" id="account-sub-trial" data-i18n="account_sub_trial" hidden>A new account's first assessment is free and needs no API keys. After that, runs are paid for with API keys you add: they are saved with your account, encrypted, so you add them once, and are used only for the operations you start.</p>
       <p class="gate__sub" id="account-sub" data-i18n="account_sub" hidden>Runs are paid for with API keys you add after signing in. They are saved with your account, encrypted, so you add them once and they work wherever you sign in. They are used only for the operations you start, and your providers bill you directly.</p>
       <input class="gate__input" id="account-email-input" type="email" autocomplete="username" required
@@ -839,7 +872,8 @@
       <h2 class="gate__title" data-i18n="gate_title">Access code required</h2>
       <!-- A visitor arriving from a shared link meets this before anything
            else, so it says what the app does before asking for a code. -->
-      <p class="gate__intro" data-i18n="gate_intro">Assess how close a technology is to market: the app searches papers, patents and market sources, then writes a cited report with a readiness score. A run takes 6 to 15 minutes.</p>
+      <p class="gate__intro" data-i18n="gate_intro">Assess how close a technology is to market: the app searches papers, patents and market sources, then writes a cited report with a readiness score.</p>
+      <p class="gate__sub run-time" data-run-time hidden></p>
       <p class="gate__sub" data-i18n="gate_sub">This deployment is invite-only. Enter the access code you were given; if you have none, ask whoever shared this link.</p>
       <input class="gate__input" id="gate-input" type="password" autocomplete="off"
              data-i18n-placeholder="gate_placeholder" placeholder="Access code">
@@ -991,7 +1025,7 @@
            costs and who bills it. The sums are measured runs, said as such
            (docs/evidence-status.md, "What an assessment costs"); they are
            not a quote. Under it, the same three steps as on the landing. -->
-      <p class="gate__hint" data-i18n="byok_guide">New to this? One model key and one search key are enough. A full assessment takes 6 to 15 minutes. Measured here, one cost about $0.05 in model fees with DeepSeek, $0.10 to $0.25 with Qwen, and about $0.55 with Anthropic. Your providers bill you directly, and this service adds nothing.</p>
+      <p class="gate__hint" data-i18n="byok_guide">New to this? One model key and one search key are enough. Measured here, one cost about $0.05 in model fees with DeepSeek, $0.10 to $0.25 with Qwen, and about $0.55 with Anthropic. Your providers bill you directly, and this service adds nothing.</p>
       <details class="key-guide" id="byok-key-guide">
         <summary data-i18n="key_guide_title">Get both keys in 3 steps</summary>
         <p class="key-guide__trial" id="byok-key-guide-trial" data-i18n="key_guide_trial" hidden>Your free first assessment needs neither key. For the assessments after it:</p>

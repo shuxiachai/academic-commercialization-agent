@@ -52,6 +52,11 @@ def test_reuse_and_degradation_reach_the_visible_run_header() -> None:
     """A cache hit must not hide a simultaneous checkpoint write failure."""
 
     assert 'id="run-recovery"' in _INDEX
-    assert 'recovery?.state === "reused"' in _APP_JS
-    assert 'checkpointing?.state === "degraded"' in _APP_JS
-    assert 'badges.join(" · ")' in _APP_JS
+    # What was reused is said in words in its own line under the header since
+    # 2026-11-19 (run.js lineageSummary; tests/test_run_progress_page.py), where
+    # it used to be a count of checkpoints in this badge. The badge is still
+    # where a degraded checkpoint write is shown, whatever was reused.
+    assert 'id="run-lineage"' in _INDEX
+    assert "paintLineage({ state, recovery, lineage, elapsed_seconds, usage, usage_accounting });" in _APP_JS
+    assert 'const degraded = checkpointing?.state === "degraded";' in _APP_JS
+    assert 'recoveryEl.textContent = degraded ? `· ${t("recovery_degraded_short")}` : "";' in _APP_JS

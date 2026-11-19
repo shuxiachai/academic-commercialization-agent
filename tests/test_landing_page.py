@@ -273,10 +273,16 @@ def test_the_way_in_says_what_a_run_takes_and_what_a_trial_spares():
     105,000 tokens. The card said "about 15 minutes" and "about 70,000"; and
     with a first assessment on the deployment's keys it must not still say
     that every run is paid for with keys the newcomer brings. Since
-    2026-11-14 the cost is said in money, not tokens (tests/test_run_costs.py)."""
+    2026-11-14 the cost is said in money, not tokens (tests/test_run_costs.py).
+    Since 2026-11-19 no time is written by hand either: "6 to 15 minutes"
+    stood on the page the day a run took 24 min 40 s on a slower model, and
+    the three places now show the deployment's own newest completed runs
+    (`/health` `run_minutes`; tests/test_run_progress_page.py)."""
     assert "about 15 minutes" not in _STRINGS and "about 15 minutes" not in _INDEX
     assert "约 15 分钟" not in _STRINGS
-    assert _STRINGS.count("6 to 15 minutes") >= 3 and _STRINGS.count("6 到 15 分钟") >= 3
+    assert "6 to 15 minutes" not in _STRINGS + _INDEX and "6 到 15 分钟" not in _STRINGS
+    assert _INDEX.count("data-run-time hidden") == 3
+    assert _STRINGS.count("    run_time: ") == 2
     assert "about 70,000" not in _STRINGS and "model tokens" not in _STRINGS
     assert _STRINGS.count("    landing_pay_cost: ") == 2
     for element in ('id="landing-trial"', 'id="account-sub"', 'id="account-sub-trial"'):
