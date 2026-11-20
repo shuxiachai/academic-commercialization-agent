@@ -63,6 +63,16 @@ V01 completed with `claude-sonnet-5-5` through both rows and with `gpt-4.1`
 through the `openai` row, and the token counts it reported did not match a
 direct Anthropic run of the same topic.
 
+Asked about the mismatch, Infistar said on 2026-11-17 that it adds no prompt
+itself, but that its upstream adds a system prompt and prompt caching of its
+own, and both are counted: the same prompt of about 13,850 tokens was counted
+once as 13,849 input tokens and once as 42,015. The model therefore also reads
+instructions this project did not write. Infistar also removes `temperature`
+on its OpenAI-compatible format. With `claude-sonnet-5-5` that changes
+nothing, because Anthropic's API refuses a `temperature` other than the
+default and this project then sends the request without it. A model that
+accepts `temperature` would lose the `0.0` that five of the six agents set.
+
 Auto-selection is DeepSeek → Qwen → Anthropic → OpenAI; unused keys do not
 force extra model calls, but they can change the selected provider if
 `LLM_PROVIDER` is absent. Remove unused template placeholders. Qwen's
