@@ -53,7 +53,7 @@ function fixture(receiptStore = new Map()) {
     })),
     api, runView: { ...actualRunView }, compareView,
     sidebar: { refresh: () => Promise.resolve([]) }, result: {}, needsScopeWarning: () => false,
-    i18n: { t: (key) => translations[key] || key, language: () => "English", apply: () => {},
+    i18n: { t: (key) => translations[key] || key, language: () => "English", locale: () => "en-GB", apply: () => {},
             pageTitle: (name = "") => (name ? `${name} · brand_full` : "brand_full") },
     document: { querySelector: get, querySelectorAll: (selector) => selector === '[data-resume-run]'
       ? get("#run-actions").children.filter((el) => el.dataset?.resumeRun) : [], createElement: () => new Element(),

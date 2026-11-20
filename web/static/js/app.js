@@ -2788,7 +2788,7 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
    * change made on another device. */
   let savedView = 0;
   let listed = null;       // what the server last said is saved, for the check's wording
-  const locale = () => (i18n.language() === "English" ? "en-GB" : "zh-CN");
+  const locale = () => i18n.locale();
   const providerName = (id) => $("#byok-provider").querySelector?.(`option[value="${id}"]`)?.textContent || id;
   const searchName = (id) => $("#byok-search").querySelector?.(`option[value="${id}"]`)?.textContent || id;
   // A word joiner after the ellipsis, so a line never breaks inside "…abcd".
@@ -3468,7 +3468,9 @@ async function pickComparison(runId) {
     label.textContent = run.topic || run.run_id;
     const meta = document.createElement("span");
     meta.className = "picker__meta tabular";
-    meta.textContent = [same ? t("compare_pick_same") : null, when ? when.toLocaleDateString() : null, run.owner_label || null]
+    // In the interface's language, as the keys panel dates are; not the browser's.
+    const day = when ? when.toLocaleDateString(i18n.locale(), { year: "numeric", month: "short", day: "numeric" }) : null;
+    meta.textContent = [same ? t("compare_pick_same") : null, day, run.owner_label || null]
       .filter(Boolean).join(" · ");
     choose.append(label, meta);
     choose.addEventListener("click", () => {

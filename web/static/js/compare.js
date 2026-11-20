@@ -10,7 +10,7 @@
  * but the reads the run page itself makes. */
 
 import * as api from "./api.js";
-import { t } from "./i18n.js";
+import { locale, t } from "./i18n.js";
 import { DIMENSIONS, decisionAsked, decisionBrief, decisionVerdict, expandButton, verdictLine } from "./result.js";
 import { stateLabel } from "./run.js";
 
@@ -159,7 +159,11 @@ const el = (tag, className, text) => {
 
 const fmt = (value, max) => (value === null ? "—" : max === 100 ? value.toFixed(1) : `${value} / ${max}`);
 const signed = (value) => (value > 0 ? `+${value}` : String(value));
-const dateText = (date) => (date ? date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "—");
+// The start in the interface's language (not the browser's) and on the
+// reader's own clock, which the card says: the run ID next to it is in UTC.
+const dateText = (date) => (date
+  ? t("compare_local_time").replace("{time}", date.toLocaleString(locale(), { dateStyle: "medium", timeStyle: "short" }))
+  : "—");
 
 function sourcesText(counts) {
   if (!counts) return "—";

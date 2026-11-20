@@ -701,6 +701,7 @@ const STRINGS = {
     compare_loading: "Reading both runs…",
     compare_same_run: "These are the same run. Choose another to compare with.",
     compare_not_finished: "This run did not finish, so it has no scores to compare.",
+    compare_local_time: "{time} (your local time)",
     compare_no_scores: "Neither run has a readable scorecard.",
     compare_metric: "Score",
     compare_overall: "Overall readiness (of 100)",
@@ -1512,6 +1513,7 @@ const STRINGS = {
     compare_loading: "正在读取两次评估……",
     compare_same_run: "这是同一次评估，请选择另一次来对比。",
     compare_not_finished: "这次评估没有完成，没有可对比的分数。",
+    compare_local_time: "{time}（本地时间）",
     compare_no_scores: "两次评估都没有可读的评分卡。",
     compare_metric: "分数",
     compare_overall: "总体就绪度（满分 100）",
@@ -1705,6 +1707,14 @@ export function t(key) {
 
 export function language() {
   return current;
+}
+
+/** The locale dates and times are drawn in: the interface's, never the
+ * browser's own. An English interface in a Chinese browser drew the
+ * comparison's start time as "2026年11月18日 19:34" beside a keys panel that
+ * said "16 Nov 2026" (2026-11-20). */
+export function locale() {
+  return current === "English" ? "en-GB" : "zh-CN";
 }
 
 export function setLanguage(next) {
