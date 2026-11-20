@@ -802,6 +802,8 @@ function renderDecisionApplicability(gate) {
 const VERDICT_TONES = { go: "success", conditional_go: "warning", defer: "warning", no_go: "danger" };
 // The statement and what follows it are shown together while they stay a short read.
 const VERDICT_PASSAGE_LIMIT = 480;
+// How a sentence ends when it ends with a stop, citations aside (decision_verdict._SPOKEN_END).
+const SPOKEN_END = /[.!?。！？:：;；…][\s)\]"'”’」』）*]*$/u;
 
 /** Whether this run was asked for an actor-specific conclusion and finished. */
 export function decisionAsked(progress) {
@@ -826,12 +828,18 @@ export function decisionVerdict(reply) {
     .map(item => ({ verdict: item.verdict, statement: said(item.statement), section: said(item.section), needle: said(item.needle) }));
   if (conclusion.status === "stated" && verdictName(conclusion.verdict) && said(conclusion.statement)) {
     const follows = (Array.isArray(conclusion.follows) ? conclusion.follows : []).map(said).filter(Boolean);
-    // One passage: a space between sentences, none after a Chinese full stop.
-    const whole = [said(conclusion.statement), ...follows]
-      .reduce((passage, sentence) => passage + (!passage || /[。！？]$/u.test(passage) ? "" : " ") + sentence, "");
+    // One passage, joined as decision_verdict.joined joins it for the PDF: a
+    // space between sentences, none after a Chinese full stop, and a line
+    // break after a line that ends with no stop ("Conclusion: DEFER", alone in
+    // its paragraph, its reasons in the next). A full stop put in there would
+    // be this page's, not the report's.
+    const whole = [said(conclusion.statement), ...follows].reduce((passage, sentence) => {
+      if (!passage || /[。！？]$/u.test(passage)) return passage + sentence;
+      return passage + (SPOKEN_END.test(passage.replace(CITATION_RUN, "")) ? " " : "\n") + sentence;
+    }, "");
     return {
       state: "stated", asked, verdict: conclusion.verdict, tone: VERDICT_TONES[conclusion.verdict],
-      statement: said(conclusion.statement), whole,
+      statement: said(conclusion.statement), whole, follows, bare: conclusion.bare === true,
       // Short enough: all of it. Otherwise the statement, and one press for the rest.
       shown: whole.length <= VERDICT_PASSAGE_LIMIT ? whole : said(conclusion.statement),
       section: said(conclusion.section), needle: said(conclusion.needle),
@@ -845,10 +853,19 @@ export function decisionVerdict(reply) {
   return { state: "unread", asked, tone: "muted" };
 }
 
-/** One line for a table cell: the comparison's "Decision conclusion" row. */
+/** One line for a table cell: the comparison's "Decision conclusion" row.
+ *
+ * The conclusion and the first sentence that gives its reason. A statement
+ * that says only the verdict ("Conclusion: DEFER.", `bare`) is not quoted
+ * after the verdict it repeats: the sentence after it is, and with none the
+ * row is the verdict alone. A statement that says more ("the conclusion is
+ * DEFER because module data are missing") is that sentence. */
 export function verdictLine(view) {
   if (!view) return null;
-  if (view.state === "stated") return { text: `${verdictName(view.verdict)}: “${view.statement}”`, tone: view.tone };
+  if (view.state === "stated") {
+    const reason = view.bare ? view.follows?.[0] : view.statement;
+    return { text: reason ? `${verdictName(view.verdict)}: “${reason}”` : verdictName(view.verdict), tone: view.tone };
+  }
   if (view.state === "conflicting") {
     const names = [...new Set(view.statements.map(item => verdictName(item.verdict)))].join(" / ");
     return { text: `${t("verdict_conflicting")}: ${names}`, tone: view.tone };

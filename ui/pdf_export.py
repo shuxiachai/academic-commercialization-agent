@@ -450,7 +450,8 @@ def decision_card_story(card: dict, styles: dict) -> list:
     for lead, quote in card.get("quotes", []):
         # A full-width colon carries its own space.
         gap = "" if str(lead).endswith("：") else " "
-        cell.append(Paragraph(f"{text(lead)}{gap}“{text(quote)}”", body))
+        # decision_verdict.joined breaks the line after a conclusion line with no stop.
+        cell.append(Paragraph(f"{text(lead)}{gap}“{text(quote).replace(chr(10), '<br/>')}”", body))
     if card.get("where"):
         cell.append(Paragraph(text(card["where"]), small))
     cell.append(Paragraph(text(card["note"]), small))

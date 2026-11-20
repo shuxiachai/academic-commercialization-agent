@@ -1956,7 +1956,7 @@ def _reply(**conclusion):
     stated = {"status": "stated", "verdict": "defer", "statement": _STATEMENT, "section": "Executive Summary",
               "follows": ["Licensing should be revisited once outdoor module data exist [A3]."],
               "needle": "In sum, the actor-specific conclusion is DEFER because module-scale validation",
-              "statements": []}
+              "bare": False, "statements": []}
     stated.update(conclusion)
     return {"run_id": "r", "asked": True, "question": _QUESTION, "conclusion": stated}
 
@@ -2079,6 +2079,38 @@ class DecisionConclusionTests(unittest.TestCase):
         chinese = self._card(_reply(statement="决策结论为暂缓许可 [A2]。", follows=["待取得户外数据后重新评估 [A3]。", "第三句。"]),
                              "Simplified Chinese")["card"]
         self.assertEqual(chinese["says"], "报告原文： 决策结论为暂缓许可 [A2]。待取得户外数据后重新评估 [A3]。第三句。")
+
+    def test_a_conclusion_line_with_no_stop_is_not_run_into_its_reasons(self):
+        """Production run 20261120T131247Z-55c7… wrote "**Conclusion:** **DEFER**"
+        alone and its reasons in the next paragraph. Joined with a space the
+        card would read "Conclusion: DEFER Evidence conditions…", and a full
+        stop put in would be the page's, not the report's: a line break, as
+        decision_verdict.joined makes for the PDF."""
+        follows = ["Evidence conditions behind the conclusion: module-scale stability data are missing [A2].",
+                   "No freedom-to-operate opinion has been obtained [P1]."]
+        card = self._card(_reply(statement="Conclusion: DEFER", follows=follows, bare=True))["card"]
+        self.assertEqual(card["says"], "The report says: Conclusion: DEFER\nEvidence conditions behind the conclusion: "
+                         "module-scale stability data are missing [A2]. No freedom-to-operate opinion has been obtained [P1].")
+        # A line that ends with its stop, or with a citation after it, is joined by a space as before.
+        for statement in ("Conclusion: DEFER.", "Conclusion: DEFER. [A2]", "Conclusion: DEFER [A2]."):
+            with self.subTest(statement=statement):
+                shown = self._card(_reply(statement=statement, follows=["Next sentence."], bare=True))["card"]
+                self.assertEqual(shown["says"], f"The report says: {statement} Next sentence.")
+
+    def test_the_comparison_row_gives_the_conclusion_and_its_first_reason_not_the_conclusion_twice(self):
+        """The comparison of 2026-11-20 showed `DEFER: "Conclusion: DEFER."` for a
+        run whose card had its reasons: the row quoted the statement only."""
+        line = lambda **over: self._card(_reply(**over))["line"]  # noqa: E731
+        bare = line(statement="Conclusion: DEFER.", bare=True,
+                    follows=["The office should defer a full licence until module data exist [A2].", "A second sentence."])
+        self.assertEqual(bare, {"text": "DEFER: “The office should defer a full licence until module data exist [A2].”",
+                                "tone": "warning"})
+        # Nothing after it: the conclusion alone, not quoted again.
+        self.assertEqual(line(statement="Conclusion: DEFER.", bare=True, follows=[]), {"text": "DEFER", "tone": "warning"})
+        # A statement that says more than the verdict is its own first reason.
+        self.assertEqual(line(), {"text": f"DEFER: “{_STATEMENT}”", "tone": "warning"})
+        self.assertEqual(line(statement="Decision: DEFER until module data exist [A2].", bare=False, follows=["Next."]),
+                         {"text": "DEFER: “Decision: DEFER until module data exist [A2].”", "tone": "warning"})
 
     def test_the_passage_is_found_by_its_text_then_by_its_heading(self):
         blocks = [{"tagName": "H2", "textContent": "Executive Summary"},

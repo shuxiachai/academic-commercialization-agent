@@ -205,9 +205,16 @@ class DecisionStatement(BaseModel):
     follows: list[str] = Field(
         default_factory=list,
         description="Up to two sentences after it in the same paragraph: the reasons "
-                    "and conditions the writer put beside it. Quoted, not chosen.",
+                    "and conditions the writer put beside it. For a statement that is a "
+                    "paragraph of its own, the first two of the paragraph right below it "
+                    "in the same section. Quoted, not chosen.",
     )
     needle: str = Field(description="Text of the statement with no citation in it, for finding its paragraph on a page.")
+    bare: bool = Field(
+        False,
+        description="The statement is a conclusion line that says the verdict and nothing "
+                    "else (\"Conclusion: DEFER.\"): a one-line summary quotes what follows it.",
+    )
 
 
 class DecisionConclusion(BaseModel):
@@ -223,6 +230,7 @@ class DecisionConclusion(BaseModel):
     section: str | None = None
     follows: list[str] = Field(default_factory=list)
     needle: str | None = None
+    bare: bool = False
     statements: list[DecisionStatement] = Field(default_factory=list)
 
 
