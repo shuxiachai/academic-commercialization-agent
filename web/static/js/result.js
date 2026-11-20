@@ -846,15 +846,24 @@ export function decisionVerdict(reply) {
     // break after a line that ends with no stop ("Conclusion: DEFER", alone in
     // its paragraph, its reasons in the next). A full stop put in there would
     // be this page's, not the report's.
-    const whole = [said(conclusion.statement), ...follows].reduce((passage, sentence) => {
-      if (!passage || /[。！？]$/u.test(passage)) return passage + sentence;
-      return passage + (SPOKEN_END.test(passage.replace(CITATION_RUN, "")) ? " " : "\n") + sentence;
+    const passage = (sentences) => sentences.reduce((text, sentence) => {
+      if (!text || /[。！？]$/u.test(text)) return text + sentence;
+      return text + (SPOKEN_END.test(text.replace(CITATION_RUN, "")) ? " " : "\n") + sentence;
     }, "");
+    const statement = said(conclusion.statement);
+    const bare = conclusion.bare === true;
+    const whole = passage([statement, ...follows]);
+    // A line that says only the verdict repeats the headline above it, so when
+    // the passage is too long the first reason is shown with it, if that fits:
+    // the production report that prompted this (20261120T131247Z) had 497
+    // characters, and the card showed "Conclusion: DEFER" and a button.
+    const lead = bare && follows.length ? passage([statement, follows[0]]) : statement;
     return {
       state: "stated", asked, verdict: conclusion.verdict, tone: VERDICT_TONES[conclusion.verdict],
-      statement: said(conclusion.statement), whole, follows, bare: conclusion.bare === true,
-      // Short enough: all of it. Otherwise the statement, and one press for the rest.
-      shown: whole.length <= VERDICT_PASSAGE_LIMIT ? whole : said(conclusion.statement),
+      statement, whole, follows, bare,
+      // Short enough: all of it. Otherwise the statement (with its first reason
+      // when it is a bare line), and one press for the rest.
+      shown: whole.length <= VERDICT_PASSAGE_LIMIT ? whole : lead.length <= VERDICT_PASSAGE_LIMIT ? lead : statement,
       section: said(conclusion.section), needle: said(conclusion.needle),
     };
   }

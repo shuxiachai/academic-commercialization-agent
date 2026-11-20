@@ -2157,6 +2157,29 @@ class DecisionConclusionTests(unittest.TestCase):
         css = (Path(__file__).resolve().parents[1] / "web" / "static" / "css" / "result.css").read_text(encoding="utf-8")
         self.assertRegex(css, r"\.verdict-card__text\s*\{\s*white-space:\s*pre-line;\s*\}")
 
+    def test_a_bare_conclusion_line_shows_its_first_reason_even_when_the_passage_is_long(self):
+        """The production report of 20261120T131247Z-55c7… (read 2026-11-21):
+        "Conclusion: DEFER" alone, then two sentences of reasons, 497
+        characters in all, over the card's 480. The card showed the statement
+        and a button, which for a line that says only the verdict is the
+        headline twice and the reasons behind a press."""
+        first = ("Evidence conditions behind the conclusion: The validated evidence supports promising high-energy "
+                 "pouch-cell demonstrations and pre-industrial prototype activity [A1, A2], and market signals show "
+                 "early aerospace testing and emerging eVTOL certification pathways [M3, M6].")
+        second = ("However, solid-state lithium-metal aviation batteries remain pre-commercial or early pilot stage, "
+                  "and the evidence does not show certified deployment, procurement contracts, or recurring revenue "
+                  "[M5, M3, M6].")
+        card = self._card(_reply(statement="Conclusion: DEFER", follows=[first, second], bare=True))["card"]
+        self.assertEqual(card["says"], f"The report says: Conclusion: DEFER\n{first} Show what follows it")
+        self.assertEqual(card["more"]["text"], "Show what follows it")
+        self.assertTrue(card["more"]["after"].endswith("recurring revenue [M5, M3, M6]."))
+        # A statement that says more than the verdict still shows itself alone when the passage is long.
+        long = self._card(_reply(follows=[first, second]))["card"]
+        self.assertEqual(long["says"], f"The report says: {_STATEMENT} Show what follows it")
+        # And a first reason too long for the card is not forced in.
+        huge = self._card(_reply(statement="Conclusion: DEFER", follows=[first * 3], bare=True))["card"]
+        self.assertEqual(huge["says"], "The report says: Conclusion: DEFER Show what follows it")
+
     def test_the_comparison_row_gives_the_conclusion_and_its_first_reason_not_the_conclusion_twice(self):
         """The comparison of 2026-11-20 showed `DEFER: "Conclusion: DEFER."` for a
         run whose card had its reasons: the row quoted the statement only."""
