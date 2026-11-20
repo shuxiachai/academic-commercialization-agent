@@ -54,8 +54,8 @@ globalThis.fetch = async (url) => {
   if (url === "/api/samples") {
     return new Response(JSON.stringify(list), { status: listStatus, headers: { "Content-Type": "application/json" } });
   }
-  // The scorecard read beside each report: none here, so the titles are all this file sees.
-  if (url.endsWith("/scores")) return new Response("{}", { status: 404 });
+  // The scorecard and the conclusion read beside a report: none here, so the titles are all this file sees.
+  if (url.endsWith("/scores") || url.endsWith("/decision")) return new Response("{}", { status: 404 });
   const slug = decodeURIComponent(url.replace(/^\/api\/samples\//, ""));
   const reply = () => new Response(`# ${slug}`, { status: 200, headers: { "Content-Type": "text/markdown" } });
   if (!deferReads) return reply();

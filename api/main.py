@@ -88,6 +88,7 @@ from api.models import (  # noqa: E402
     PasswordForgot,
     PasswordReset,
     PasswordResetDone,
+    SampleDecision,
     SampleSummary,
     SiteInfo,
     BYOK_PROVIDERS,
@@ -622,8 +623,9 @@ async def _access_gate(request: Request, call_next):
       Keeping that decision in the handler also lets resume parse fresh BYOK
       credentials without consuming and rebuilding the request body here.
       GET /api/runs itself stays gated because it lists deployment history.
-    - GET /api/samples, /api/samples/{slug} and /api/samples/{slug}/scores —
-      committed example reports and the scorecards of their runs,
+    - GET /api/samples, /api/samples/{slug}, /api/samples/{slug}/scores and
+      /api/samples/{slug}/decision — committed example reports, the
+      scorecards of their runs and the conclusion a report states,
       from an allowlist (api/samples.py). They exist so a visitor without a
       code can see a finished report; nothing behind them spends money or
       reads deployment state.
@@ -2031,6 +2033,26 @@ def read_sample_scores(slug: str) -> JSONResponse:
     except (KeyError, FileNotFoundError, ValueError):
         raise HTTPException(status_code=404, detail="No scorecard for that sample.") from None
     return JSONResponse(scores)
+
+
+@app.get("/api/samples/{slug}/decision", response_model=SampleDecision, tags=["samples"])
+def read_sample_decision(slug: str) -> SampleDecision:
+    """What one example report's run was asked, and the conclusion the report states.
+
+    The sample reader's decision-conclusion card, which is the run page's
+    (GET /api/runs/{run_id}/decision) on a committed file: the owner and the
+    decision are the ones the sample's entry records, and the conclusion is
+    found in the committed report on each request (decision_verdict.py), so
+    it cannot differ from the report shown under it. `asked` is false for a
+    sample whose run was given no decision context. No model is called.
+
+    404 for an unknown sample and for one whose report is not on this
+    deployment.
+    """
+    try:
+        return SampleDecision(**samples.sample_decision(slug))
+    except (KeyError, FileNotFoundError):
+        raise HTTPException(status_code=404, detail="No sample with that name.") from None
 
 
 def _run_minutes() -> dict | None:

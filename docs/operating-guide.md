@@ -501,6 +501,7 @@ semantic correctness of all report prose; see the
 | POST | `/api/runs/{id}/resume` | New immutable recovery child, not mutation of the old result |
 | GET | `/api/samples` | Committed example reports (allowlist in `api/samples.py`); no access code needed |
 | GET | `/api/samples/{slug}` | One example report as Markdown; unknown or missing samples return 404 |
+| GET | `/api/samples/{slug}/decision` | For a sample whose run was given a decision context: the owner and decision its entry records and the conclusion its report states, in the shape of `/api/runs/{id}/decision`; `asked: false` for the others. Read from the committed report on each request |
 
 The browser reader for these samples is `/samples`. It is a separate page
 from `/` so that it renders on a gated deployment without the access gate.
@@ -1078,8 +1079,8 @@ These are example policy values, not a cost/SLO guarantee.
   trust must be configured at the ASGI/deployment boundary.
 - Leaving all access-code variables unset disables the gate for local use.
   It is not a safe default for an operator-funded public demo.
-- `GET /api/samples` and `GET /api/samples/{slug}` stay open on a gated
-  deployment. They serve only the allowlisted files under `examples/`, read
+- `GET /api/samples`, `GET /api/samples/{slug}` and its `/scores` and
+  `/decision` reads stay open on a gated deployment. They serve only the allowlisted files under `examples/`, read
   no deployment state and spend nothing; other methods on those paths are gated.
 
 ### Privacy and terms page

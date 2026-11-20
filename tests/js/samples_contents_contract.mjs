@@ -5,14 +5,16 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const [dir, scenario] = process.argv.slice(2);
-const { html, samples, markdown } = JSON.parse(fs.readFileSync(path.join(dir, "input.json"), "utf8"));
+const { html, samples, markdown, decisions } = JSON.parse(fs.readFileSync(path.join(dir, "input.json"), "utf8"));
 assert(samples.length >= 2, "The scenarios need at least two committed samples");
 
 class Element {
   constructor(tag = "div") {
     Object.assign(this, { tag, className: "", href: "", value: "", html: "", id: "", open: false,
-      dataset: {}, attributes: {}, listeners: {}, children: [], scrolledTo: 0 });
+      dataset: {}, attributes: {}, listeners: {}, children: [], scrolledTo: 0, focused: 0, tabIndex: 0 });
     this._text = "";
+    const classes = new Set();
+    this.classList = { add: (name) => classes.add(name), remove: (name) => classes.delete(name), contains: (name) => classes.has(name) };
   }
   // No layout unless a scenario gives one: where a node sits in its row.
   get offsetLeft() { return layout ? layout(this) : undefined; }
@@ -32,13 +34,16 @@ class Element {
   setAttribute(name, value) { this.attributes[name] = String(value); }
   addEventListener(name, callback) { (this.listeners[name] ??= []).push(callback); }
   querySelectorAll(selector) {
-    assert.equal(selector, "h2", "The contents read the article's h2 headings");
+    // The contents read the article's h2 headings; the conclusion card's link
+    // looks through its text blocks, of which the stub renderer draws only h2.
+    assert(selector === "h2" || selector === "p, li, td, h2, h3, h4", selector);
     const found = [];
     const walk = (node) => { for (const child of node.children) { if (child.tag === "h2") found.push(child); walk(child); } };
     walk(this);
     return found;
   }
   scrollIntoView() { this.scrolledTo++; }
+  focus() { this.focused++; }
   fire(name, event = {}) {
     for (const callback of this.listeners[name] ?? []) callback({ preventDefault() {}, button: 0, ...event });
   }
@@ -87,6 +92,11 @@ const reads = [];
 // written before scorecards existed sees.
 const scorecards = {};
 const scoreReads = [];
+// What a sample's report concludes (/api/samples/<slug>/decision): the served
+// answer, unless a scenario puts "refused" (the request fails) or
+// { status, body } here for a slug.
+const decisionAnswers = {};
+const decisionReads = [];
 globalThis.cited = [];
 globalThis.fetch = async (url, options) => {
   assert.equal(options, undefined, "The reader sends no header, credential or body with any request");
@@ -110,6 +120,15 @@ globalThis.fetch = async (url, options) => {
     if (card === undefined) return new Response('{"detail":"none","overall_score":99}', { status: 404, headers: { "Content-Type": "application/json" } });
     return new Response(typeof card === "string" ? card : JSON.stringify(card),
       { status: 200, headers: { "Content-Type": "application/json" } });
+  }
+  const decided = url.match(/^\/api\/samples\/([^/]+)\/decision$/);
+  if (decided) {
+    const slug = decodeURIComponent(decided[1]);
+    decisionReads.push(slug);
+    const answer = decisionAnswers[slug] ?? { status: 200, body: decisions[slug] };
+    if (answer === "refused") throw new TypeError("network");
+    return new Response(typeof answer.body === "string" ? answer.body : JSON.stringify(answer.body),
+      { status: answer.status, headers: { "Content-Type": "application/json" } });
   }
   const slug = decodeURIComponent(url.replace(/^\/api\/samples\//, ""));
   reads.push(slug);
@@ -148,6 +167,15 @@ let checks = 0;
 const shape = () => reader().children.map((c) => c.className || c.tag);
 const WITHOUT_SCORES = ["samples__notice", "samples__download", "samples__toc", "prose", "samples__next"];
 const WITH_SCORES = ["samples__notice", "samples__download", "brief", "samples__scorecard", "samples__toc", "prose", "samples__next"];
+// A sample whose run was given a decision context has what was asked and the
+// conclusion card under the download link.
+const DECIDED = ["samples__context", "verdict-card"];
+const decidedOf = (sample) => Boolean(sample.decision);
+const orderFor = (sample, scored = false) => {
+  const order = [...(scored ? WITH_SCORES : WITHOUT_SCORES)];
+  if (decidedOf(sample)) order.splice(2, 0, ...DECIDED);
+  return order;
+};
 const cards = () => el("sample-list").children;
 const cardOf = (sample) => cards().find((c) => c.href === pathOf(sample));
 const partsOf = (card) => Object.fromEntries(card.children.map((c) => [c.className, c]));
@@ -182,7 +210,7 @@ function expectScores(sample, { title = "Scorecard", note = /^A sample keeps onl
   checks++;
 }
 /** One contents block, between the notice and the article, linking exactly the open sample's headings. */
-function expectContents(sample, label = "Contents", order = WITHOUT_SCORES) {
+function expectContents(sample, label = "Contents", order = orderFor(sample)) {
   const [toc, ...extra] = tocs();
   assert(toc, `No contents for ${sample.slug}`);
   assert.equal(extra.length, 0, "One contents block");
@@ -348,8 +376,10 @@ if (scenario === "each_sample") {
   assert.equal(cards().length, samples.length);
   for (const sample of samples) {
     const parts = partsOf(cardOf(sample));
+    // The sample run with a decision context says so on its card.
     assert.deepEqual(cardOf(sample).children.map((c) => c.className),
-      ["sample-card__title", "sample-card__verdict", "sample-card__meta"]);
+      ["sample-card__title", "sample-card__verdict", ...(decidedOf(sample) ? ["sample-card__decision"] : []), "sample-card__meta"]);
+    if (decidedOf(sample)) assert.equal(parts["sample-card__decision"].textContent, "With a decision conclusion");
     assert.equal(parts["sample-card__title"].textContent, sample.title);
     assert.equal(parts["sample-card__verdict"].textContent, `verdict ${sample.overall_score}`);
     assert.equal(parts["sample-card__verdict"].dataset.tone, sample.overall_score >= 70 ? "success" : "warning");
@@ -358,6 +388,7 @@ if (scenario === "each_sample") {
     checks++;
   }
   assert(chinese && chinese.language === "Simplified Chinese", "The Chinese sample is listed as Chinese");
+  assert.equal(samples.filter(decidedOf).length, 1, "One committed sample was run with a decision context");
   assert.equal(samples.filter((sample) => sample.language === "English").length, samples.length - 1);
   assert.deepEqual(scoreReads, [first.slug], "The cards cost no request of their own: only the open sample's scorecard is read");
   await switchLanguage("Simplified Chinese");
@@ -444,5 +475,98 @@ if (scenario === "each_sample") {
   await go("/samples/not-a-sample");
   assert.deepEqual(shape(), ["empty-note"], "No report, no next step after it");
   assert.equal(accessReads.length, 1, "Asked once for the page, not once for each report");
+} else if (scenario.startsWith("decision")) {
+  const decided = samples.find(decidedOf);
+  assert(decided, "One committed sample was run with a decision context");
+  const plain = samples.find((sample) => !decidedOf(sample));
+  const card = () => reader().children.find((c) => c.className === "verdict-card");
+  const context = () => reader().children.find((c) => c.className === "samples__context");
+  if (scenario === "decision") {
+    // What was asked, then the conclusion card, under the notice and the
+    // download link; the report is not asked for one where its run was not.
+    await start(pathOf(plain));
+    expectContents(plain);
+    assert.deepEqual(decisionReads, [], "A sample run without a decision context is not asked what it concluded");
+    await click(decided);
+    expectContents(decided);
+    assert.deepEqual(decisionReads, [decided.slug], "One read of the conclusion, beside the report's");
+    const { asset_description, target_application, decision_owner, decision_type } = decided.decision;
+    assert.equal(context().tag, "p");
+    assert.equal(context().textContent,
+      "This run was given a decision context, so its report states a conclusion for that decision-maker. "
+      + `Asset: “${asset_description}”. Target application: “${target_application}”. `
+      + `Decision owner: “${decision_owner}”. Decision to make: “${decision_type}”.`);
+    // The served answer, as the server read it from the committed report.
+    assert.deepEqual([card().dataset.state, card().dataset.verdict, card().dataset.opens], ["stated", "defer", "function"]);
+    assert.deepEqual(cited.filter((name) => name === "verdict-card"), ["verdict-card"],
+      "Citations in the card open the same cards as the report's");
+    await switchLanguage("Simplified Chinese");
+    expectContents(decided, "目录");
+    assert.match(context().textContent, /^这次运行填写了决策场景，所以报告针对该决策者给出了结论。资产或科研成果：“Lab-scale /);
+    assert.match(context().textContent, /待作决策：“License the technology”。$/);
+    await switchLanguage("English");
+    // Following a contents link reads nothing again, the conclusion included.
+    const before = decisionReads.length;
+    await go(pathOf(decided), "#section-2");
+    assert.equal(decisionReads.length, before);
+    await click(plain);
+    expectContents(plain);
+    assert.equal(card(), undefined, "...and leaves no card behind on the next sample");
+    checks++;
+  } else if (scenario === "decision_with_scores") {
+    // A run page's order: the conclusion over the brief. The brief is told the
+    // run had a decision context, so it does not say one would help.
+    scorecards[decided.slug] = { overall_score: 69.3 };
+    scorecards[plain.slug] = { overall_score: 60 };
+    await start(pathOf(decided));
+    assert.deepEqual(shape(), orderFor(decided, true));
+    const brief = reader().children.find((c) => c.className === "brief");
+    assert.equal(brief.dataset.extra, "progress", "The decided sample's brief knows its run was asked");
+    await click(plain);
+    assert.deepEqual(shape(), orderFor(plain, true));
+    assert.equal(reader().children.find((c) => c.className === "brief").dataset.extra, "", "...and no other sample's does");
+    checks++;
+  } else if (scenario === "decision_open") {
+    // The card's link marks the quoted passage in the report under it and
+    // takes the reader there: here by its section's heading, the block the
+    // stub renderer draws.
+    await start(pathOf(decided));
+    const reply = decisions[decided.slug];
+    const target = article().children.find((h) => h.textContent === reply.conclusion.section);
+    assert(target, "The quoted section is a heading of the report on the page");
+    card().open();
+    assert(target.classList.contains("prose__found"));
+    assert.equal(target.focused, 1, "Focus goes with the reader");
+    assert.equal(target.tabIndex, -1);
+    assert.equal(target.scrolledTo, 1);
+    assert.equal(article().children.filter((h) => h.classList.contains("prose__found")).length, 1);
+    checks++;
+  } else if (scenario === "decision_not_asked") {
+    // A list from before the field, an entry with a field left empty, or one
+    // that carries something else: a sample without a decision context.
+    const { decision, ...older } = decided;
+    list = [older, { ...decided, slug: "half", decision: { ...decision, decision_type: " " } },
+      { ...decided, slug: "odd", decision: "License it" }];
+    markdown.half = markdown.odd = markdown[decided.slug];
+    for (const slug of [decided.slug, "half", "odd"]) {
+      await (slug === decided.slug ? start(`/samples/${slug}`) : go(`/samples/${slug}`));
+      assert.deepEqual(shape(), WITHOUT_SCORES, slug);
+      assert.equal(cardOf(list.find((s) => s.slug === slug)).children.some((c) => c.className === "sample-card__decision"), false);
+    }
+    assert.deepEqual(decisionReads, [], "None of them is asked what it concluded");
+    checks++;
+  } else {
+    // A conclusion that cannot be read is said to be unread, never dropped:
+    // an empty space would read as "the report concluded nothing".
+    const failures = ["refused", { status: 404, body: { detail: "none" } }, { status: 200, body: "<html>no</html>" }];
+    const failure = failures[Number(process.argv[4] ?? 0)];
+    assert(failure !== undefined, "No such failure");
+    decisionAnswers[decided.slug] = failure;
+    await start(pathOf(decided));
+    expectContents(decided);
+    assert.equal(card().dataset.state, "unread");
+    assert(context(), "What was asked is still said");
+    checks++;
+  }
 } else throw Error(`Unknown scenario ${scenario}`);
 console.log(`PASS ${scenario} (${checks} contents checks)`);

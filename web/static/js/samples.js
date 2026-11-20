@@ -11,8 +11,8 @@
  * sample cannot reach innerHTML by a less-checked route. */
 
 import {
-  attachCitations, citationIndex, decisionBrief, renderDecisionBrief, renderMarkdown, renderScorecard, sampleFacts,
-  sampleTitle,
+  attachCitations, citationIndex, decisionBrief, decisionVerdict, passageIn, renderDecisionBrief, renderDecisionVerdict,
+  renderMarkdown, renderScorecard, sampleFacts, sampleTitle,
 } from "./result.js";
 import * as i18n from "./i18n.js";
 import { applySamples, st as t } from "./samples_i18n.js";
@@ -74,7 +74,7 @@ function paintList() {
     card.href = `/samples/${encodeURIComponent(sample.slug)}`;
     if (sample.slug === current) { card.setAttribute("aria-current", "page"); active = card; }
     // The verdict, the readiness level and the report's language, where the
-    // list carried them. The six samples run from 48.6 to 74.9; before
+    // list carried them. The samples run from 48.6 to 74.9; before
     // 2026-11-13 a visitor had to open each one to learn that.
     const facts = sampleFacts(sample);
     card.append(el("span", "sample-card__title", sampleTitle(sample)));
@@ -83,6 +83,9 @@ function paintList() {
       verdict.dataset.tone = facts.tone;
       card.append(verdict);
     }
+    // The one kind of sample that shows a conclusion for a decision-maker
+    // says so on its card: otherwise a visitor finds it by opening each.
+    if (decisionOf(sample)) card.append(el("span", "sample-card__decision", t("samples_card_decision")));
     card.append(
       // The commit stays in the notice above the report; a visitor reading the
       // list needs only how old the sample is.
@@ -161,6 +164,67 @@ function historicalNotice(sample) {
   return el("p", "samples__notice", text);
 }
 
+/** The decision context a sample's run was given, as the list carries it:
+ * its four fields, each a line of text, or null. A list from before the
+ * field, or an entry that carries something else, is a sample without one. */
+const DECISION_FIELDS = ["asset_description", "target_application", "decision_owner", "decision_type"];
+function decisionOf(sample) {
+  const given = sample?.decision;
+  if (!given || typeof given !== "object") return null;
+  return DECISION_FIELDS.every((field) => typeof given[field] === "string" && given[field].trim()) ? given : null;
+}
+
+/** What the run was asked, in the reader's language around the words as they
+ * were entered. The conclusion card under it names the owner and the decision
+ * again; the asset and the application appear nowhere else on the page, and
+ * without them "License the technology" does not say which technology. */
+function decisionContext(given) {
+  const text = t("samples_decision_context")
+    .replace("{asset}", () => given.asset_description.trim())
+    .replace("{application}", () => given.target_application.trim())
+    .replace("{owner}", () => given.decision_owner.trim())
+    .replace("{decision}", () => given.decision_type.trim());
+  return el("p", "samples__context", text);
+}
+
+/** What the sample's report concludes for the decision its run was asked
+ * about: the answer of /api/samples/<slug>/decision, or undefined when it
+ * could not be read. The card then says the read failed, as a run's page
+ * does; an empty space would read as "the report concluded nothing". */
+async function readDecision(slug) {
+  try {
+    const response = await fetch(`/api/samples/${encodeURIComponent(slug)}/decision`);
+    return response.ok ? await response.json() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The run page's decision-conclusion card, for a sample whose run was given
+ * a decision context. Its link opens the quoted passage in the report under
+ * it: the paragraph, else its section's heading, else the top of the report,
+ * as the run page's does in its report tab. */
+function decisionCard(reply, article, index) {
+  const view = decisionVerdict(reply);
+  if (!view) return null;
+  let found = null;
+  const card = renderDecisionVerdict(view, {
+    onOpen: (needle, section) => {
+      const blocks = [...article.querySelectorAll("p, li, td, h2, h3, h4")];
+      const target = blocks[passageIn(blocks, needle, section)] ?? article;
+      found?.classList.remove("prose__found");
+      found = target === article ? null : target;
+      found?.classList.add("prose__found");
+      // Focus goes with the reader, so a keyboard continues from the passage.
+      target.tabIndex = -1;
+      target.focus({ preventScroll: true });
+      target.scrollIntoView({ block: found ? "center" : "start" });
+    },
+  });
+  attachCitations(card, () => Promise.resolve(index));
+  return card;
+}
+
 /** The scorecard of the sample's run, or null. The report is the sample: a
  * scorecard that is missing, refused or unreadable costs the brief and the
  * card, never the report, so every failure here is the same null. */
@@ -180,12 +244,17 @@ async function readScores(slug) {
  * dimensions or the reasons for them. A sample keeps no checks and no source
  * registry, so the brief's lines that come from those are absent and its
  * closing note says so; without a readable verdict neither block is shown. */
-function scoreBlocks(scores, markdown, index) {
+function scoreBlocks(scores, markdown, index, given) {
   // The report's own reference list rates its sources, so the brief can name
   // the best-rated one the strongest dimension cites, with its title. It is
   // used for that and nothing else: no line that needs the run's checks or
   // its registry appears because of it.
-  const data = scores ? decisionBrief({ scores, markdown, references: index }) : null;
+  //
+  // A run that was given a decision context says that one thing more. The
+  // brief otherwise closes with "a decision context turns this into a
+  // GO / NO-GO", which is false of the one sample that had one.
+  const context = given ? { progress: { decision_gate: { mode: "decision_support" } } } : {};
+  const data = scores ? decisionBrief({ scores, markdown, references: index, ...context }) : null;
   if (!data) return [];
   const brief = renderDecisionBrief(data, { note: t("samples_brief_note") });
   const card = renderScorecard(scores);
@@ -240,8 +309,11 @@ async function open(slug) {
   reader.replaceChildren(el("div", "skeleton", ""));
   let markdown;
   // Asked for at the same time as the report and awaited after it; readScores
-  // never rejects.
+  // never rejects, nor does readDecision. A sample whose run was given no
+  // decision context is not asked what it concluded.
   const scoresRead = readScores(slug);
+  const given = decisionOf(sample);
+  const decisionRead = given ? readDecision(slug) : null;
   try {
     const response = await fetch(`/api/samples/${encodeURIComponent(slug)}`);
     if (!response.ok) throw new Error(String(response.status));
@@ -251,6 +323,7 @@ async function open(slug) {
     return;
   }
   const scores = await scoresRead;
+  const decision = await decisionRead;
   await accountsRead;
   if (mine !== generation) return;
 
@@ -261,8 +334,13 @@ async function open(slug) {
   const index = citationIndex(markdown);
   attachCitations(article, () => Promise.resolve(index));
   const toc = contentsFor(article);
+  // Under the notice, in a run page's order: what was asked, the conclusion
+  // the report states, then the brief and the scorecard.
+  const verdict = given ? decisionCard(decision, article, index) : null;
   reader.replaceChildren(
-    historicalNotice(sample), downloadLink(sample), ...scoreBlocks(scores, markdown, index),
+    historicalNotice(sample), downloadLink(sample),
+    ...(given ? [decisionContext(given)] : []), ...(verdict ? [verdict] : []),
+    ...scoreBlocks(scores, markdown, index, given),
     ...(toc ? [toc.nav] : []), article, nextStep(),
   );
   rendered = slug;

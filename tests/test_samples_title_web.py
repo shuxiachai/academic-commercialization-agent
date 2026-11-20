@@ -38,6 +38,21 @@ export function renderScorecard(scores, sources = null) {
   return node;
 }
 export function attachCitations(node) { globalThis.cited?.push(node.className); }
+// The conclusion card as the real decisionVerdict and renderDecisionVerdict
+// shape it, in values a test can read: undefined (a failed read) is a card
+// saying so, a reply not asked is no card.
+export const decisionVerdict = (reply) => (reply === undefined ? { state: "unread", verdict: null }
+  : reply?.asked === true ? { state: reply.conclusion?.status ?? "unread", verdict: reply.conclusion?.verdict ?? null,
+    section: reply.conclusion?.section ?? null, needle: reply.conclusion?.needle ?? null } : null);
+export function renderDecisionVerdict(view, { onOpen = null } = {}) {
+  const node = document.createElement("section");
+  node.className = "verdict-card";
+  Object.assign(node.dataset, { state: view.state, verdict: String(view.verdict), opens: String(typeof onOpen) });
+  node.open = () => onOpen(view.needle, view.section);
+  return node;
+}
+// The block of the article holding the passage, by its heading here: the stub renderer draws only headings.
+export const passageIn = (blocks, _needle, section) => blocks.findIndex((block) => block.textContent === section);
 // The card's name as the real sampleTitle chooses it: the Chinese name in the Chinese interface.
 import { language as uiLanguage } from "./i18n.js";
 export function sampleTitle(sample) {

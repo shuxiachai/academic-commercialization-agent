@@ -780,7 +780,7 @@ class DecisionBriefTests(unittest.TestCase):
         self.assertEqual((picked["id"], picked["tier"], picked["year"]), ("P2", "high", "2023"))
 
     def test_a_sample_card_says_the_verdict_the_readiness_level_and_the_language(self):
-        """The six samples run from 48.6 to 74.9, which is the tool telling an
+        """The samples run from 48.6 to 74.9, which is the tool telling an
         early technology from a mature one, and a visitor had to open each to
         see it. The band is the scorecard's own: one function, no second copy
         of the thresholds."""
