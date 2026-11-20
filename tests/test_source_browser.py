@@ -283,6 +283,26 @@ def test_absolute_http_links_positive_control_and_unsafe_links_stay_inert():
     assert state["source_html_writes"] == state["forbidden_tags"] == []
 
 
+def test_a_patent_title_is_shown_without_the_sites_name_and_is_still_found_by_its_words():
+    """Google Patents ends the page title it serves with " - Google Patents";
+    six of the eight patents of a production run on 2026-11-20 showed it. It
+    names the site, not the patent. The saved title keeps it."""
+    titled = "US11437537B2 - Perovskite-silicon tandem solar cell - Google Patents"
+    collection = _collection(patent_sources=[
+        _source("P1", title=titled), _source("P2", title="Google Patents - search help"),
+        _source("P3", title="A cell - Google Patents mirror"),
+    ])
+    states = _render(collection, actions=[{"search": "perovskite-silicon tandem solar cell"}, {"search": "[p1]"},
+                                          {"search": "US11437537B2"}])["states"]
+    assert [row["title"] for row in states[0]["rows"]] == [
+        "US11437537B2 - Perovskite-silicon tandem solar cell", "Google Patents - search help",
+        "A cell - Google Patents mirror"]
+    for state in states[1:]:
+        assert _ids(state) == ["P1"]
+        assert state["rows"][0]["title"] == "US11437537B2 - Perovskite-silicon tandem solar cell"
+    assert collection["patent_sources"][0]["title"] == titled
+
+
 def test_row_budget_page_size_and_search_beyond_visible_page():
     """Search must include admitted off-page rows but never inspect the unbounded tail."""
     result = _render(_collection(

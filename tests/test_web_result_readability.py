@@ -733,6 +733,27 @@ class DecisionBriefTests(unittest.TestCase):
         card = self._brief()["brief_view"]["cards"]["evidence"]
         self.assertIn("All-solid-state battery system · high · 2023", card)
 
+    def test_a_patent_named_as_the_main_source_is_shown_without_the_sites_name(self):
+        """Google Patents ends the title it serves with " - Google Patents", and
+        the brief's main-source line showed it (production, 2026-11-20). It
+        names the site; the saved title and the report keep it."""
+        titled = "US11437537B2 - All-solid-state battery system - Google Patents"
+        sources = {**_SOURCES, "patent_sources": [_SOURCES["patent_sources"][0],
+                                                  {**_SOURCES["patent_sources"][1], "title": titled}]}
+        brief = self._brief(sources=sources)
+        self.assertEqual(brief["brief"]["evidence"]["title"], "US11437537B2 - All-solid-state battery system")
+        self.assertIn("US11437537B2 - All-solid-state battery system · high · 2023", brief["brief_view"]["cards"]["evidence"])
+        self.assertNotIn("Google Patents", brief["brief_view"]["cards"]["evidence"])
+        # A sample has only the reference list, where the publisher follows the title.
+        refs = ("\n## References\n\n[P2] US11437537B2 - All-solid-state battery system - Google Patents. King Fahd University. "
+                "Published: 2023-05-04. Accessed: 2026-11-08. Type: patent. Credibility: high. Rationale: granted. "
+                "https://example.org/p2\n")
+        sample = self._brief(sources=None, markdown=_REPORT + refs, references=True)["brief"]["evidence"]
+        self.assertEqual(sample["title"], "US11437537B2 - All-solid-state battery system. King Fahd University")
+        # Only the site's own suffix: a title that merely mentions it is left as it is.
+        other = {**_SOURCES, "patent_sources": [{**_SOURCES["patent_sources"][1], "title": "Google Patents - search help"}]}
+        self.assertEqual(self._brief(sources=other)["brief"]["evidence"]["title"], "Google Patents - search help")
+
     def test_a_page_with_no_registry_picks_the_evidence_from_the_reports_own_reference_list(self):
         """A sample page has the report and its scorecard, not the run's source
         registry, so its brief named the first source the strongest dimension

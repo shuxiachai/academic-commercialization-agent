@@ -1250,6 +1250,19 @@ function firstRecommendation(markdown) {
 const SOURCE_LISTS = ["academic_sources", "patent_sources", "market_sources"];
 const TIER_RANK = { high: 0, medium: 1, low: 2 };
 
+// Google Patents ends the page title it serves with " - Google Patents": 2,708
+// of the 4,877 patent titles saved on the maintainer's machine (2026-11-21),
+// always in that one form, and in no academic or market title. It names the
+// site, not the patent. Shown without it on the Sources tab and in the brief;
+// the saved title keeps it, and search still reads the saved title. In a
+// reference line the publisher follows it after a full stop. The reference
+// list itself is report_display.py's.
+const PATENT_SITE_SUFFIX = /\s+-\s+Google Patents(?=\.\s|\.?$)/u;
+const withoutSiteName = (title) => {
+  const shown = title.replace(PATENT_SITE_SUFFIX, "");
+  return shown.trim() ? shown : title;
+};
+
 /** The best-rated of the cited sources: {id, title, tier, year}; {id} when
  * nothing rates them; null without ids.
  *
@@ -1286,7 +1299,7 @@ function pickEvidence(ids, sources, references = null) {
   if (!row) return { id };
   const tier = TIER_RANK[row.credibility_tier] !== undefined ? row.credibility_tier : null;
   const year = typeof row.published_date === "string" && /^\d{4}/.test(row.published_date) ? row.published_date.slice(0, 4) : null;
-  return { id, title: typeof row.title === "string" ? row.title : null, tier, year };
+  return { id, title: typeof row.title === "string" ? withoutSiteName(row.title) : null, tier, year };
 }
 
 const DOMAIN_LABELS = { academic: "group_academic", patent: "group_patents", market: "group_market" };
@@ -2368,7 +2381,7 @@ function renderSavedSource(source) {
   const li = el("li", "source");
   const id = el("span", "source__id", source.source_id.text ?? t("sources_id_unavailable"));
   const body = el("div", "source__body");
-  const shown = source.title.text ?? t("sources_title_unavailable");
+  const shown = source.title.text === null ? t("sources_title_unavailable") : withoutSiteName(source.title.text);
   const title = el(source.href ? "a" : "span", "source__link", shown);
   if (shown.length > LONG_SOURCE_TITLE) title.title = shown;
   if (source.href) {
