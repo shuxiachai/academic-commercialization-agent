@@ -23,13 +23,21 @@ scorecard cannot be served for anything that is not on it.
 
 The list says three things from that scorecard and the entry beside each
 title: the overall score, the readiness level and the language the report is
-in. The six samples run from 48.6 to 74.9, which is the tool telling an early
+in. The samples run from 48.6 to 74.9, which is the tool telling an early
 technology from a mature one, and until 2026-11-13 a visitor had to open each
 report to see it. They travel with the list, one request, for the reader's
 cards and the landing page's list alike; the alternative was a request per
 sample from each page. The grade ("Strong", "Early") is not here: the page
 computes it with the scorecard's own function, so there is one set of
 thresholds.
+
+One sample was run with a decision context, and its entry keeps the four
+fields that run was given (`SampleDecision`). Until 2026-11-20 none was, so
+no sample showed what the form's decision fields buy: a report that states a
+conclusion for the decision-maker, and the card that quotes it (#428). The
+conclusion itself is not kept here. It is read from the committed report on
+each request (`sample_decision`), by the function that reads a run's, so the
+card cannot say something the report on the same page does not.
 """
 
 from __future__ import annotations
@@ -37,8 +45,28 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
+
+from academic_agent.decision_verdict import find_verdict
+from academic_agent.report_display import conclusion_for_display
 
 _EXAMPLES_ROOT = Path(__file__).resolve().parents[1] / "examples"
+
+
+@dataclass(frozen=True)
+class SampleDecision:
+    """The decision context a sample's run was given, as it was entered.
+
+    The four fields that put a run in decision-support mode, in the form's
+    order. The gate that permits a conclusion needs all four, so an entry
+    that carries this says the run was permitted one, and the report's own
+    applicability paragraph says the same (tests/test_samples.py compares).
+    """
+
+    asset_description: str
+    target_application: str
+    decision_owner: str
+    decision_type: str
 
 
 @dataclass(frozen=True)
@@ -61,6 +89,9 @@ class Sample:
     # Chinese labels; the card still says which language the report is in.
     # Empty where the title is already Chinese.
     title_zh: str = ""
+    # Set where the run was given a decision context; the page then says what
+    # was asked and quotes the conclusion the report states.
+    decision: SampleDecision | None = None
 
 
 SAMPLES: tuple[Sample, ...] = (
@@ -133,6 +164,27 @@ SAMPLES: tuple[Sample, ...] = (
         commit="a8cc424",
         model="qwen3.8-27b",
     ),
+    # Local web run of 2026-11-20 (pipeline ab908f9, claude-opus-5-5), the
+    # run the README's demo recording shows, kept verbatim: the one sample
+    # that was given a decision context, and so the one whose report states a
+    # conclusion (DEFER). Last in the list on purpose: the landing page lists
+    # the first five, and /samples opens the first.
+    Sample(
+        slug="perovskite-silicon-tandem",
+        file="perovskite-silicon-tandem.md",
+        title="Perovskite-silicon tandem solar cells",
+        title_zh="钙钛矿-硅叠层太阳能电池",
+        topic="perovskite-silicon tandem solar cells",
+        committed="2026-11-20",
+        commit="ab908f9",
+        model="claude-opus-5-5",
+        decision=SampleDecision(
+            asset_description="Lab-scale perovskite-silicon tandem solar cell technology from a university research group",
+            target_application="Utility-scale photovoltaic modules",
+            decision_owner="Technology transfer office",
+            decision_type="License the technology",
+        ),
+    ),
 )
 
 
@@ -162,21 +214,22 @@ def _card_scores(sample: Sample) -> dict[str, float | None]:
             "trl_score": _score(scores.get("trl_score"), 1, 9)}
 
 
-def _summary(sample: Sample) -> dict[str, str | float | None]:
+def _summary(sample: Sample) -> dict[str, Any]:
     return {**{key: value for key, value in asdict(sample).items() if key != "file"}, **_card_scores(sample)}
 
 
-def list_samples() -> list[dict[str, str | float | None]]:
-    """Every sample in display order: its entry without the file name, and
-    the overall score and readiness level its run's scorecard holds."""
+def list_samples() -> list[dict[str, Any]]:
+    """Every sample in display order: its entry without the file name (the
+    decision context as its four fields, or None), and the overall score and
+    readiness level its run's scorecard holds."""
     return [_summary(sample) for sample in SAMPLES]
 
 
-def sample_summary(slug: str) -> dict[str, str | float | None] | None:
+def sample_summary(slug: str) -> dict[str, Any] | None:
     """One sample's line of `list_samples()`, or None for a name that is not
     listed. For the head of /samples/<slug> (api/crawlers.py), which states
     the same two numbers as the sample's card and must read them the same
-    way; it wants one sample, not six scorecards opened to keep one."""
+    way; it wants one sample, not every scorecard opened to keep one."""
     sample = _BY_SLUG.get(slug)
     return _summary(sample) if sample is not None else None
 
@@ -206,3 +259,32 @@ def read_sample_scores(slug: str) -> dict:
     if not isinstance(scores, dict):
         raise ValueError(f"{name} is not a scorecard")
     return scores
+
+
+def sample_decision(slug: str) -> dict[str, Any]:
+    """What one sample's run was asked and what its report states, in the
+    shape GET /api/runs/{run_id}/decision answers in.
+
+    `asked` is False, and nothing else is filled, for a sample whose run was
+    given no decision context: its report was told to give no conclusion, so
+    none is looked for. Otherwise the question is the entry's owner and
+    decision, and the conclusion is read from the committed report now
+    (decision_verdict.find_verdict) and put in the words the displayed
+    report uses, as a run's is. Nothing is stored beside the report.
+
+    Raises KeyError for a slug outside the allowlist and FileNotFoundError
+    when the report is not in this deployment; the caller maps both to 404.
+    """
+    sample = _BY_SLUG[slug]
+    if sample.decision is None:
+        return {"asked": False, "question": None, "conclusion": None}
+    report = read_sample(slug)
+    return {
+        "asked": True,
+        "question": {"decision_owner": sample.decision.decision_owner,
+                     "decision_type": sample.decision.decision_type},
+        # No language is passed, as none is where the report itself is
+        # served for display (GET /api/samples/{slug}): the two must name
+        # a section alike for the card's link to find it.
+        "conclusion": conclusion_for_display(find_verdict(report), report),
+    }

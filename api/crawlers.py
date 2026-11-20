@@ -224,7 +224,7 @@ def _sample_words(entry: dict) -> tuple[str, str, str]:
     view. A search result that left that out would present a kept output as
     a live assessment. The topic and the numbers come first and the rest is
     kept short, because a search result shows roughly 160 characters of a
-    description and a card roughly 70 of a title. The six descriptions run
+    description and a card roughly 70 of a title. The seven descriptions run
     from 99 to 192 characters: the date and the model fall inside the cut
     for every sample, the last clause does not for the longest topic.
     """

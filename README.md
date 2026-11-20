@@ -20,7 +20,7 @@ included.
 
 | Way in | What you need | |
 |---|---|---|
-| **Read sample reports** | Nothing. Six finished assessments, one in Chinese; opening one makes no model or search request | [Open samples](https://academic-agent.cc/samples) |
+| **Read sample reports** | Nothing. Seven finished assessments, one in Chinese and one with a decision context and its stated conclusion; opening one makes no model or search request | [Open samples](https://academic-agent.cc/samples) |
 | **Run a new analysis online** | A free account (email and password; sign-up is open) with your own LLM API key and model plus a Tavily or Serper search key, which your runs are billed to. Incurs provider usage | [Open the app](https://academic-agent.cc) |
 | **Run it on your machine** | Python 3.11 or 3.12, [uv](https://docs.astral.sh/uv/) and your own keys | [Quick start](#quick-start) |
 

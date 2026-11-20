@@ -1200,6 +1200,30 @@ class PasswordResetDone(BaseModel):
     email: str
 
 
+class SampleDecisionContext(BaseModel):
+    """The decision context a sample's run was given, as it was entered."""
+
+    asset_description: str
+    target_application: str
+    decision_owner: str
+    decision_type: str
+
+
+class SampleDecision(BaseModel):
+    """GET /api/samples/{slug}/decision: what a sample's run was asked and its report's answer.
+
+    The fields GET /api/runs/{run_id}/decision answers with, without a run id:
+    a sample is a committed file, not a run on this deployment.
+    """
+
+    asked: bool = Field(
+        description="True only for a sample whose run was given a decision context. "
+                    "Otherwise nothing below is filled.",
+    )
+    question: DecisionQuestion | None = None
+    conclusion: DecisionConclusion | None = None
+
+
 class SampleSummary(BaseModel):
     """One committed example report, as the list of them states it."""
 
@@ -1220,6 +1244,10 @@ class SampleSummary(BaseModel):
     trl_score: float | None = Field(
         default=None,
         description="The technology readiness level (1-9) from the same scorecard; null likewise.")
+    decision: SampleDecisionContext | None = Field(
+        default=None,
+        description="The decision context the run was given; null for a run that was given none, "
+                    "whose report states no conclusion for a decision-maker.")
 
 
 class SiteInfo(BaseModel):

@@ -61,6 +61,21 @@ export function renderScorecard(scores, sources = null) {
   return node;
 }
 export function attachCitations(node) { globalThis.cited?.push(node.className); }
+// The conclusion card as the real decisionVerdict and renderDecisionVerdict
+// shape it, in values a test can read: undefined (a failed read) is a card
+// saying so, a reply not asked is no card.
+export const decisionVerdict = (reply) => (reply === undefined ? { state: "unread", verdict: null }
+  : reply?.asked === true ? { state: reply.conclusion?.status ?? "unread", verdict: reply.conclusion?.verdict ?? null,
+    section: reply.conclusion?.section ?? null, needle: reply.conclusion?.needle ?? null } : null);
+export function renderDecisionVerdict(view, { onOpen = null } = {}) {
+  const node = document.createElement("section");
+  node.className = "verdict-card";
+  Object.assign(node.dataset, { state: view.state, verdict: String(view.verdict), opens: String(typeof onOpen) });
+  node.open = () => onOpen(view.needle, view.section);
+  return node;
+}
+// The block of the article holding the passage, by its heading here: the stub renderer draws only headings.
+export const passageIn = (blocks, _needle, section) => blocks.findIndex((block) => block.textContent === section);
 """
 
 
@@ -69,6 +84,8 @@ export function attachCitations(node) { globalThis.cited?.push(node.className); 
     "scorecard", "scorecard_missing",
     "cards", "cards_without_scores", "phone_row", "evidence",
     "next_create", "next_sign_in", "next_without_accounts", "next_when_sign_up_is_not_said",
+    "decision", "decision_with_scores", "decision_open", "decision_not_asked",
+    *(f"decision_unread:{number}" for number in range(3)),
     *(f"next_when_the_question_fails:{number}" for number in range(6)),
 ])
 def test_contents_follow_the_open_sample(scenario):
@@ -80,10 +97,14 @@ def test_contents_follow_the_open_sample(scenario):
     listed = client.get("/api/samples")
     assert page.status_code == 200 and listed.status_code == 200
     markdown = {}
+    decisions = {}
     for sample in listed.json():
         served = client.get(f"/api/samples/{sample['slug']}")
         assert served.status_code == 200, sample["slug"]
         markdown[sample["slug"]] = served.text
+        answered = client.get(f"/api/samples/{sample['slug']}/decision")
+        assert answered.status_code == 200, sample["slug"]
+        decisions[sample["slug"]] = answered.json()
     with TemporaryDirectory() as tmp:
         work = Path(tmp)
         for name in ("samples.js", "samples_i18n.js", "i18n.js"):
@@ -92,7 +113,8 @@ def test_contents_follow_the_open_sample(scenario):
             (work / name).write_text(served.text, encoding="utf-8")
         (work / "result.js").write_text(_RESULT_STUB, encoding="utf-8")
         (work / "input.json").write_text(
-            json.dumps({"html": page.text, "samples": listed.json(), "markdown": markdown}, ensure_ascii=False),
+            json.dumps({"html": page.text, "samples": listed.json(), "markdown": markdown, "decisions": decisions},
+                       ensure_ascii=False),
             encoding="utf-8")
         name, _, variant = scenario.partition(":")
         result = subprocess.run([node, str(_SCRIPT), str(work), name, *([variant] if variant else [])],
