@@ -276,11 +276,18 @@ def test_a_conclusion_alone_in_its_paragraph_takes_its_reasons_from_the_next_one
     # With its stop, joined by a space as every other passage is.
     stopped = card_text(None, find_verdict(_recommendations("**Conclusion: DEFER.**", _REASONS)), "English")
     assert stopped["quotes"][0][1].startswith("Conclusion: DEFER. Evidence conditions behind the conclusion:")
+    # A citation after the stop is not the end of the line; one before it is no stop.
+    assert decision_verdict.joined(["Conclusion: DEFER. [A2]", "Next."]) == "Conclusion: DEFER. [A2] Next."
+    assert decision_verdict.joined(["Conclusion: DEFER [A2]", "Next."]) == "Conclusion: DEFER [A2]\nNext."
+    assert decision_verdict.joined(["结论：暂缓", "原因如下。"]) == "结论：暂缓\n原因如下。"
 
 
 @pytest.mark.parametrize(("between", "after"), [
-    # The next paragraph is in another section.
+    # The next paragraph is in another section, read or skipped.
+    ("", "## 7. Next steps\n\n" + _REASONS),
     ("", "## 7. Evidence Limitations\n\n" + _REASONS),
+    # A paragraph with no word in it.
+    ("", "— —"),
     # A sub-heading, a table, a fenced block or a rule stands between.
     ("### Next steps", _REASONS),
     ("| Gate | Owner |\n|---|---|\n| 1 | TTO |", _REASONS),
@@ -504,6 +511,20 @@ def test_the_pdf_of_a_decision_support_run_opens_with_the_same_card(run):
     assert "Decision to make: License the technology" in card
     assert "DEFER" in card and "the actor-specific conclusion is DEFER because" in card
     assert "Revisit after module data" in card
+
+
+def test_the_pdf_card_breaks_the_line_after_a_conclusion_line_with_no_stop(run):
+    """The PDF draws the card from card_text, whose passage carries a line
+    break where the conclusion line had no stop; drawn as text, that break
+    collapses to a space and the PDF reads "Conclusion: DEFER Evidence ..."."""
+    run_id, directory = run(_recommendations(_ALONE, _REASONS))
+    assert TestClient(main.app).get(f"/api/runs/{run_id}/report.pdf").status_code == 200
+    import fitz
+
+    with fitz.open(directory / "commercialization_report.pdf") as document:
+        lines = [line.strip() for line in document[0].get_text().splitlines()]
+    at = next(index for index, line in enumerate(lines) if line.endswith("Conclusion: DEFER"))
+    assert lines[at + 1].startswith("Evidence conditions behind the conclusion:")
 
 
 def test_the_pdf_says_when_the_report_states_no_conclusion(run):

@@ -2150,6 +2150,12 @@ class DecisionConclusionTests(unittest.TestCase):
             with self.subTest(statement=statement):
                 shown = self._card(_reply(statement=statement, follows=["Next sentence."], bare=True))["card"]
                 self.assertEqual(shown["says"], f"The report says: {statement} Next sentence.")
+        # A citation with no stop before it is no stop.
+        cited = self._card(_reply(statement="Conclusion: DEFER [A2]", follows=["Next sentence."], bare=True))["card"]
+        self.assertEqual(cited["says"], "The report says: Conclusion: DEFER [A2]\nNext sentence.")
+        # The break is drawn: the card's text keeps line breaks (and only the server's text is in it).
+        css = (Path(__file__).resolve().parents[1] / "web" / "static" / "css" / "result.css").read_text(encoding="utf-8")
+        self.assertRegex(css, r"\.verdict-card__text\s*\{\s*white-space:\s*pre-line;\s*\}")
 
     def test_the_comparison_row_gives_the_conclusion_and_its_first_reason_not_the_conclusion_twice(self):
         """The comparison of 2026-11-20 showed `DEFER: "Conclusion: DEFER."` for a

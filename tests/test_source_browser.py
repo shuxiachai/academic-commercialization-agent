@@ -291,12 +291,14 @@ def test_a_patent_title_is_shown_without_the_sites_name_and_is_still_found_by_it
     collection = _collection(patent_sources=[
         _source("P1", title=titled), _source("P2", title="Google Patents - search help"),
         _source("P3", title="A cell - Google Patents mirror"),
+        # Nothing would be left of it: it keeps its saved title.
+        _source("P4", title=" - Google Patents"),
     ])
     states = _render(collection, actions=[{"search": "perovskite-silicon tandem solar cell"}, {"search": "[p1]"},
                                           {"search": "US11437537B2"}])["states"]
     assert [row["title"] for row in states[0]["rows"]] == [
         "US11437537B2 - Perovskite-silicon tandem solar cell", "Google Patents - search help",
-        "A cell - Google Patents mirror"]
+        "A cell - Google Patents mirror", " - Google Patents"]
     for state in states[1:]:
         assert _ids(state) == ["P1"]
         assert state["rows"][0]["title"] == "US11437537B2 - Perovskite-silicon tandem solar cell"
