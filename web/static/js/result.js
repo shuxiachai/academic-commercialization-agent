@@ -559,10 +559,23 @@ function renderMarketEstimates(sources) {
   const fill = (key, values) => Object.entries(values).reduce(
     (text, [name, value]) => text.replace(`{${name}}`, () => String(value)), t(key));
   const ratio = found.sameScopeYearRatio;
-  const spread = ratio === null ? t("market_estimates_no_pair")
+  const n = found.rows.length;
+  // With one figure there is no pair to compare, and nothing to say about one.
+  const spread = n === 1 ? "" : ratio === null ? t("market_estimates_no_pair")
     : fill("market_estimates_same", { ratio: ratio >= 10 ? Math.round(ratio) : ratio.toFixed(1) });
-  wrap.append(el("p", "market-estimates__lede",
-    fill("market_estimates_headline", { n: found.rows.length, firms: found.firms, scopes: found.scopes, spread })));
+  // "8 market-size figures from 3 sources cover 1 differently defined
+  // markets" was the one sentence for every count (production, 2026-11-20).
+  // One market is "all for one market" only when every figure's title names it.
+  const headline = found.scopes >= 2 ? "market_estimates_headline"
+    : n === 1 ? "market_estimates_headline_one_figure"
+    : found.scopes === 0 ? "market_estimates_headline_unnamed"
+    : found.unscoped.length ? "market_estimates_headline_one_named" : "market_estimates_headline_one_market";
+  const values = {
+    figures: fill(n === 1 ? "market_estimates_figures_one" : "market_estimates_figures", { n }),
+    sources: fill(found.firms === 1 ? "market_estimates_sources_one" : "market_estimates_sources", { firms: found.firms }),
+    scopes: found.scopes, spread,
+  };
+  wrap.append(el("p", "market-estimates__lede", fill(headline, values).trim()));
   const sections = [...found.groups, ...(found.unscoped.length ? [{ scope: null, rows: found.unscoped }] : [])];
   for (const group of sections) {
     const section = el("div", "market-estimates__group");

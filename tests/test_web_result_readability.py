@@ -601,8 +601,41 @@ class MarketEstimatesTests(unittest.TestCase):
         zh = self._run(language="Simplified Chinese", scores=scores,
                        sources_for_scorecard=_market(("Sodium-ion Battery Market", "USD 2 billion in 2025", "Sns"),
                                                      ("Sodium-ion Battery Market", "USD 30 billion in 2025", "Yahoo")))
-        self.assertEqual(zh["market_block"]["lede"], "2 个市场规模数字来自 2 个来源，涉及 1 个定义不同的市场。同一市场、同一年份的数字最大相差 15 倍。")
+        self.assertEqual(zh["market_block"]["lede"], "2 个市场规模数字来自 2 个来源，都属于同一个市场。同一市场、同一年份的数字最大相差 15 倍。")
         self.assertIn("上方评分不变", zh["market_block"]["note"])
+
+    def test_the_headline_is_grammatical_for_one_market_one_figure_and_one_source(self):
+        """Production, 2026-11-20: "8 market-size figures from 3 sources cover 1
+        differently defined markets." In Chinese, "涉及 1 个定义不同的市场"."""
+        scores = {"overall_score": 50.0, "market_accessibility": 2.5, "market_uncertainty": None}
+        lede = lambda *rows, language=None: self._run(  # noqa: E731
+            scores=scores, sources_for_scorecard=_market(*rows), **({"language": language} if language else {}))["market_block"]["lede"]
+        one_market = [("Sodium-ion Battery Market", "USD 2 billion in 2025", "Sns"),
+                      ("Sodium-ion Battery Market", "USD 3 billion in 2025", "Yahoo"),
+                      ("Sodium-ion Battery Market Size", "USD 4 billion in 2026", "Fortune")]
+        self.assertEqual(lede(*one_market), "3 market-size figures from 3 sources, all for one market. "
+                                            "Within one market and year, the figures differ by up to 1.5×.")
+        self.assertEqual(lede(*one_market, language="Simplified Chinese"),
+                         "3 个市场规模数字来自 3 个来源，都属于同一个市场。同一市场、同一年份的数字最大相差 1.5 倍。")
+        # One source, two figures; and one figure, where "no two figures" has nothing to say.
+        self.assertEqual(lede(("Sodium-ion Battery Market", "USD 2 billion in 2025 and USD 44 billion by 2035", "Yahoo")),
+                         "2 market-size figures from 1 source, all for one market. "
+                         "No two figures share a market and a year, so none are compared.")
+        self.assertEqual(lede(("Sodium-ion Battery Market", "USD 2 billion in 2025", "Sns")),
+                         "1 market-size figure from 1 source.")
+        self.assertEqual(lede(("Sodium-ion Battery Market", "USD 2 billion in 2025", "Sns"), language="Simplified Chinese"),
+                         "1 个市场规模数字，来自 1 个来源。")
+        # One market named and figures whose titles name none: not "all for one market".
+        named_and_not = [("Sodium-ion Battery Market", "USD 2 billion in 2025", "Sns"),
+                         ("Grid storage outlook", "USD 9 billion in 2025", "Yahoo")]
+        self.assertEqual(lede(*named_and_not), "2 market-size figures from 2 sources; the source titles name one market. "
+                                               "No two figures share a market and a year, so none are compared.")
+        self.assertEqual(lede(("Grid storage outlook", "USD 9 billion in 2025", "Yahoo"),
+                              ("Energy news", "USD 7 billion in 2026", "Sns")),
+                         "2 market-size figures from 2 sources; no source title names the market. "
+                         "No two figures share a market and a year, so none are compared.")
+        self.assertEqual(lede(*named_and_not, language="Simplified Chinese"),
+                         "2 个市场规模数字来自 2 个来源，来源标题只指明了一个市场。没有两个数字属于同一市场和同一年份，因此未做比较。")
 
 
 _SCORES = {
