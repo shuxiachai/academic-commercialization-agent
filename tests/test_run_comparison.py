@@ -29,7 +29,7 @@ _CSS = (_ROOT / "web" / "static" / "css" / "result.css").read_text(encoding="utf
 
 @pytest.mark.parametrize("scenario", ["rows", "unfinished", "nothing_to_compare", "drawn",
                                       "decision_rows", "next_step_expand", "loads_the_decision_only_when_asked",
-                                      "topics", "picker_order"])
+                                      "topics", "picker_order", "dates"])
 def test_the_module_compares_what_is_there_and_shows_what_is_not(scenario):
     node = shutil.which("node")
     assert node, "Node is required for the comparison seam"
@@ -100,6 +100,21 @@ def test_the_cards_the_table_and_the_rows_under_it_share_one_set_of_columns():
     assert "var(--compare-inset)" in _rule(".compare__brief-cell")
     assert 'container.append(el("div", "compare")' not in _COMPARE, "the wrapper is the pane body's own class"
     assert 'id="compare-body"' in _INDEX and re.search(r'<div class="pane__body compare" id="compare-body">', _INDEX)
+
+
+def test_every_date_the_pages_draw_is_in_the_interface_language():
+    """An English interface in a Chinese browser showed the comparison's
+    start time as "2026年11月18日 19:34" and the keys panel's date as "16 Nov
+    2026" (2026-11-20). The comparison (compare.js) and the run picker
+    (app.js) formatted with the browser's locale; the panel with the
+    interface's. No toLocale…String call may be left to the browser's choice."""
+    unset = re.compile(r"\.toLocale(?:Date|Time)?String\(\s*(?:undefined\b|\))")
+    for path in sorted((_ROOT / "web" / "static" / "js").glob("*.js")):
+        assert not unset.search(path.read_text(encoding="utf-8")), path.name
+    # One choice of locale for both, read from the interface language.
+    assert "export function locale()" in _STRINGS
+    assert "when.toLocaleDateString(i18n.locale(), " in _APP
+    assert "toLocaleString(locale(), " in _COMPARE
 
 
 def test_the_picker_opens_in_the_middle_and_puts_the_same_topic_first():

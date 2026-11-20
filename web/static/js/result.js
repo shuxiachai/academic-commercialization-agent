@@ -559,10 +559,23 @@ function renderMarketEstimates(sources) {
   const fill = (key, values) => Object.entries(values).reduce(
     (text, [name, value]) => text.replace(`{${name}}`, () => String(value)), t(key));
   const ratio = found.sameScopeYearRatio;
-  const spread = ratio === null ? t("market_estimates_no_pair")
+  const n = found.rows.length;
+  // With one figure there is no pair to compare, and nothing to say about one.
+  const spread = n === 1 ? "" : ratio === null ? t("market_estimates_no_pair")
     : fill("market_estimates_same", { ratio: ratio >= 10 ? Math.round(ratio) : ratio.toFixed(1) });
-  wrap.append(el("p", "market-estimates__lede",
-    fill("market_estimates_headline", { n: found.rows.length, firms: found.firms, scopes: found.scopes, spread })));
+  // "8 market-size figures from 3 sources cover 1 differently defined
+  // markets" was the one sentence for every count (production, 2026-11-20).
+  // One market is "all for one market" only when every figure's title names it.
+  const headline = found.scopes >= 2 ? "market_estimates_headline"
+    : n === 1 ? "market_estimates_headline_one_figure"
+    : found.scopes === 0 ? "market_estimates_headline_unnamed"
+    : found.unscoped.length ? "market_estimates_headline_one_named" : "market_estimates_headline_one_market";
+  const values = {
+    figures: fill(n === 1 ? "market_estimates_figures_one" : "market_estimates_figures", { n }),
+    sources: fill(found.firms === 1 ? "market_estimates_sources_one" : "market_estimates_sources", { firms: found.firms }),
+    scopes: found.scopes, spread,
+  };
+  wrap.append(el("p", "market-estimates__lede", fill(headline, values).trim()));
   const sections = [...found.groups, ...(found.unscoped.length ? [{ scope: null, rows: found.unscoped }] : [])];
   for (const group of sections) {
     const section = el("div", "market-estimates__group");
@@ -802,6 +815,8 @@ function renderDecisionApplicability(gate) {
 const VERDICT_TONES = { go: "success", conditional_go: "warning", defer: "warning", no_go: "danger" };
 // The statement and what follows it are shown together while they stay a short read.
 const VERDICT_PASSAGE_LIMIT = 480;
+// How a sentence ends when it ends with a stop, citations aside (decision_verdict._SPOKEN_END).
+const SPOKEN_END = /[.!?。！？:：;；…][\s)\]"'”’」』）*]*$/u;
 
 /** Whether this run was asked for an actor-specific conclusion and finished. */
 export function decisionAsked(progress) {
@@ -826,14 +841,29 @@ export function decisionVerdict(reply) {
     .map(item => ({ verdict: item.verdict, statement: said(item.statement), section: said(item.section), needle: said(item.needle) }));
   if (conclusion.status === "stated" && verdictName(conclusion.verdict) && said(conclusion.statement)) {
     const follows = (Array.isArray(conclusion.follows) ? conclusion.follows : []).map(said).filter(Boolean);
-    // One passage: a space between sentences, none after a Chinese full stop.
-    const whole = [said(conclusion.statement), ...follows]
-      .reduce((passage, sentence) => passage + (!passage || /[。！？]$/u.test(passage) ? "" : " ") + sentence, "");
+    // One passage, joined as decision_verdict.joined joins it for the PDF: a
+    // space between sentences, none after a Chinese full stop, and a line
+    // break after a line that ends with no stop ("Conclusion: DEFER", alone in
+    // its paragraph, its reasons in the next). A full stop put in there would
+    // be this page's, not the report's.
+    const passage = (sentences) => sentences.reduce((text, sentence) => {
+      if (!text || /[。！？]$/u.test(text)) return text + sentence;
+      return text + (SPOKEN_END.test(text.replace(CITATION_RUN, "")) ? " " : "\n") + sentence;
+    }, "");
+    const statement = said(conclusion.statement);
+    const bare = conclusion.bare === true;
+    const whole = passage([statement, ...follows]);
+    // A line that says only the verdict repeats the headline above it, so when
+    // the passage is too long the first reason is shown with it, if that fits:
+    // the production report that prompted this (20261120T131247Z) had 497
+    // characters, and the card showed "Conclusion: DEFER" and a button.
+    const lead = bare && follows.length ? passage([statement, follows[0]]) : statement;
     return {
       state: "stated", asked, verdict: conclusion.verdict, tone: VERDICT_TONES[conclusion.verdict],
-      statement: said(conclusion.statement), whole,
-      // Short enough: all of it. Otherwise the statement, and one press for the rest.
-      shown: whole.length <= VERDICT_PASSAGE_LIMIT ? whole : said(conclusion.statement),
+      statement, whole, follows, bare,
+      // Short enough: all of it. Otherwise the statement (with its first reason
+      // when it is a bare line), and one press for the rest.
+      shown: whole.length <= VERDICT_PASSAGE_LIMIT ? whole : lead.length <= VERDICT_PASSAGE_LIMIT ? lead : statement,
       section: said(conclusion.section), needle: said(conclusion.needle),
     };
   }
@@ -845,10 +875,19 @@ export function decisionVerdict(reply) {
   return { state: "unread", asked, tone: "muted" };
 }
 
-/** One line for a table cell: the comparison's "Decision conclusion" row. */
+/** One line for a table cell: the comparison's "Decision conclusion" row.
+ *
+ * The conclusion and the first sentence that gives its reason. A statement
+ * that says only the verdict ("Conclusion: DEFER.", `bare`) is not quoted
+ * after the verdict it repeats: the sentence after it is, and with none the
+ * row is the verdict alone. A statement that says more ("the conclusion is
+ * DEFER because module data are missing") is that sentence. */
 export function verdictLine(view) {
   if (!view) return null;
-  if (view.state === "stated") return { text: `${verdictName(view.verdict)}: “${view.statement}”`, tone: view.tone };
+  if (view.state === "stated") {
+    const reason = view.bare ? view.follows?.[0] : view.statement;
+    return { text: reason ? `${verdictName(view.verdict)}: “${reason}”` : verdictName(view.verdict), tone: view.tone };
+  }
   if (view.state === "conflicting") {
     const names = [...new Set(view.statements.map(item => verdictName(item.verdict)))].join(" / ");
     return { text: `${t("verdict_conflicting")}: ${names}`, tone: view.tone };
@@ -1233,6 +1272,19 @@ function firstRecommendation(markdown) {
 const SOURCE_LISTS = ["academic_sources", "patent_sources", "market_sources"];
 const TIER_RANK = { high: 0, medium: 1, low: 2 };
 
+// Google Patents ends the page title it serves with " - Google Patents": 2,708
+// of the 4,877 patent titles saved on the maintainer's machine (2026-11-21),
+// always in that one form, and in no academic or market title. It names the
+// site, not the patent. Shown without it on the Sources tab and in the brief;
+// the saved title keeps it, and search still reads the saved title. In a
+// reference line the publisher follows it after a full stop. The reference
+// list itself is report_display.py's.
+const PATENT_SITE_SUFFIX = /\s+-\s+Google Patents(?=\.\s|\.?$)/u;
+const withoutSiteName = (title) => {
+  const shown = title.replace(PATENT_SITE_SUFFIX, "");
+  return shown.trim() ? shown : title;
+};
+
 /** The best-rated of the cited sources: {id, title, tier, year}; {id} when
  * nothing rates them; null without ids.
  *
@@ -1269,7 +1321,7 @@ function pickEvidence(ids, sources, references = null) {
   if (!row) return { id };
   const tier = TIER_RANK[row.credibility_tier] !== undefined ? row.credibility_tier : null;
   const year = typeof row.published_date === "string" && /^\d{4}/.test(row.published_date) ? row.published_date.slice(0, 4) : null;
-  return { id, title: typeof row.title === "string" ? row.title : null, tier, year };
+  return { id, title: typeof row.title === "string" ? withoutSiteName(row.title) : null, tier, year };
 }
 
 const DOMAIN_LABELS = { academic: "group_academic", patent: "group_patents", market: "group_market" };
@@ -2351,7 +2403,7 @@ function renderSavedSource(source) {
   const li = el("li", "source");
   const id = el("span", "source__id", source.source_id.text ?? t("sources_id_unavailable"));
   const body = el("div", "source__body");
-  const shown = source.title.text ?? t("sources_title_unavailable");
+  const shown = source.title.text === null ? t("sources_title_unavailable") : withoutSiteName(source.title.text);
   const title = el(source.href ? "a" : "span", "source__link", shown);
   if (shown.length > LONG_SOURCE_TITLE) title.title = shown;
   if (source.href) {

@@ -147,7 +147,7 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
       return typeof scores?.overall_score === "number" ? { className: "scorecard scorecard--summary", scores } : null;
     } },
     needsScopeWarning: () => false, modelKind,
-    i18n: { t: (key) => key, language: () => "English", apply: () => {}, setLanguage: () => {},
+    i18n: { t: (key) => key, language: () => "English", locale: () => "en-GB", apply: () => {}, setLanguage: () => {},
             pageTitle: (name = "") => (name ? `${name} · brand_full` : "brand_full") },
     document: { querySelector: get, querySelectorAll: () => [], createElement: () => new Element(),
       addEventListener: () => {}, hidden: false, documentElement },

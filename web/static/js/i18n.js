@@ -252,7 +252,15 @@ const STRINGS = {
     verdict_unread: "The report's conclusion could not be read",
     verdict_unread_detail: "The request for it failed, so nothing is claimed here either way. Open the report to read its conclusion, or reload the page.",
     verdict_note: "Read from the report's own text. The scores are not changed by it.",
-    market_estimates_headline: "{n} market-size figures from {firms} sources cover {scopes} differently defined markets. {spread}",
+    market_estimates_headline: "{figures} from {sources} cover {scopes} differently defined markets. {spread}",
+    market_estimates_headline_one_market: "{figures} from {sources}, all for one market. {spread}",
+    market_estimates_headline_one_named: "{figures} from {sources}; the source titles name one market. {spread}",
+    market_estimates_headline_unnamed: "{figures} from {sources}; no source title names the market. {spread}",
+    market_estimates_headline_one_figure: "{figures} from {sources}. {spread}",
+    market_estimates_figures: "{n} market-size figures",
+    market_estimates_figures_one: "1 market-size figure",
+    market_estimates_sources: "{firms} sources",
+    market_estimates_sources_one: "1 source",
     market_estimates_same: "Within one market and year, the figures differ by up to {ratio}×.",
     market_estimates_no_pair: "No two figures share a market and a year, so none are compared.",
     market_estimates_none: "The saved market sources state no market-size figure.",
@@ -302,6 +310,7 @@ const STRINGS = {
     cancelling: "Cancelling…",
     resume: "Resume from checkpoint",
     delete_run: "Delete",
+    delete_run_named: "Delete: {topic}",
     confirm_delete_run: "Delete this run permanently? The report and every other artifact will be gone for good.",
     confirm_broad_topic: "This input may not describe a sufficiently scoped research commercialization topic. Add a specific technology and use case for a stronger report.\n\nRun it anyway?",
     msg_deleted: "Run deleted.",
@@ -693,6 +702,7 @@ const STRINGS = {
     compare_loading: "Reading both runs…",
     compare_same_run: "These are the same run. Choose another to compare with.",
     compare_not_finished: "This run did not finish, so it has no scores to compare.",
+    compare_local_time: "{time} (your local time)",
     compare_no_scores: "Neither run has a readable scorecard.",
     compare_metric: "Score",
     compare_overall: "Overall readiness (of 100)",
@@ -1103,7 +1113,15 @@ const STRINGS = {
     verdict_unread: "未能读取报告的结论",
     verdict_unread_detail: "读取请求失败，所以这里不作任何判断。请打开报告查看结论，或刷新页面。",
     verdict_note: "摘自报告原文，不改变评分。",
-    market_estimates_headline: "{n} 个市场规模数字来自 {firms} 个来源，涉及 {scopes} 个定义不同的市场。{spread}",
+    market_estimates_headline: "{figures}来自 {sources}，涉及 {scopes} 个定义不同的市场。{spread}",
+    market_estimates_headline_one_market: "{figures}来自 {sources}，都属于同一个市场。{spread}",
+    market_estimates_headline_one_named: "{figures}来自 {sources}，来源标题只指明了一个市场。{spread}",
+    market_estimates_headline_unnamed: "{figures}来自 {sources}，来源标题都没有指明市场。{spread}",
+    market_estimates_headline_one_figure: "{figures}，来自 {sources}。{spread}",
+    market_estimates_figures: "{n} 个市场规模数字",
+    market_estimates_figures_one: "1 个市场规模数字",
+    market_estimates_sources: "{firms} 个来源",
+    market_estimates_sources_one: "1 个来源",
     market_estimates_same: "同一市场、同一年份的数字最大相差 {ratio} 倍。",
     market_estimates_no_pair: "没有两个数字属于同一市场和同一年份，因此未做比较。",
     market_estimates_none: "已保存的市场来源中没有市场规模数字。",
@@ -1150,6 +1168,7 @@ const STRINGS = {
     cancelling: "正在取消…",
     resume: "从检查点续跑",
     delete_run: "删除",
+    delete_run_named: "删除：{topic}",
     confirm_delete_run: "确定要永久删除这条记录吗？报告和其他所有产出文件都会一并清除，无法恢复。",
     confirm_broad_topic: "该输入可能不是范围足够明确的科研商业化主题。建议补充具体技术与应用场景，以获得更可靠的报告。\n\n仍要继续运行吗？",
     msg_deleted: "记录已删除。",
@@ -1496,6 +1515,7 @@ const STRINGS = {
     compare_loading: "正在读取两次评估……",
     compare_same_run: "这是同一次评估，请选择另一次来对比。",
     compare_not_finished: "这次评估没有完成，没有可对比的分数。",
+    compare_local_time: "{time}（本地时间）",
     compare_no_scores: "两次评估都没有可读的评分卡。",
     compare_metric: "分数",
     compare_overall: "总体就绪度（满分 100）",
@@ -1689,6 +1709,14 @@ export function t(key) {
 
 export function language() {
   return current;
+}
+
+/** The locale dates and times are drawn in: the interface's, never the
+ * browser's own. An English interface in a Chinese browser drew the
+ * comparison's start time as "2026年11月18日 19:34" beside a keys panel that
+ * said "16 Nov 2026" (2026-11-20). */
+export function locale() {
+  return current === "English" ? "en-GB" : "zh-CN";
 }
 
 export function setLanguage(next) {

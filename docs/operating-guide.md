@@ -971,7 +971,14 @@ are different accounting facts; an interrupted in-flight call can have spend
 that no local counter captured. Cost uses a known price basis or stays
 unpriced, rather than showing an unknown model as free. Operators may set
 `LLM_PRICE_PER_MTOK=input:output[:cache_read]` in USD per million tokens;
-this is an estimate, not an invoice. See
+this is an estimate, not an invoice. The rate is not per model: it replaces
+the table for every model a worker prices, and a run on a visitor's own key
+inherits it too (the variable is not among those `BYOKCredentials.as_env`
+scrubs), so a visitor on another model would be priced at it. To price the
+deployment's own model, add its row to `token_usage._PRICING` with its date
+and source instead. A model with no price shows "no cost shown, as no unit
+price is on record yet for …" on the run page, and points a reader who paid
+with their own key to their provider's console. See
 [runtime terminal integrity](runtime-terminal-integrity.md).
 
 Crew usage payloads explicitly identify `accounting_scope=crew_nodes`, excluded

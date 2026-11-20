@@ -601,8 +601,41 @@ class MarketEstimatesTests(unittest.TestCase):
         zh = self._run(language="Simplified Chinese", scores=scores,
                        sources_for_scorecard=_market(("Sodium-ion Battery Market", "USD 2 billion in 2025", "Sns"),
                                                      ("Sodium-ion Battery Market", "USD 30 billion in 2025", "Yahoo")))
-        self.assertEqual(zh["market_block"]["lede"], "2 个市场规模数字来自 2 个来源，涉及 1 个定义不同的市场。同一市场、同一年份的数字最大相差 15 倍。")
+        self.assertEqual(zh["market_block"]["lede"], "2 个市场规模数字来自 2 个来源，都属于同一个市场。同一市场、同一年份的数字最大相差 15 倍。")
         self.assertIn("上方评分不变", zh["market_block"]["note"])
+
+    def test_the_headline_is_grammatical_for_one_market_one_figure_and_one_source(self):
+        """Production, 2026-11-20: "8 market-size figures from 3 sources cover 1
+        differently defined markets." In Chinese, "涉及 1 个定义不同的市场"."""
+        scores = {"overall_score": 50.0, "market_accessibility": 2.5, "market_uncertainty": None}
+        lede = lambda *rows, language=None: self._run(  # noqa: E731
+            scores=scores, sources_for_scorecard=_market(*rows), **({"language": language} if language else {}))["market_block"]["lede"]
+        one_market = [("Sodium-ion Battery Market", "USD 2 billion in 2025", "Sns"),
+                      ("Sodium-ion Battery Market", "USD 3 billion in 2025", "Yahoo"),
+                      ("Sodium-ion Battery Market Size", "USD 4 billion in 2026", "Fortune")]
+        self.assertEqual(lede(*one_market), "3 market-size figures from 3 sources, all for one market. "
+                                            "Within one market and year, the figures differ by up to 1.5×.")
+        self.assertEqual(lede(*one_market, language="Simplified Chinese"),
+                         "3 个市场规模数字来自 3 个来源，都属于同一个市场。同一市场、同一年份的数字最大相差 1.5 倍。")
+        # One source, two figures; and one figure, where "no two figures" has nothing to say.
+        self.assertEqual(lede(("Sodium-ion Battery Market", "USD 2 billion in 2025 and USD 44 billion by 2035", "Yahoo")),
+                         "2 market-size figures from 1 source, all for one market. "
+                         "No two figures share a market and a year, so none are compared.")
+        self.assertEqual(lede(("Sodium-ion Battery Market", "USD 2 billion in 2025", "Sns")),
+                         "1 market-size figure from 1 source.")
+        self.assertEqual(lede(("Sodium-ion Battery Market", "USD 2 billion in 2025", "Sns"), language="Simplified Chinese"),
+                         "1 个市场规模数字，来自 1 个来源。")
+        # One market named and figures whose titles name none: not "all for one market".
+        named_and_not = [("Sodium-ion Battery Market", "USD 2 billion in 2025", "Sns"),
+                         ("Grid storage outlook", "USD 9 billion in 2025", "Yahoo")]
+        self.assertEqual(lede(*named_and_not), "2 market-size figures from 2 sources; the source titles name one market. "
+                                               "No two figures share a market and a year, so none are compared.")
+        self.assertEqual(lede(("Grid storage outlook", "USD 9 billion in 2025", "Yahoo"),
+                              ("Energy news", "USD 7 billion in 2026", "Sns")),
+                         "2 market-size figures from 2 sources; no source title names the market. "
+                         "No two figures share a market and a year, so none are compared.")
+        self.assertEqual(lede(*named_and_not, language="Simplified Chinese"),
+                         "2 个市场规模数字来自 2 个来源，来源标题只指明了一个市场。没有两个数字属于同一市场和同一年份，因此未做比较。")
 
 
 _SCORES = {
@@ -732,6 +765,27 @@ class DecisionBriefTests(unittest.TestCase):
         self.assertIsNone(uncited["evidence"])
         card = self._brief()["brief_view"]["cards"]["evidence"]
         self.assertIn("All-solid-state battery system · high · 2023", card)
+
+    def test_a_patent_named_as_the_main_source_is_shown_without_the_sites_name(self):
+        """Google Patents ends the title it serves with " - Google Patents", and
+        the brief's main-source line showed it (production, 2026-11-20). It
+        names the site; the saved title and the report keep it."""
+        titled = "US11437537B2 - All-solid-state battery system - Google Patents"
+        sources = {**_SOURCES, "patent_sources": [_SOURCES["patent_sources"][0],
+                                                  {**_SOURCES["patent_sources"][1], "title": titled}]}
+        brief = self._brief(sources=sources)
+        self.assertEqual(brief["brief"]["evidence"]["title"], "US11437537B2 - All-solid-state battery system")
+        self.assertIn("US11437537B2 - All-solid-state battery system · high · 2023", brief["brief_view"]["cards"]["evidence"])
+        self.assertNotIn("Google Patents", brief["brief_view"]["cards"]["evidence"])
+        # A sample has only the reference list, where the publisher follows the title.
+        refs = ("\n## References\n\n[P2] US11437537B2 - All-solid-state battery system - Google Patents. King Fahd University. "
+                "Published: 2023-05-04. Accessed: 2026-11-08. Type: patent. Credibility: high. Rationale: granted. "
+                "https://example.org/p2\n")
+        sample = self._brief(sources=None, markdown=_REPORT + refs, references=True)["brief"]["evidence"]
+        self.assertEqual(sample["title"], "US11437537B2 - All-solid-state battery system. King Fahd University")
+        # Only the site's own suffix: a title that merely mentions it is left as it is.
+        other = {**_SOURCES, "patent_sources": [{**_SOURCES["patent_sources"][1], "title": "Google Patents - search help"}]}
+        self.assertEqual(self._brief(sources=other)["brief"]["evidence"]["title"], "Google Patents - search help")
 
     def test_a_page_with_no_registry_picks_the_evidence_from_the_reports_own_reference_list(self):
         """A sample page has the report and its scorecard, not the run's source
@@ -1956,7 +2010,7 @@ def _reply(**conclusion):
     stated = {"status": "stated", "verdict": "defer", "statement": _STATEMENT, "section": "Executive Summary",
               "follows": ["Licensing should be revisited once outdoor module data exist [A3]."],
               "needle": "In sum, the actor-specific conclusion is DEFER because module-scale validation",
-              "statements": []}
+              "bare": False, "statements": []}
     stated.update(conclusion)
     return {"run_id": "r", "asked": True, "question": _QUESTION, "conclusion": stated}
 
@@ -2079,6 +2133,67 @@ class DecisionConclusionTests(unittest.TestCase):
         chinese = self._card(_reply(statement="决策结论为暂缓许可 [A2]。", follows=["待取得户外数据后重新评估 [A3]。", "第三句。"]),
                              "Simplified Chinese")["card"]
         self.assertEqual(chinese["says"], "报告原文： 决策结论为暂缓许可 [A2]。待取得户外数据后重新评估 [A3]。第三句。")
+
+    def test_a_conclusion_line_with_no_stop_is_not_run_into_its_reasons(self):
+        """Production run 20261120T131247Z-55c7… wrote "**Conclusion:** **DEFER**"
+        alone and its reasons in the next paragraph. Joined with a space the
+        card would read "Conclusion: DEFER Evidence conditions…", and a full
+        stop put in would be the page's, not the report's: a line break, as
+        decision_verdict.joined makes for the PDF."""
+        follows = ["Evidence conditions behind the conclusion: module-scale stability data are missing [A2].",
+                   "No freedom-to-operate opinion has been obtained [P1]."]
+        card = self._card(_reply(statement="Conclusion: DEFER", follows=follows, bare=True))["card"]
+        self.assertEqual(card["says"], "The report says: Conclusion: DEFER\nEvidence conditions behind the conclusion: "
+                         "module-scale stability data are missing [A2]. No freedom-to-operate opinion has been obtained [P1].")
+        # A line that ends with its stop, or with a citation after it, is joined by a space as before.
+        for statement in ("Conclusion: DEFER.", "Conclusion: DEFER. [A2]", "Conclusion: DEFER [A2]."):
+            with self.subTest(statement=statement):
+                shown = self._card(_reply(statement=statement, follows=["Next sentence."], bare=True))["card"]
+                self.assertEqual(shown["says"], f"The report says: {statement} Next sentence.")
+        # A citation with no stop before it is no stop.
+        cited = self._card(_reply(statement="Conclusion: DEFER [A2]", follows=["Next sentence."], bare=True))["card"]
+        self.assertEqual(cited["says"], "The report says: Conclusion: DEFER [A2]\nNext sentence.")
+        # The break is drawn: the card's text keeps line breaks (and only the server's text is in it).
+        css = (Path(__file__).resolve().parents[1] / "web" / "static" / "css" / "result.css").read_text(encoding="utf-8")
+        self.assertRegex(css, r"\.verdict-card__text\s*\{\s*white-space:\s*pre-line;\s*\}")
+
+    def test_a_bare_conclusion_line_shows_its_first_reason_even_when_the_passage_is_long(self):
+        """The production report of 20261120T131247Z-55c7… (read 2026-11-21):
+        "Conclusion: DEFER" alone, then two sentences of reasons, 497
+        characters in all, over the card's 480. The card showed the statement
+        and a button, which for a line that says only the verdict is the
+        headline twice and the reasons behind a press."""
+        first = ("Evidence conditions behind the conclusion: The validated evidence supports promising high-energy "
+                 "pouch-cell demonstrations and pre-industrial prototype activity [A1, A2], and market signals show "
+                 "early aerospace testing and emerging eVTOL certification pathways [M3, M6].")
+        second = ("However, solid-state lithium-metal aviation batteries remain pre-commercial or early pilot stage, "
+                  "and the evidence does not show certified deployment, procurement contracts, or recurring revenue "
+                  "[M5, M3, M6].")
+        card = self._card(_reply(statement="Conclusion: DEFER", follows=[first, second], bare=True))["card"]
+        self.assertEqual(card["says"], f"The report says: Conclusion: DEFER\n{first} Show what follows it")
+        self.assertEqual(card["more"]["text"], "Show what follows it")
+        self.assertTrue(card["more"]["after"].endswith("recurring revenue [M5, M3, M6]."))
+        # A statement that says more than the verdict still shows itself alone when the passage is long.
+        long = self._card(_reply(follows=[first, second]))["card"]
+        self.assertEqual(long["says"], f"The report says: {_STATEMENT} Show what follows it")
+        # And a first reason too long for the card is not forced in.
+        huge = self._card(_reply(statement="Conclusion: DEFER", follows=[first * 3], bare=True))["card"]
+        self.assertEqual(huge["says"], "The report says: Conclusion: DEFER Show what follows it")
+
+    def test_the_comparison_row_gives_the_conclusion_and_its_first_reason_not_the_conclusion_twice(self):
+        """The comparison of 2026-11-20 showed `DEFER: "Conclusion: DEFER."` for a
+        run whose card had its reasons: the row quoted the statement only."""
+        line = lambda **over: self._card(_reply(**over))["line"]  # noqa: E731
+        bare = line(statement="Conclusion: DEFER.", bare=True,
+                    follows=["The office should defer a full licence until module data exist [A2].", "A second sentence."])
+        self.assertEqual(bare, {"text": "DEFER: “The office should defer a full licence until module data exist [A2].”",
+                                "tone": "warning"})
+        # Nothing after it: the conclusion alone, not quoted again.
+        self.assertEqual(line(statement="Conclusion: DEFER.", bare=True, follows=[]), {"text": "DEFER", "tone": "warning"})
+        # A statement that says more than the verdict is its own first reason.
+        self.assertEqual(line(), {"text": f"DEFER: “{_STATEMENT}”", "tone": "warning"})
+        self.assertEqual(line(statement="Decision: DEFER until module data exist [A2].", bare=False, follows=["Next."]),
+                         {"text": "DEFER: “Decision: DEFER until module data exist [A2].”", "tone": "warning"})
 
     def test_the_passage_is_found_by_its_text_then_by_its_heading(self):
         blocks = [{"tagName": "H2", "textContent": "Executive Summary"},

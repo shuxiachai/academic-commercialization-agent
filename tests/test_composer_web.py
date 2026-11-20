@@ -1,6 +1,7 @@
 """Request-level regressions for the paid composer, with no network or keys."""
 
 from pathlib import Path
+import re
 import shutil
 import subprocess
 
@@ -29,7 +30,7 @@ def test_history_responses_belong_to_latest_view_and_identity(mode):
 
 
 @pytest.mark.parametrize("scenario", [
-    "pending_submit", "rejected_submit", "existing_topic_pdf", "empty_topic_pdf",
+    "pending_submit", "rejected_submit", "existing_topic_pdf", "empty_topic_pdf", "paper_privacy",
     "missing_suggestion_pdf", "serialized_pdf", "stale_pdf_response", "failed_pdf",
     "upload_during_submit", "classified_errors",
     "accepted_history_failure", "resume_rerender", "lost_acknowledgement", "malformed_history",
@@ -209,3 +210,15 @@ def test_a_run_offers_its_topic_again_and_its_link(kind):
         "run_reuse", kind], capture_output=True, text=True, encoding="utf-8", timeout=30)
     assert result.returncode == 0, result.stdout + result.stderr
     assert "PASS run_reuse" in result.stdout
+
+
+def test_the_paper_buttons_description_is_the_privacy_notice_and_the_paragraph_starts_hidden():
+    """The notice was a paragraph under every visitor's composer. The Paper
+    button now carries it as its description (read before a file is chosen,
+    since choosing one starts the extraction), and the paragraph starts
+    hidden; composer_contract.mjs paper_privacy holds when it shows."""
+    index = (Path(__file__).resolve().parents[1] / "web" / "index.html").read_text(encoding="utf-8")
+    button = re.search(r'<button[^>]*id="attach-btn"[^>]*>', index)[0]
+    assert 'aria-describedby="paper-privacy-hint"' in button
+    assert re.search(r'<span id="paper-privacy-hint" class="visually-hidden" data-i18n="paper_privacy">', index)
+    assert re.search(r'<p class="composer__privacy" id="paper-privacy" data-i18n="paper_privacy" hidden>', index)

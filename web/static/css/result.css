@@ -879,6 +879,10 @@
 .verdict-card__detail { margin: var(--space-2) 0 0; font-size: var(--text-sm); color: var(--text-secondary); line-height: var(--leading-normal); }
 .verdict-card__label { color: var(--text-tertiary); font-size: var(--text-xs); font-weight: 600; }
 .verdict-card__quote { color: var(--text-primary); }
+/* A conclusion line with no stop and its reasons from the next paragraph are
+ * joined by a line break (result.js decisionVerdict); the server's text has
+ * no other. */
+.verdict-card__text { white-space: pre-line; }
 .verdict-card__statements { margin: var(--space-2) 0 0; padding-left: 1.2em; font-size: var(--text-sm); color: var(--text-secondary); }
 .verdict-card__statement { margin: 0 0 var(--space-2); }
 .verdict-card__where { margin: var(--space-2) 0 0; font-size: var(--text-sm); color: var(--text-secondary); }

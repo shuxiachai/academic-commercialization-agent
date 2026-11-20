@@ -362,7 +362,7 @@ function paintHeader({
   // The fold is headed by what the run used and what that is estimated to
   // have cost; where nothing was counted it keeps its plain name. The text
   // above, with the helper ledger and every caveat, is the detail inside.
-  const headline = runView.usageHeadline(usage, usage_accounting);
+  const headline = runView.usageHeadline(usage, usage_accounting, funded_by);
   $("#run-usage-label").textContent = `· ${headline || runView.headerLabel("usage_details")}`;
 
   // Where the time went, folded the same way. The stage list shows it while
@@ -1279,6 +1279,9 @@ function syncComposer() {
     control.disabled = submitting || paidReceipts.state().uncertain || (busy && control.id === "plan-start");
   });
   attachBtn.disabled = extracting || submitting || paidReceipts.state().uncertain || busy;
+  // What happens to a PDF's text, while there is a PDF: being read, or
+  // attached. Before one is chosen it is the Paper button's description.
+  $("#paper-privacy").hidden = !(extracting || attachedPaper);
   // Keep the submitted payload stable in the visible composer as well. The
   // handler guard still matters for programmatic submits and queued events.
   for (const input of [topic, $("#language"), $("#profile"), ...decisionContextInputs]) {
@@ -2788,7 +2791,7 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
    * change made on another device. */
   let savedView = 0;
   let listed = null;       // what the server last said is saved, for the check's wording
-  const locale = () => (i18n.language() === "English" ? "en-GB" : "zh-CN");
+  const locale = () => i18n.locale();
   const providerName = (id) => $("#byok-provider").querySelector?.(`option[value="${id}"]`)?.textContent || id;
   const searchName = (id) => $("#byok-search").querySelector?.(`option[value="${id}"]`)?.textContent || id;
   // A word joiner after the ellipsis, so a line never breaks inside "…abcd".
@@ -3468,7 +3471,9 @@ async function pickComparison(runId) {
     label.textContent = run.topic || run.run_id;
     const meta = document.createElement("span");
     meta.className = "picker__meta tabular";
-    meta.textContent = [same ? t("compare_pick_same") : null, when ? when.toLocaleDateString() : null, run.owner_label || null]
+    // In the interface's language, as the keys panel dates are; not the browser's.
+    const day = when ? when.toLocaleDateString(i18n.locale(), { year: "numeric", month: "short", day: "numeric" }) : null;
+    meta.textContent = [same ? t("compare_pick_same") : null, day, run.owner_label || null]
       .filter(Boolean).join(" · ");
     choose.append(label, meta);
     choose.addEventListener("click", () => {
