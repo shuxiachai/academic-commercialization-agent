@@ -553,16 +553,27 @@ def active_count() -> int:
     """Occupied run slots, including stop finalization; reap unowned exits."""
     with _registry_lock:
         for run_id in [rid for rid, h in _registry.items() if not _occupies_slot(rid, h)]:
-            h = _registry.pop(run_id, None)
-            if h is not None:
-                _settled.append((run_id, h.byok))
-                _refund_unreachable_failure_locked(run_id, h.owner)
-            if h and h.log_file is not None:
-                try:
-                    h.log_file.close()
-                except OSError:
-                    pass
+            _reap_locked(run_id)
         return len(_registry)
+
+
+def _reap_locked(run_id: str) -> None:
+    """Release the handle of a worker that has exited; caller holds the lock and has seen it unoccupied.
+
+    Popping the handle is what makes everything below happen once per worker:
+    a second reap of the same run finds nothing to pop. That includes the
+    unreachable-provider refund, whose marker may fail to record it.
+    """
+    h = _registry.pop(run_id, None)
+    if h is None:
+        return
+    _settled.append((run_id, h.byok))
+    _refund_unreachable_failure_locked(run_id, h.owner)
+    if h.log_file is not None:
+        try:
+            h.log_file.close()
+        except OSError:
+            pass
 
 
 def _occupies_slot(run_id: str, handle: _Handle) -> bool:
@@ -905,12 +916,14 @@ _unreachable_refund_date: date | None = None
 def _refund_unreachable_failure_locked(run_id: str, owner: str | None) -> None:
     """Give back the day's unit of a run that failed because the provider was unreachable.
 
-    Called once, when the exited worker's handle is reaped. Every condition
+    Called once, when the exited worker's handle is reaped (`_reap_locked`):
+    by admission, the health check, the run list, the alert loop, or the
+    run's own first read after the exit (`get_state`). Every condition
     that is not plainly met leaves the charge in place: no marker, a marker
     that is damaged or already refunded, a charge from a day that is over, no
     terminal record, any ending but a failure, any cause but this one, a
     status that cannot be read, a ledger that cannot be written. Nothing here
-    may raise: the caller is the admission path and the health check.
+    may raise: the callers are the admission path, the health check and reads.
     """
     global _unreachable_refund_date
     try:
@@ -2001,42 +2014,69 @@ def available_artifacts(run_dir: Path) -> list[str]:
 
 
 #: The name the draft is advertised and fetched under. Not a file of its own:
-#: the text is the writer's committed checkpoint (see draft_report).
+#: the text is a committed checkpoint of the report's steps (see draft_report).
 DRAFT_ARTIFACT = "draft"
 _STOPPED_STATES = frozenset({"failed", "cancelled", "timeout"})
+#: The checkpoints a draft is read from, the later step first.
+_DRAFT_NODES = ("reviewer", "writer")
 
 
-def draft_report(run_id: str, state: str) -> str | None:
-    """What the writer wrote, for a run that stopped before it had a report.
+@dataclass(frozen=True)
+class Draft:
+    """The saved report text of a run that stopped without one, and which step's it is."""
+
+    #: "reviewer": the report after the review; "writer": before it.
+    stage: str
+    text: str
+
+
+def draft_report(run_id: str, state: str) -> Draft | None:
+    """The report as far as it got, for a run that stopped before it had one.
 
     The report file is written once, after the reviewer and the scorer have
     both returned. A run that failed in scoring (production, 2026-11-18: 25
     minutes and 141,000 tokens in, writer and reviewer both done) therefore
     had no report file, and its page said the run "produced no report". The
-    writer's own answer was on disk the whole time, as the checkpoint a
-    resume would reuse.
+    text was on disk the whole time, as the checkpoints a resume would reuse.
 
-    It is the writer's text and nothing later: the reviewer's corrections,
-    the applicability paragraph and the scorecard belong to steps this run did
-    not finish, and the page says so above it. Only for a run that has
-    stopped and has no report; a finished run shows its report, and a running
-    one has not been asked. The checkpoint is checked against its own
-    manifest, so a truncated or replaced file is no draft at all. Readable by
-    whoever can read the run, like the report it stands in for.
+    The reviewer's checkpoint comes first when it is there. It is not the
+    reviewer's correction plan but the report after it: the guardrail
+    (evidence.make_reviewer_guardrail) applies the plan to the writer's
+    text, checks the result again and appends the Reviewer Notes, and the
+    checkpoint holds what the guardrail returned. Measured on the run the
+    README demo was recorded on (local, 2026-11-20): its report is that
+    checkpoint with its Reviewer Notes moved to reviewer_notes.md and the
+    code's applicability paragraph put in after the title, and nothing else
+    differs. Until then
+    the page showed the writer's text, and said it came before the review,
+    for runs whose review was done (production, 2026-11-20). Without a
+    usable reviewer's checkpoint the writer's is shown, as before.
+
+    Either way the scorecard and the applicability paragraph belong to steps
+    the run did not finish, and the page says which text it is above it
+    (`stage`). Only for a run that has stopped and has no report; a finished
+    run shows its report, and a running one has not been asked. A checkpoint
+    is checked against its own manifest, so a truncated or replaced file is
+    passed over. Readable by whoever can read the run, like the report it
+    stands in for.
     """
     if not _is_valid_run_id(run_id) or state not in _STOPPED_STATES:
         return None
     run_dir = run_dir_for(run_id)
     if (run_dir / _ARTIFACTS["report"]).exists():
         return None
-    inspection = CheckpointStore(run_dir).inspect_existing("writer")
-    if inspection.state != "reusable":
-        return None
-    try:
-        text = inspection.text()
-    except (RuntimeError, UnicodeDecodeError):
-        return None
-    return text if text.strip() else None
+    store = CheckpointStore(run_dir)
+    for node in _DRAFT_NODES:
+        inspection = store.inspect_existing(node)
+        if inspection.state != "reusable":
+            continue
+        try:
+            text = inspection.text()
+        except (RuntimeError, UnicodeDecodeError):
+            continue
+        if text.strip():
+            return Draft(stage=node, text=text)
+    return None
 
 
 def artifact_path(run_id: str, name: str) -> Path | None:
@@ -2220,6 +2260,20 @@ def get_state(run_id: str, *, _depth: int = _LINEAGE_DEPTH) -> dict:
     with _registry_lock:
         handle = _registry.get(run_id)
         occupied = handle is not None and _occupies_slot(run_id, handle)
+        if handle is not None and not occupied:
+            # The worker has exited and nothing has reaped it yet. The answer
+            # below says "failed" from this moment, and the page stops polling
+            # at the first answer that does; the unreachable-provider refund,
+            # though, was decided only by a reap, which only admission, the
+            # health check, the run list and the alert loop made. On
+            # 2026-11-20 a page open through such a run read "counted toward
+            # today's quota" between the exit and the reap, and kept it. Reap
+            # this one worker here, so a read that says "failed" carries the
+            # charge as it will stay. It is the reap /health makes for anyone
+            # without credentials: the reader's identity plays no part, the
+            # refund goes to the run's owner under the same rule and bound,
+            # and the pop under this lock keeps it to once per worker.
+            _reap_locked(run_id)
     try:
         status, status_record_state = _read_status_snapshot(run_dir)
     except StatusUnreadable:
@@ -2341,7 +2395,8 @@ def get_state(run_id: str, *, _depth: int = _LINEAGE_DEPTH) -> dict:
         fallback=status.get("auxiliary_usage_snapshot"))
     llm_model = run_model(status, runtime["usage"])
     artifacts = available_artifacts(run_dir)
-    if draft_report(run_id, state) is not None:
+    draft = draft_report(run_id, state)
+    if draft is not None:
         artifacts.append(DRAFT_ARTIFACT)
     projection = {
         "run_id": run_id,
@@ -2450,6 +2505,9 @@ def get_state(run_id: str, *, _depth: int = _LINEAGE_DEPTH) -> dict:
         "checkpointing": runtime["checkpointing"],
         "recovery": runtime["recovery"],
         "artifacts": artifacts,
+        # Which step's saved text the `draft` artifact is, so the page names
+        # it for what it is; None when there is no draft (draft_report).
+        "draft_stage": draft.stage if draft is not None else None,
     }
     # After the rest: the totals are added up from this run's own figures
     # above and the earlier runs' own projections.

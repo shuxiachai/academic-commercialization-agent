@@ -43,6 +43,8 @@ DECISION_STATEMENT = "In sum, the actor-specific conclusion is DEFER because mod
 # The run that stopped after its writer had answered: what its draft says, and
 # who the deployment's operator is, as the operator would publish it.
 DRAFT_SENTINEL = "BROWSER_SMOKE_DRAFT_REACHED_CLIENT"
+# The sentence the fixture's reviewer corrected: seen only in the reviewed text.
+DRAFT_REVIEWED_SENTINEL = "BROWSER_SMOKE_REVIEWED_DRAFT_REACHED_CLIENT"
 OPERATOR_CONTACT = "operator@example.test"
 
 
@@ -219,8 +221,9 @@ def _write_resumed_pair(output_root: Path, owner: str) -> tuple[str, str]:
     parent stopped after 25:31 and 141,193 tokens with its writer's and
     reviewer's answers saved and no report file; the child reused six
     checkpoints, ran the scorer and finished in 3:48 on 35,012 tokens. The
-    parent's writer checkpoint is committed by the store itself, so the draft
-    the page shows passes the same integrity check a real one does.
+    parent's writer and reviewer checkpoints are committed by the store
+    itself, so the draft the page shows (the reviewer's, as on the production
+    run of 2026-11-20) passes the same integrity check a real one does.
     """
     child_id = _write_completed_run(output_root, owner)
     # A run id starts with its start time, and a resume starts after its parent.
@@ -247,17 +250,23 @@ def _write_resumed_pair(output_root: Path, owner: str) -> tuple[str, str]:
         "stage_timings": [{"stage": stage, "started_at": (earlier + timedelta(seconds=offset)).isoformat()}
                           for stage, offset in stage_offsets],
     }, indent=2), encoding="utf-8")
-    CheckpointStore(parent_dir).commit(
-        CheckpointIdentity(
-            node_id="writer", input_sha256=hash_text("fixture input"), evidence_sha256=hash_text("fixture evidence"),
-            config_sha256=hash_text("fixture config"), upstream_sha256={}, pipeline_revision="browser-smoke",
-            as_of_date=date(2026, 11, 18), model=None,
-        ),
+    written = (
         "# Browser smoke draft\n\n## Executive Summary\n\n"
         f"{DRAFT_SENTINEL}\n\nThis draft is a local fixture; no model wrote it [P1].\n\n"
-        "## References\n\n[P1] Fixture patent. Fixture publisher. https://example.test/p1\n",
-        output_format="markdown",
+        "## References\n\n[P1] Fixture patent. Fixture publisher. https://example.test/p1\n"
     )
+    # As the reviewer's guardrail leaves it: the plan's edit applied, its notes appended.
+    reviewed = written.replace("no model wrote it [P1]", f"{DRAFT_REVIEWED_SENTINEL} [P1]") + (
+        "\n## Reviewer Notes\n\n- Applied: Said who wrote the fixture.\n")
+    for node, text in (("writer", written), ("reviewer", reviewed)):
+        CheckpointStore(parent_dir).commit(
+            CheckpointIdentity(
+                node_id=node, input_sha256=hash_text("fixture input"), evidence_sha256=hash_text("fixture evidence"),
+                config_sha256=hash_text("fixture config"), upstream_sha256={}, pipeline_revision="browser-smoke",
+                as_of_date=date(2026, 11, 18), model=None,
+            ),
+            text, output_format="markdown",
+        )
     ended = earlier + timedelta(seconds=1531)
     commit_terminal_record(parent_dir, TerminalRecord(
         state="failed", reason_code="worker_exception", termination_method="worker_exit",

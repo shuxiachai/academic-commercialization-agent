@@ -496,7 +496,7 @@ semantic correctness of all report prose; see the
 | GET | `/api/runs/{id}/progress` | Progress plus the same observable runtime contract, and the same `viewer_can_modify` |
 | GET | `/api/runs/{id}/report` | Final Markdown |
 | GET | `/api/runs/{id}/decision` | For a completed decision-support run: the decision owner and decision from its saved request, and the conclusion its report states (`stated`, `conflicting` or `not_stated`, with the statements as written). `asked: false` and nothing else for any other run. Read from the saved report on each request; no model call. Open to whoever can read the report |
-| GET | `/api/runs/{id}/{artifact}` | Supported source, score, check and diagnostic artifacts; and `draft`, the report writer's saved text of a run that stopped without a report (listed in `artifacts` only then) |
+| GET | `/api/runs/{id}/{artifact}` | Supported source, score, check and diagnostic artifacts; and `draft`, the saved report text of a run that stopped without a report: the reviewer's, else the writer's, as `draft_stage` says (listed in `artifacts` only then) |
 | DELETE | `/api/runs/{id}?intent=cancel` or `?intent=delete` | Only the requested operation, subject to state and ownership rules |
 | POST | `/api/runs/{id}/resume` | New immutable recovery child, not mutation of the old result |
 | GET | `/api/samples` | Committed example reports (allowlist in `api/samples.py`); no access code needed |
@@ -1049,8 +1049,13 @@ These are example policy values, not a cost/SLO guarantee.
   in the request caused it and nothing the requester does would fix it: the
   unit is given back when the exited worker is reaped, at most three times a
   UTC day for each owner, because the run still spent what its earlier stages
-  cost. The same refund applies to an account's own daily allowance. Every
-  other failure stays charged. Each run records which applied (`daily_charge`
+  cost. A run's own reads (`GET /api/runs/{id}` and its `/progress`) reap its
+  worker once it has exited and before they answer, as `/health` already
+  did, so the first read that says `failed` already says whether the unit
+  came back; until 2026-11-20 a page open through such a run read the charge
+  in the moment between the exit and the reap and kept it. The same refund
+  applies to an account's own daily allowance. Every other failure stays
+  charged. Each run records which applied (`daily_charge`
   on its status, with `daily_charge_reason` of `launch_failed` or
   `provider_unreachable` for a refund), and a failed run's page says whether
   it counted, why not when it did not, and that resuming uses another unit.
@@ -1437,7 +1442,12 @@ unchanged, and so are resuming and charging on the server.
 Beside "Resume from checkpoint" the page says what resuming means: that it
 uses another of the day's runs where there is a daily allowance, which step
 it starts again at, and which model it would run on now, which for an account
-is the model saved with it at that moment and not the one the run used.
+is the model saved with it at that moment and not the one the run used. The
+steps it can name are the run page's stages (evidence, report, review,
+scoring), so it names the step the resume will say it ran first; the review
+and the scoring were one step until 2026-11-20, when a run that failed in
+scoring with its review saved was said to start again "at the review and
+scoring".
 
 A run that stopped before it wrote a report shows no count of automated
 checks, only "This run produced no report, so there are no check results",
@@ -1448,16 +1458,20 @@ odds with the state stays in the header line. While a run is going the page
 says it can be closed, and offers the finish email to an account that has
 not turned it on.
 
-A run that stopped after its report writer had answered shows what the writer
-wrote, under a tab named "Draft (not reviewed or scored)" and a notice that
-says the same before the text. The report file is written only after the
-reviewer and the scorer have both returned, so such a run has none; the text
-is the writer's checkpoint, the one a resume reuses, read through the
-artifact route as `draft` and listed in `artifacts` only for a run that
-stopped without a report (`runs.draft_report`). It opens to whoever can read
-the run, like every other artifact, through the same route; a checkpoint
-that does not match its own manifest is no draft. "This run produced no
-report" is said only where there is no draft either.
+A run that stopped after its report writer had answered shows the report as
+far as it got. The report file is written only after the reviewer and the
+scorer have both returned, so such a run has none; the text is a checkpoint
+a resume reuses, read through the artifact route as `draft` and listed in
+`artifacts` only for a run that stopped without a report
+(`runs.draft_report`), with `draft_stage` on both run reads saying which.
+When the reviewer had answered it is the reviewer's checkpoint, which is the
+report after the review (the reviewer's corrections applied, its notes at
+the end), under a tab named "Draft (reviewed, not scored)"; otherwise it is
+the writer's, under "Draft (not reviewed or scored)". A notice says the same
+before the text. It opens to whoever can read the run, like every other
+artifact, through the same route; a checkpoint that does not match its own
+manifest is passed over. "This run produced no report" is said only where
+there is no draft either.
 
 Under a failure its reader cannot fix alone the page shows the run's ID with
 a button that copies it, and the operator's contact: the cause the API could

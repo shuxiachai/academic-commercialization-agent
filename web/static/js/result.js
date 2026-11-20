@@ -1646,10 +1646,10 @@ export async function render(container, runId, progress) {
   const views = [];
   if (artifacts.includes("scores")) views.push({ id: "score", label: t("tab_score") });
   if (artifacts.includes("report")) views.push({ id: "report", label: t("tab_report") });
-  // A run that stopped after its writer had answered: the writer's text,
-  // under a tab and a notice that both say what it is (hasDraft).
+  // A run that stopped after its writer had answered: the report as far as
+  // it got, under a tab and a notice that both say what it is (draftWording).
   const draft = hasDraft(progress);
-  if (draft) views.push({ id: "draft", label: t("tab_draft") });
+  if (draft) views.push({ id: "draft", label: t(draftWording(progress).tab) });
   if (artifacts.includes("sources")) views.push({ id: "sources", label: t("tab_sources") });
   // The three checks of a finished report share one tab (renderChecks). Each
   // had a tab of its own beside the scorecard, the report and the sources:
@@ -1876,7 +1876,7 @@ export async function render(container, runId, progress) {
         // this as the assessment's conclusion before learning what it is.
         // That resuming reuses the text is said to whoever can resume: a
         // reader of someone else's run was told to do what they cannot.
-        panel.append(el("p", "draft-note", t(progress.viewer_can_modify === false ? "draft_note" : "draft_note_owner")));
+        panel.append(el("p", "draft-note", t(draftWording(progress).note)));
         const article = el("article", "prose prose--draft");
         article.innerHTML = renderMarkdown(md);
         panel.append(article);
@@ -2681,12 +2681,32 @@ export function ranWithoutReport(progress) {
 /* A run with no report that still has what its writer wrote. The page said
  * "this run produced no report" of a run whose analysts, writer and reviewer
  * had all returned and whose scorer had not (production, 2026-11-18). The
- * server advertises the writer's saved text as the artifact `draft`, only
- * for a run that stopped without a report (runs.draft_report); the page
+ * server advertises the saved text as the artifact `draft` (the reviewer's,
+ * else the writer's: `draft_stage`), only for a run that stopped without a
+ * report (runs.draft_report); the page
  * shows it marked as what it is, and says "no report" only where there is
  * no draft either. */
 export function hasDraft(progress) {
   return ranWithoutReport(progress) && (progress.artifacts ?? []).includes("draft");
+}
+
+/* What a draft is called, for this text and this reader: the i18n keys of
+ * its tab, of the notice above it and of the line where the checks would be.
+ * The server's `draft_stage` says whose text it is. Until 2026-11-20 it was
+ * always the writer's; a run that failed in scoring with its review done was
+ * shown the writer's text "before the review that checks its citations and
+ * claims". Now that run's draft is the reviewed report, said to be reviewed
+ * and not scored. A stage this page does not know gets the writer's
+ * wording, which claims the least. Whoever cannot resume the run is not told
+ * that resuming reuses the text. */
+export function draftWording(progress) {
+  const reviewed = progress?.draft_stage === "reviewer";
+  const owner = progress?.viewer_can_modify !== false;
+  return {
+    tab: reviewed ? "tab_draft_reviewed" : "tab_draft",
+    note: `${reviewed ? "draft_reviewed_note" : "draft_note"}${owner ? "_owner" : ""}`,
+    reliability: reviewed ? "rel_no_report_draft_reviewed" : "rel_no_report_draft",
+  };
 }
 
 export function reliabilityRows(progress) {
@@ -2939,7 +2959,7 @@ export function renderReliability(progress) {
   // No count of checks for a run with no report: one sentence that says so.
   // Not "no problem found": nothing ran, and that is what is said.
   if (ranWithoutReport(progress)) {
-    return el("p", "empty-note reliability-none", t(hasDraft(progress) ? "rel_no_report_draft" : "rel_no_report"));
+    return el("p", "empty-note reliability-none", t(hasDraft(progress) ? draftWording(progress).reliability : "rel_no_report"));
   }
   const rows = reliabilityRows(progress);
   if (!rows.length) return null;

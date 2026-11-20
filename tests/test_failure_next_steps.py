@@ -38,9 +38,10 @@ _HARNESS = """
     const i18n = await import("./i18n.js");
     const out = JSON.parse(process.argv[2]).map(([language, call, args]) => {
       i18n.setLanguage(language);
-      return call === "table" ? run.FAILURE_NEXT : call === "constants"
-        ? { short: run.SHORT_EVIDENCE_ANSWER, roles: run.EVIDENCE_ROLES, steps: run.RESUME_STEPS }
-        : run[call](...args);
+      if (call === "table") return run.FAILURE_NEXT;
+      if (call === "constants") return { short: run.SHORT_EVIDENCE_ANSWER, roles: run.EVIDENCE_ROLES, steps: run.RESUME_STEPS };
+      const value = run[call](...args);
+      return value instanceof Set ? [...value] : value;
     });
     console.log(JSON.stringify(out));
 """
@@ -252,7 +253,14 @@ def test_the_note_beside_resume_says_what_it_costs_where_it_starts_and_on_which_
     # Further along.
     evidence = ["retrieval", "academic", "patent", "market"]
     assert "starts again at writing the report" in note(quota=True, committed=evidence)
-    assert "starts again at the review and scoring" in note(quota=True, committed=[*evidence, "writer"])
+    assert "starts again at the review and reuses" in note(quota=True, committed=[*evidence, "writer"])
+    # Production, 2026-11-20: the run failed in scoring with the reviewer's
+    # answer saved, and this line said "the review and scoring" while its
+    # resume said "Run here: Scoring".
+    assert "starts again at the scoring and reuses" in note(quota=True, committed=[*evidence, "writer", "reviewer"])
+    assert note(ZH, quota=True, committed=[*evidence, "writer", "reviewer"]) == (
+        "续跑会再用 1 次今日额度。它从评分重新开始，之前已保存的部分会沿用。")
+    assert note(ZH, quota=True, committed=[*evidence, "writer"]).startswith("续跑会再用 1 次今日额度。它从核查重新开始")
     assert "starts again at the evidence analysis" in note(quota=True, committed=["retrieval", "academic"])
     # Nothing to resume from: no note.
     for nothing in ([], None, ["academic"], "retrieval"):
@@ -265,7 +273,33 @@ def test_the_steps_a_resume_can_start_at_are_the_checkpoints_own(page):
     steps = page([EN, "constants", []])[0]["steps"]
     assert [name for group in steps for name in group["nodes"]] == list(checkpoint_runtime.TASK_NODES), \
         "A node added to the pipeline needs a place here"
-    assert [group["label"] for group in steps] == ["resume_step_evidence", "resume_step_writing", "resume_step_review"]
+    assert [group["label"] for group in steps] == [
+        "resume_step_evidence", "resume_step_writing", "resume_step_review", "resume_step_scoring"]
+
+
+def test_a_resume_is_said_to_start_where_the_resumed_run_says_it_started(page):
+    """The note beside Resume and the resumed run's own "Run here" line are
+    two readings of one fact. On 2026-11-20 they disagreed: the note grouped
+    the reviewer with the scorer and said "the review and scoring" for a run
+    whose reviewer was saved; the resume reused it and said "Run here:
+    Scoring". So the steps are the run page's stages, one for one, and for
+    every point a run can stop at, the step named is the first stage the
+    resume does not take whole from it (reusedStages)."""
+    rows = page([EN, "stageStates", ["", "failed"]])[0]
+    stages = [(row["id"], row["nodes"]) for row in rows if row["id"] != "sources"]
+    steps = page([EN, "constants", []])[0]["steps"]
+    assert [(step["stage"], step["nodes"]) for step in steps] == stages
+    order = [row["id"] for row in rows]
+    for saved in range(len(checkpoint_runtime.TASK_NODES)):
+        committed = ["retrieval", *checkpoint_runtime.TASK_NODES[:saved]]
+        step, reused = page([EN, "resumeStep", [committed]],
+                            [EN, "reusedStages", [{"state": "reused", "reused_nodes": committed}]])
+        first_run_here = next(stage for stage in order if stage not in reused)
+        assert step["stage"] == first_run_here, committed
+    # Everything saved (a run that stopped after its scorer had answered): the last step.
+    assert page([EN, "resumeStep", [["retrieval", *checkpoint_runtime.TASK_NODES]]])[0]["stage"] == "scoring"
+    # The note is worded from that same step.
+    assert "const next = resumeStep(committed);" in RUN_JS
 
 
 def test_the_outcome_line_no_longer_carries_the_resume_sentence(page):

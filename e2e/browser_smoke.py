@@ -33,6 +33,7 @@ from e2e.isolated_app import (
     DECISION_OWNER,
     DECISION_STATEMENT,
     DECISION_TYPE,
+    DRAFT_REVIEWED_SENTINEL,
     DRAFT_SENTINEL,
     FIXTURE_TOPIC,
     OPERATOR_CONTACT,
@@ -1304,21 +1305,28 @@ def _exercise_browser(
             expect(page.locator("#run-lineage")).to_be_hidden()
 
             # A run that stopped in scoring, after its writer and reviewer had
-            # answered: the page shows what the writer wrote, named for what it
-            # is before any of it is read, and says "no report" nowhere.
+            # answered: the page shows the report as the review left it, named
+            # for what it is before any of it is read, and says "no report"
+            # nowhere (production, 2026-11-20: it showed the writer's text and
+            # said it came before the review).
             stopped_id, resumed_id = resumed_pair
             page.goto(f"{base_url}/run/{stopped_id}", wait_until="domcontentloaded")
             expect(page.locator("#run-pill")).to_have_text("failed")
             draft_tab = page.locator('button.tab[data-view="draft"]')
-            expect(draft_tab).to_have_text("Draft (not reviewed or scored)")
+            expect(draft_tab).to_have_text("Draft (reviewed, not scored)")
             expect(draft_tab).to_have_attribute("aria-selected", "true")
             expect(page.locator('button.tab[data-view="report"]')).to_have_count(0)
             draft_note = page.locator(".draft-note")
-            expect(draft_note).to_contain_text("This is an unreviewed, unscored draft.")
+            expect(draft_note).to_contain_text("This is a reviewed draft with no score.")
+            expect(draft_note).not_to_contain_text("before the review")
             draft_text = page.locator("article.prose--draft")
             expect(draft_text).to_contain_text(DRAFT_SENTINEL)
+            expect(draft_text).to_contain_text(DRAFT_REVIEWED_SENTINEL)
+            expect(draft_text).not_to_contain_text("no model wrote it")
+            # The reviewer's notes fold as a report's do.
+            expect(draft_text.locator("details.reviewer-notes")).to_have_count(1)
             assert draft_note.bounding_box()["y"] < draft_text.bounding_box()["y"], "The notice is read before the draft"
-            expect(page.locator(".reliability-none")).to_contain_text("is shown below as a draft")
+            expect(page.locator(".reliability-none")).to_contain_text("The report as the review left it is shown below")
             expect(page.locator("#run-body")).not_to_contain_text("produced no report")
             expect(page.locator("#run-help-id")).to_have_text(stopped_id)
             expect(page.locator("#run-lineage")).to_be_hidden()
