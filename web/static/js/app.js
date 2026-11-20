@@ -362,7 +362,7 @@ function paintHeader({
   // The fold is headed by what the run used and what that is estimated to
   // have cost; where nothing was counted it keeps its plain name. The text
   // above, with the helper ledger and every caveat, is the detail inside.
-  const headline = runView.usageHeadline(usage, usage_accounting);
+  const headline = runView.usageHeadline(usage, usage_accounting, funded_by);
   $("#run-usage-label").textContent = `· ${headline || runView.headerLabel("usage_details")}`;
 
   // Where the time went, folded the same way. The stage list shows it while

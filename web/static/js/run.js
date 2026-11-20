@@ -289,13 +289,21 @@ export function usageSummary(usage, accounting = null) {
  * thousand tokens. That text is the record and stays inside the fold; this
  * line is what a reader gets without opening it.
  *
- * No sum is ever invented: a run whose model has no price, or whose recorded
- * cost is zero, says the cost cannot be estimated and names the model; a
- * partial sum is a floor and is said as one. "" where no tokens are on
- * record or the collector says its record is unavailable: the fold then
- * keeps its plain name, and the text inside says why.
+ * No sum is ever invented: a run whose model has no price says no cost is
+ * shown and names the model, and one whose recorded cost is zero says the
+ * cost cannot be estimated; a partial sum is a floor and is said as one. ""
+ * where no tokens are on record or the collector says its record is
+ * unavailable: the fold then keeps its plain name, and the text inside says
+ * why.
+ *
+ * `fundedBy` is the run's `funded_by`. "cost cannot be estimated: no price
+ * on record for qwen3.8-2.4t-a95b" headed every run on the account's saved
+ * model and on the deployment's default (production, 2026-11-20): a sentence
+ * about this site's price table. A reader who paid with their own key is
+ * told where the exact amount is; a run the site paid for is not sent to a
+ * console its reader does not have.
  */
-export function usageHeadline(usage, accounting = null) {
+export function usageHeadline(usage, accounting = null, fundedBy = null) {
   if (accounting?.state === "unavailable") return "";
   const tokens = usage?.total_tokens;
   if (!Number.isFinite(tokens) || tokens <= 0) return "";
@@ -308,8 +316,11 @@ export function usageHeadline(usage, accounting = null) {
   const priced = Number.isFinite(usage.cost_usd) && usage.cost_usd > 0;
   let cost;
   if (!priced) {
-    const missing = unpriced.length ? unpriced : models;
-    cost = missing.length ? say("usage_head_no_cost", { models: missing.join(", ") }) : say("usage_head_no_cost_plain");
+    // A record from before unpriced_models was kept says nothing but a null
+    // cost; its models are the unpriced ones. A zero is not "no price".
+    const missing = unpriced.length ? unpriced : usage.cost_usd == null ? models : [];
+    const key = fundedBy === "own_keys" ? "usage_head_no_price_own" : "usage_head_no_price";
+    cost = missing.length ? say(key, { models: missing.join(", ") }) : say("usage_head_no_cost_plain");
   } else {
     const sum = usage.cost_usd < 0.01 ? say("usage_head_under_a_cent") : `$${usage.cost_usd.toFixed(2)}`;
     if (usage.cost_complete === false && unpriced.length) {
@@ -388,7 +399,8 @@ const HEADER_STRINGS = {
     usage_head_cost_floor_plain: "estimated cost at least {cost}",
     usage_head_cost_missing: "estimated cost at least {cost}; no price on record for {models}",
     usage_head_under_a_cent: "under $0.01",
-    usage_head_no_cost: "cost cannot be estimated: no price on record for {models}",
+    usage_head_no_price: "no cost shown, as no unit price is on record yet for {models}",
+    usage_head_no_price_own: "no cost shown, as no unit price is on record yet for {models}; see your provider's console for the exact amount",
     usage_head_no_cost_plain: "cost cannot be estimated",
     stage_timing: "Stage timing",
     eta_left: "about {range} left",
@@ -479,7 +491,8 @@ const HEADER_STRINGS = {
     usage_head_cost_floor_plain: "估算费用至少 {cost}",
     usage_head_cost_missing: "估算费用至少 {cost}；{models} 没有记录价格",
     usage_head_under_a_cent: "不到 $0.01",
-    usage_head_no_cost: "费用无法估算：{models} 没有记录价格",
+    usage_head_no_price: "{models} 还没有登记单价，所以不显示费用",
+    usage_head_no_price_own: "{models} 还没有登记单价，所以不显示费用；准确金额请看你的服务商控制台",
     usage_head_no_cost_plain: "费用无法估算",
     stage_timing: "阶段耗时",
     eta_left: "预计还需约 {range}",
