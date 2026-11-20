@@ -319,6 +319,13 @@ def test_only_a_conclusion_that_is_its_whole_paragraph_reads_the_next_one():
     # A paragraph with a line break inside is still one paragraph.
     wrapped = find_verdict(_recommendations("**Conclusion:**\n**DEFER**", _REASONS))
     assert wrapped["follows"][0].startswith("Evidence conditions")
+    # The conclusion closing a longer paragraph is not a paragraph of its own either.
+    closing = find_verdict(_recommendations("Module data are missing [A2]. **Conclusion: DEFER.**", _REASONS))
+    assert (closing["statement"], closing["follows"]) == ("Conclusion: DEFER.", [])
+    # A rule with the next paragraph right under it, no blank line between: still a rule.
+    for rule in ("---", "***", "___"):
+        ruled = find_verdict(_recommendations(_ALONE, f"{rule}\n{_REASONS}"))
+        assert ruled["follows"] == [], rule
 
 
 def test_bare_is_a_conclusion_line_that_says_the_verdict_and_nothing_else():
@@ -327,6 +334,8 @@ def test_bare_is_a_conclusion_line_that_says_the_verdict_and_nothing_else():
         ("**Decision applicability and conclusion: DEFER.**", True), ("**DEFER.** Module data are missing.", True),
         ("Recommendation: Conditional GO.", True), ("结论：暂缓。", True), ("**Decision:** NO_GO [P1].", True),
         ("**Decision:** DEFER until module-scale data are available [A2].", False),
+        # Its reason between the label and the word.
+        ("**Decision for the office:** given the missing module data, DEFER.", False),
         ("Recommendation: GO, subject to an independent durability test [A3].", False),
         ("结论：暂缓推进该许可。", False),
         # Not a line of its own: what it says beside the verdict is the point.
@@ -523,8 +532,12 @@ def test_the_pdf_card_breaks_the_line_after_a_conclusion_line_with_no_stop(run):
 
     with fitz.open(directory / "commercialization_report.pdf") as document:
         lines = [line.strip() for line in document[0].get_text().splitlines()]
-    at = next(index for index, line in enumerate(lines) if line.endswith("Conclusion: DEFER"))
-    assert lines[at + 1].startswith("Evidence conditions behind the conclusion:")
+    # The card only: the report below it has the same two paragraphs as lines of their own.
+    card = lines[lines.index("Decision conclusion"):]
+    card = card[:next(index for index, line in enumerate(card) if line.startswith("Stated in the report"))]
+    at = next(index for index, line in enumerate(card) if line.endswith("Conclusion: DEFER"))
+    assert card[at].startswith("The report says:")
+    assert card[at + 1].startswith("Evidence conditions behind the conclusion:")
 
 
 def test_the_pdf_says_when_the_report_states_no_conclusion(run):
