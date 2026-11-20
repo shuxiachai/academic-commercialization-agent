@@ -443,6 +443,16 @@ class DailyQuota(BaseModel):
     resets_at: AwareDatetime
 
 
+# Which saved text the `draft` artifact of a run that stopped without a
+# report is (api.runs.draft_report).
+DraftStage = Literal["writer", "reviewer"]
+_DRAFT_STAGE_DESCRIPTION = (
+    "Which step's saved text the `draft` artifact is: `reviewer`, the report after "
+    "the review that checks its citations and claims, with no score; `writer`, the "
+    "report before that review. null when the run lists no draft."
+)
+
+
 class RunProgress(BaseModel):
     """Everything a client needs to render live progress in one request.
 
@@ -649,6 +659,7 @@ class RunProgress(BaseModel):
     steps_read_state: Literal["absent", "readable", "partial", "unavailable"] = "absent"
     steps_rejected: int = Field(default=0, ge=0, description="Rejected complete lines observed in this log, not failed tasks.")
     artifacts: list[str] = Field(default_factory=list)
+    draft_stage: DraftStage | None = Field(default=None, description=_DRAFT_STAGE_DESCRIPTION)
 
 
 class RunAccepted(BaseModel):
@@ -861,6 +872,7 @@ class RunStatus(BaseModel):
         default_factory=list,
         description="Artifact names available via /api/runs/{run_id}/{name}",
     )
+    draft_stage: DraftStage | None = Field(default=None, description=_DRAFT_STAGE_DESCRIPTION)
 
 
 class RunSummary(BaseModel):

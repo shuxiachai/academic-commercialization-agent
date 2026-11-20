@@ -1,15 +1,17 @@
-"""The writer's draft of a run that stopped before it had a report.
+"""The draft of a run that stopped before it had a report: the reviewer's text, else the writer's.
 
 A production run (2026-11-18) failed in scoring 25 minutes and about 141,000
 tokens in. Its three analysts, its writer and its reviewer had all returned;
 the report file is written only after the scorer has, so the page said "this
-run produced no report". The writer's answer was on disk the whole time, as
-the checkpoint a resume reuses.
+run produced no report". The writer's and the reviewer's answers were on disk
+the whole time, as the checkpoints a resume reuses.
 
-`runs.draft_report` reads that checkpoint, and the run's reads advertise it
-as the artifact `draft`. These tests hold when there is one, when there is
-not, and that it opens to exactly the readers the run's other artifacts open
-to, through the route they already use.
+`runs.draft_report` reads the later of the two, the reviewer's when it is
+usable, and the run's reads advertise it as the artifact `draft` with
+`draft_stage` saying which it is (until 2026-11-20 it was always the
+writer's, under a notice that said it came before the review). These tests
+hold when there is one, when there is not, and that it opens to exactly the
+readers the run's other artifacts open to, through the route they already use.
 """
 
 from __future__ import annotations
@@ -33,6 +35,11 @@ DRAFT = (
     "## Executive Summary\n\nSodium-ion cells are in pilot production [A1]. "
     "An actor-specific GO/NO_GO is not assessed.\n\n"
     "## References\n\n- [A1] A paper. URL: https://example.org/a1\n"
+)
+# The same text after the review, as the reviewer's guardrail leaves it: the
+# plan's one correction applied and its notes appended.
+REVIEWED = DRAFT.replace("in pilot production [A1]", "in pilot-line production [A1]") + (
+    "\n## Reviewer Notes\n\n- Applied: Named the production stage the cited paper reports.\n"
 )
 _START = datetime(2026, 11, 18, 9, tzinfo=UTC)
 
@@ -85,7 +92,7 @@ def _run(root: Path, serial: int, *, state: str = "failed", writer: str | None =
 @pytest.mark.parametrize("state", ["failed", "cancelled", "timeout"])
 def test_a_run_that_stopped_after_writing_has_its_draft(root: Path, state: str) -> None:
     run_id = _run(root, 1, state=state)
-    assert runs.draft_report(run_id, state) == DRAFT
+    assert runs.draft_report(run_id, state) == runs.Draft(stage="writer", text=DRAFT)
     client = TestClient(app)
     for path in (f"/api/runs/{run_id}", f"/api/runs/{run_id}/progress"):
         artifacts = client.get(path).json()["artifacts"]
@@ -103,7 +110,7 @@ def test_the_draft_is_served_in_the_words_the_page_shows_a_report_in(root: Path)
     assert "## 执行摘要" in text and "## Executive Summary" not in text
     assert "GO / NO-GO" in text and "GO/NO_GO" not in text
     # The saved checkpoint is what a resume reuses: showing it changes no byte of it.
-    assert runs.draft_report(run_id, "failed") == DRAFT
+    assert runs.draft_report(run_id, "failed").text == DRAFT
 
 
 def test_a_run_that_stopped_before_writing_has_none(root: Path) -> None:
@@ -152,10 +159,63 @@ def test_an_empty_checkpoint_is_no_draft(root: Path) -> None:
     assert runs.draft_report(run_id, "failed") is None
 
 
-def test_only_the_writers_checkpoint_is_a_draft(root: Path) -> None:
+def test_a_run_whose_reviewer_had_answered_shows_the_reviewed_report(root: Path) -> None:
+    """Production, 2026-11-20: a run failed in scoring with the reviewer's
+    checkpoint saved, and its page showed the writer's text under "before
+    the review that checks its citations and claims".
+
+    The reviewer's checkpoint is the reviewed report, not the reviewer's
+    plan: evidence.make_reviewer_guardrail applies the plan to the writer's
+    text, re-checks it and appends the Reviewer Notes, and the checkpoint
+    holds that text (checkpoint_runtime commits a task's output after its
+    guardrail). On the local run of 2026-11-20 whose report is on disk, the
+    report is that checkpoint with its Reviewer Notes moved to their own
+    file and the code's applicability paragraph put in after the title, and
+    nothing else changed."""
+    run_id = _run(root, 1)
+    _commit(root / run_id, "reviewer", REVIEWED)
+    client = TestClient(app)
+    text = client.get(f"/api/runs/{run_id}/draft").text
+    assert "in pilot production [A1]" not in text, "the writer's sentence the reviewer corrected"
+    assert "Sodium-ion cells are in pilot-line production [A1]." in text
+    assert "## Reviewer Notes" in text
+    for path in (f"/api/runs/{run_id}", f"/api/runs/{run_id}/progress"):
+        body = client.get(path).json()
+        assert "draft" in body["artifacts"] and body.get("draft_stage") == "reviewer", path
+    draft = runs.draft_report(run_id, "failed")
+    assert (draft.stage, draft.text) == ("reviewer", REVIEWED)
+
+
+def test_a_writers_draft_says_so_on_both_reads(root: Path) -> None:
+    run_id = _run(root, 1)
+    client = TestClient(app)
+    for path in (f"/api/runs/{run_id}", f"/api/runs/{run_id}/progress"):
+        assert client.get(path).json().get("draft_stage", "absent") == "writer", path
+    no_draft = _run(root, 2, writer=None)
+    for path in (f"/api/runs/{no_draft}", f"/api/runs/{no_draft}/progress"):
+        assert client.get(path).json().get("draft_stage", "absent") is None, path
+
+
+def test_a_reviewers_checkpoint_that_does_not_match_its_manifest_leaves_the_writers(root: Path) -> None:
+    run_id = _run(root, 1)
+    _commit(root / run_id, "reviewer", REVIEWED)
+    [output] = (root / run_id / "checkpoints" / "reviewer").glob("output-*.md")
+    output.write_text(REVIEWED + "\nA line added after the commit.\n", encoding="utf-8")
+    client = TestClient(app)
+    assert "in pilot production [A1]" in client.get(f"/api/runs/{run_id}/draft").text
+    assert client.get(f"/api/runs/{run_id}").json().get("draft_stage") == "writer"
+    draft = runs.draft_report(run_id, "failed")
+    assert (draft.stage, draft.text) == ("writer", DRAFT)
+
+
+def test_only_the_report_steps_checkpoints_are_a_draft(root: Path) -> None:
     run_id = _run(root, 1, writer=None)
-    _commit(root / run_id, "reviewer", DRAFT)
+    _commit(root / run_id, "scorer", DRAFT)
     assert runs.draft_report(run_id, "failed") is None
+    # A reviewer's checkpoint verifies by its own manifest, writer or not.
+    _commit(root / run_id, "reviewer", REVIEWED)
+    assert TestClient(app).get(f"/api/runs/{run_id}/draft").status_code == 200
+    assert runs.draft_report(run_id, "failed").stage == "reviewer"
 
 
 def test_an_id_that_is_not_a_run_reads_nothing(root: Path) -> None:

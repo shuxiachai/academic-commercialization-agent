@@ -456,7 +456,8 @@ const HEADER_STRINGS = {
     resume_note_model_changed: "It will run on {model}, not on {ranOn}, which this run used.",
     resume_step_evidence: "the evidence analysis",
     resume_step_writing: "writing the report",
-    resume_step_review: "the review and scoring",
+    resume_step_review: "the review",
+    resume_step_scoring: "the scoring",
     // The main action when the cause is the reader's model or key.
     fix_model: "Change the model",
     fix_keys: "Check your API keys",
@@ -538,7 +539,8 @@ const HEADER_STRINGS = {
     resume_note_model_changed: "它会在 {model} 上运行，而不是这次运行所用的 {ranOn}。",
     resume_step_evidence: "证据分析",
     resume_step_writing: "撰写报告",
-    resume_step_review: "评审与评分",
+    resume_step_review: "核查",
+    resume_step_scoring: "评分",
     fix_model: "更换模型",
     fix_keys: "检查 API Key",
     leave_note: "可以关掉这个页面，完成后在左侧历史里找到它。",
@@ -1078,12 +1080,24 @@ export function failureGuide({
 
 /* Where a resumed run starts again: the first of these whose nodes are not
  * all saved. The node names are the checkpoints' own
- * (checkpoint_runtime.TASK_NODES); a test holds the two lists together. */
+ * (checkpoint_runtime.TASK_NODES), and the steps are the stages above, one
+ * for one, so this note and the resumed run's own "Run here" line name the
+ * same step; a test holds all three together. The reviewer and the scorer
+ * were one step until 2026-11-20, when a run that failed in scoring with its
+ * reviewer saved was said to start again "at the review and scoring" and its
+ * resume ran the scoring alone. */
 export const RESUME_STEPS = [
-  { label: "resume_step_evidence", nodes: ["academic", "patent", "market"] },
-  { label: "resume_step_writing", nodes: ["writer"] },
-  { label: "resume_step_review", nodes: ["reviewer", "scorer"] },
+  { stage: "evidence", label: "resume_step_evidence", nodes: ["academic", "patent", "market"] },
+  { stage: "report", label: "resume_step_writing", nodes: ["writer"] },
+  { stage: "review", label: "resume_step_review", nodes: ["reviewer"] },
+  { stage: "scoring", label: "resume_step_scoring", nodes: ["scorer"] },
 ];
+
+/** The step a resume from these saved checkpoints starts at (the last one when all are saved). */
+export function resumeStep(committed) {
+  const saved = Array.isArray(committed) ? committed : [];
+  return RESUME_STEPS.find((step) => !step.nodes.every((node) => saved.includes(node))) ?? RESUME_STEPS.at(-1);
+}
 
 /**
  * Beside "Resume from checkpoint": what it costs, where it starts, on which model.
@@ -1095,7 +1109,7 @@ export const RESUME_STEPS = [
  */
 export function resumeNote({ committed, quota = false, model = null, ranOn = null } = {}) {
   if (!Array.isArray(committed) || !committed.includes("retrieval")) return "";
-  const next = RESUME_STEPS.find((step) => !step.nodes.every((node) => committed.includes(node))) ?? RESUME_STEPS.at(-1);
+  const next = resumeStep(committed);
   const parts = [];
   if (quota) parts.push(headerLabel("resume_note_quota"));
   parts.push(headerLabel(quota ? "resume_note_step" : "resume_note_step_first").replace("{step}", () => headerLabel(next.label)));

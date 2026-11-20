@@ -2942,6 +2942,7 @@ def get_progress(run_id: str, http_request: Request, since: int = Query(default=
         recovery=state.get("recovery"),
         **runs.read_step_page(run_id, since=since),
         artifacts=state.get("artifacts", []),
+        draft_stage=state.get("draft_stage"),
     )
 
 
@@ -3473,7 +3474,8 @@ def get_artifact(run_id: str, artifact: str) -> Response:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     if artifact == runs.DRAFT_ARTIFACT:
-        # The writer's text of a run that stopped before it had a report, in
+        # The report as far as a run that stopped before it had one got (the
+        # reviewer's text, else the writer's; `draft_stage` says which), in
         # the words the page shows a report in. Advertised in `artifacts` and
         # readable by the same people as the report it stands in for; a run
         # with a report, or still running, has none (runs.draft_report).
@@ -3484,7 +3486,7 @@ def get_artifact(run_id: str, artifact: str) -> Response:
                 detail=f"Run has no draft to show; state is '{state['state']}'. Available: {state['artifacts']}",
             )
         return PlainTextResponse(
-            report_for_display(draft, state.get("output_language")),
+            report_for_display(draft.text, state.get("output_language")),
             media_type="text/markdown; charset=utf-8",
         )
 
