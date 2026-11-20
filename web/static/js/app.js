@@ -1279,6 +1279,9 @@ function syncComposer() {
     control.disabled = submitting || paidReceipts.state().uncertain || (busy && control.id === "plan-start");
   });
   attachBtn.disabled = extracting || submitting || paidReceipts.state().uncertain || busy;
+  // What happens to a PDF's text, while there is a PDF: being read, or
+  // attached. Before one is chosen it is the Paper button's description.
+  $("#paper-privacy").hidden = !(extracting || attachedPaper);
   // Keep the submitted payload stable in the visible composer as well. The
   // handler guard still matters for programmatic submits and queued events.
   for (const input of [topic, $("#language"), $("#profile"), ...decisionContextInputs]) {

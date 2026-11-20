@@ -519,6 +519,25 @@ const scenarios = {
     assert.equal(JSON.parse(f.requests[1].options.body).paper_id, null);
     f.respond(1, { detail: "fixture rejection" }, 422); await sent;
   },
+  // "Selected PDF text is sent to the configured model provider…" stood
+  // under the composer of every visitor, PDF or not (2026-11-20). Choosing a
+  // file starts its extraction at once, so the notice cannot wait for the
+  // choice: it is the Paper button's own description, before the choice,
+  // and the paragraph shows while a PDF is being read or is attached.
+  async paper_privacy() {
+    const f = fixture(); f.topic("A topic of my own");
+    const notice = f.get("#paper-privacy");
+    assert.equal(notice.hidden, true, "no PDF: no paragraph");
+    const pending = f.upload();
+    assert.equal(notice.hidden, false, "shown while the PDF is read and sent");
+    f.respond(0, paper); await pending;
+    assert.equal(notice.hidden, false, "and while it is attached");
+    f.run("clearAttachment()");
+    assert.equal(notice.hidden, true, "gone with the attachment");
+    const failed = fixture(); failed.topic("Another topic");
+    const upload = failed.upload(); failed.respond(0, { detail: "extraction failed" }, 422); await upload;
+    assert.equal(failed.get("#paper-privacy").hidden, true, "a failed read leaves nothing attached");
+  },
   async upload_during_submit() {
     const f = fixture(); f.topic("Pending assessment");
     const sent = f.submit(); const competing = f.upload();

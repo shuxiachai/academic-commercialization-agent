@@ -494,12 +494,18 @@
                 placeholder="perovskite solar cells for utility-scale power generation"></textarea>
 
               <div class="composer__bar">
-                <button type="button" class="chip-btn" id="attach-btn" title="Attach a paper (PDF)" data-i18n-title="title_attach">
+                <!-- Choosing a file starts its extraction at once, so what happens
+                     to its text is said here, as the button's description, before
+                     the choice; the paragraph below shows only while a PDF is read
+                     or attached. It used to stand under every composer. -->
+                <button type="button" class="chip-btn" id="attach-btn" title="Attach a paper (PDF)" data-i18n-title="title_attach"
+                        aria-describedby="paper-privacy-hint">
                   <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
                     <path d="M10.5 5.5l-4 4a1.5 1.5 0 002.1 2.1l4.2-4.2a3 3 0 00-4.2-4.2L4 7.8a4.5 4.5 0 006.4 6.4l3.3-3.3"
                           stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
                   </svg>
                   <span data-i18n="attach">Paper</span>
+                  <span id="paper-privacy-hint" class="visually-hidden" data-i18n="paper_privacy">Selected PDF text is sent to the configured model provider. The raw PDF is deleted after successful extraction; extracted metadata expires within 24 hours if no run uses it.</span>
                 </button>
 
                 <!-- Empty value means auto-detect; the API treats null as
@@ -560,7 +566,7 @@
                    own assessment is going: said here, before a preview is
                    asked for, where it used to be said only after Start. -->
               <p class="composer__privacy composer__busy" id="busy-note" role="status" hidden></p>
-              <p class="composer__privacy" data-i18n="paper_privacy">
+              <p class="composer__privacy" id="paper-privacy" data-i18n="paper_privacy" hidden>
                 Selected PDF text is sent to the configured model provider. The raw PDF is deleted after successful extraction; extracted metadata expires within 24 hours if no run uses it.
               </p>
             </div>
