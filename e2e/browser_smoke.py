@@ -1370,8 +1370,10 @@ def _exercise_browser(
             page.goto(base_url, wait_until="domcontentloaded")
             expect(page.locator("#byok-badge")).to_be_visible()
             byok_row = page.locator(".runitem-row").filter(has=page.locator(f'[data-run-id="{run_id}"]'))
+            # Each row's delete button is named by its run, the topic cut at 60 characters (sidebar.js).
+            delete_name = f"Delete: {FIXTURE_TOPIC[:59].rstrip()}…" if len(FIXTURE_TOPIC) > 60 else f"Delete: {FIXTURE_TOPIC}"
             expect(byok_row.locator('.runitem__state[data-state="unknown"]')).to_have_count(1)
-            expect(byok_row.get_by_role("button", name="Delete", exact=True)).to_have_count(0)
+            expect(byok_row.locator(".runitem__delete")).to_have_count(0)
             expect(byok_row.locator(".runitem")).to_have_attribute("aria-label", f"{FIXTURE_TOPIC} — Run state unavailable; this does not mean it failed.")
             page.reload(wait_until="domcontentloaded")
             # The page must have booted before its history can be judged. Twice
@@ -1380,7 +1382,7 @@ def _exercise_browser(
             # from a row that fails to repaint, and is now said as such.
             expect(page.locator("html")).to_have_attribute("data-boot", "ready", timeout=10_000)
             expect(byok_row.locator('.runitem__state[data-state="completed"]')).to_have_count(1)
-            expect(byok_row.get_by_role("button", name="Delete", exact=True)).to_have_count(1)
+            expect(byok_row.get_by_role("button", name=delete_name, exact=True)).to_have_count(1)
 
             # A page file the server refused is a page that may never boot:
             # the first failure JSON showed two modules answered 429 by the
