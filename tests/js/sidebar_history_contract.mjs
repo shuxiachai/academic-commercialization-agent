@@ -17,7 +17,7 @@ class Element {
   addEventListener(name, handler) { this.listeners[name] = handler; }
 }
 
-function harness(history) {
+function harness(history, words = null) {
   const requests = [];
   const box = new Element();
   box.hidden = true;
@@ -26,7 +26,7 @@ function harness(history) {
     return { runs: history.slice(offset, offset + limit), total: history.length };
   } };
   const document = { createElement: () => new Element(), querySelector: (selector) => (selector === "#run-search" ? box : null) };
-  const t = (key) => key;
+  const t = (key) => (words && Object.hasOwn(words, key) ? words[key] : key);
   const module = new Function("api", "t", "document",
     `${source}; return { render, refresh, setQuery, showMore, resetView, matches, grouped };`)(api, t, document);
   const list = new Element();
@@ -244,6 +244,28 @@ const scenarios = {
     assert.deepEqual(h.requests, [{ limit: 50, offset: 0 }], "A new identity starts from the first page, unfiltered");
     assert.equal(h.matches({ topic: "Hyperloop", owner_label: "for-alice", run_id: "r1" }, "alice"), true);
     assert.equal(h.matches({ topic: null, run_id: "r1" }, "zzz"), false);
+  },
+  // Every row's delete button was named "Delete": a screen reader's list of
+  // controls held one per run and nothing to tell them apart (2026-11-20).
+  async delete_names() {
+    const words = { delete_run: "Delete", delete_run_named: "Delete: {topic}", run_state_failed: "Failed",
+                    run_earlier_row: "{state} after {duration}" };
+    const long = "solid-state lithium-metal batteries for electric aircraft with a very long topic indeed";
+    const parent = { ...run(1, "sodium-ion storage"), state: "failed", duration: "25m 31s" };
+    const child = { ...run(3, "sodium-ion storage"), resumed_from: parent.run_id };
+    const h = harness([child, { ...run(2, long), state: "failed" }, { ...run(4, ""), state: "completed" }, parent], words);
+    await h.refresh({ onDelete() {} });
+    const flat = (node) => [node, ...(node.children ?? []).flatMap(flat)];
+    const buttons = flat(h.list).filter((node) => node.className === "runitem__delete icon-btn");
+    const names = buttons.map((node) => node.attributes["aria-label"]);
+    assert.deepEqual(names, [
+      "Delete: sodium-ion storage",
+      "Delete: sodium-ion storage — Failed after 25m 31s",
+      `Delete: ${long.slice(0, 59).trimEnd()}…`,
+      "Delete: run-0004",
+    ], "the topic says which run; an earlier attempt also says how it ended; a long topic is cut");
+    assert.equal(new Set(names).size, names.length, "no two buttons share a name");
+    assert.deepEqual(buttons.map((node) => node.title), names);
   },
 };
 assert.ok(scenarios[process.argv[2]], "Unknown scenario");

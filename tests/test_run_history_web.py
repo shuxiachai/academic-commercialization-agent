@@ -22,6 +22,8 @@ _SCRIPT = Path(__file__).with_name("js") / "sidebar_history_contract.mjs"
     "first_page", "beyond_one_request", "search", "capped", "short_history", "shifting", "reset", "states",
     # A resumed run and the run it continues, shown as one piece of work (sidebar.js grouped).
     "resumed", "chains",
+    # Each delete button names the run it removes.
+    "delete_names",
 ])
 def test_the_rail_reads_and_searches_the_whole_history(scenario):
     node = shutil.which("node")
