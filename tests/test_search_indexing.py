@@ -248,7 +248,7 @@ class SitemapTests(_Case):
                     *((f"{self.origin}/samples/{sample.slug}", sample.committed) for sample in samples.SAMPLES),
                     (f"{self.origin}/privacy", None)]
         self.assertEqual(self._entries(), expected)
-        self.assertEqual(len(samples.SAMPLES), 6, "the walk must reach the samples")
+        self.assertEqual(len(samples.SAMPLES), 7, "the walk must reach the samples")
 
     def test_it_follows_the_allowlist_and_is_not_a_second_list(self):
         added = samples.Sample("a-new-one", "a-new-one.md", "A new one", "a new one", "2026-11-17", "0000000", "model-x")
@@ -530,7 +530,7 @@ class CanonicalTests(_Case):
         link, in the head, saying the public origin and this page's path."""
         paths = [path for path, _ in crawlers.public_paths()]
         self.assertEqual(len(paths), 3 + len(samples.SAMPLES))
-        self.assertEqual(len(samples.SAMPLES), 6, "the walk must reach the samples")
+        self.assertEqual(len(samples.SAMPLES), 7, "the walk must reach the samples")
         self.assertEqual(self.origin, "https://academic-agent.cc")
         for path in paths:
             with self.subTest(path=path):

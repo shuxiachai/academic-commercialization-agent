@@ -411,6 +411,10 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
     assert listed.status == 200, "The sample catalog did not answer."
     expected = [item["slug"] for item in listed.json()]
     assert expected, "The sample catalog is empty."
+    # The samples whose run was given a decision context: their page carries
+    # what was asked and the report's conclusion above the brief.
+    with_decision = {item["slug"] for item in listed.json() if item.get("decision")}
+    assert with_decision, "No committed sample was run with a decision context."
     cards = page.locator(".samples__list .sample-card")
     expect(cards).to_have_count(len(expected))
     slugs = []
@@ -424,6 +428,7 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
     folded_notes = 0
     card_checked = False
     download_checked = False
+    verdicts_checked = 0
     for slug in slugs:
         response = page.goto(f"{base_url}/samples/{slug}", wait_until="domcontentloaded")
         assert response is not None and response.ok, f"Sample {slug} did not load."
@@ -432,6 +437,31 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
         expect(notice).to_be_visible()
         expect(report).to_be_visible()
         page.evaluate("() => document.fonts.ready")
+
+        # The conclusion card, where the run was asked for one: the run page's
+        # card on a committed report, read by the server from that report. Its
+        # link marks the quoted paragraph in the report under it.
+        verdict = page.locator("#sample-reader > .verdict-card")
+        if slug in with_decision:
+            verdicts_checked += 1
+            expect(page.locator("#sample-reader > .samples__context")).to_contain_text("Technology transfer office")
+            expect(verdict).to_be_visible()
+            expect(verdict.locator(".verdict-card__verdict")).to_have_text("DEFER")
+            expect(verdict.locator(".verdict-card__asked")).to_have_text(
+                "Decision owner: Technology transfer office · Decision to make: License the technology")
+            assert page.evaluate("""() => {
+                const top = (selector) => document.querySelector(selector).getBoundingClientRect().top;
+                return top(".samples__context") < top(".verdict-card") && top(".verdict-card") < top("#sample-reader > .brief");
+            }"""), (slug, "The conclusion sits between what was asked and the brief.")
+            verdict.locator(".verdict-card__open").click()
+            found = page.locator("#sample-reader article.prose .prose__found")
+            expect(found).to_have_count(1)
+            expect(found).to_have_text("Decision applicability and conclusion: DEFER.")
+            expect(found).to_be_focused()
+            expect(found).to_be_in_viewport()
+            page.evaluate("() => { document.querySelector('.prose__found')?.classList.remove('prose__found'); window.scrollTo(0, 0); }")
+        else:
+            expect(verdict).to_have_count(0)
 
         # One real download in Chromium, on the first sample only: the whole
         # smoke shares one rate-limit bucket. The saved file must be the
@@ -503,6 +533,7 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
         # carries the report as the pipeline wrote it, as it did before them.
         for selector in (".samples__head", ".samples__intro", ".samples__list",
                          ".samples__reader > .empty-note", ".samples__toc", ".samples__download",
+                         ".samples__context", ".samples__reader > .verdict-card",
                          ".samples__reader > .brief", ".samples__scorecard", ".samples__next"):
             expect(page.locator(selector)).to_be_hidden()
         expect(notice).to_be_visible()
@@ -551,8 +582,11 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
         # The download link and contents are screen navigation; print hides them like the list.
         # Every committed sample has its run's scorecard, so every one has both blocks.
         # After the report, the way to one's own: screen navigation too, and not on paper.
+        # A sample run with a decision context has two blocks more above the
+        # brief, both hidden on paper above.
+        decided = ["samples__context", "verdict-card"] if slug in with_decision else []
         assert printed["readerChildren"] == [
-            "samples__notice", "samples__download", "brief", "samples__scorecard", "samples__toc", "prose",
+            "samples__notice", "samples__download", *decided, "brief", "samples__scorecard", "samples__toc", "prose",
             "samples__next",
         ], (slug, printed)
         assert not printed["badColors"], (slug, printed["badColors"][:5])
@@ -594,6 +628,7 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
     assert table_rows > 0, "No committed sample exercised table-row pagination."
     assert folded_notes > 0, "No committed sample has reviewer's notes to fold."
     assert card_checked, "No committed sample exposed a citation chip to print."
+    assert verdicts_checked == len(with_decision), "Not every decision-support sample showed its conclusion."
     page.emulate_media(media="screen", color_scheme="light")
     return len(slugs)
 
