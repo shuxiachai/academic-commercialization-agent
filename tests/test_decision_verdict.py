@@ -459,6 +459,18 @@ def test_only_the_line_that_closes_its_paragraph_can_introduce_a_list():
     plain = find_verdict(_recommendations(_ALONE, "The office should wait [A2].", _FOUR))
     assert (plain["items"], plain["listed"], plain["ordered"]) == ([], None, False)
     assert find_verdict("")["items"] == [] and find_verdict("")["listed"] is None
+    # A sentence longer than the card quotes, cut where a colon happens to fall,
+    # does not end with that colon: what is under its paragraph is not its list.
+    cut = "The office should wait for these reasons " + "word " * 111 + "xy: and then the sentence goes on [A1]."
+    assert len(cut.split(":")[0]) + 1 == 600
+    for statement, report in (("Conclusion: DEFER.", _recommendations(f"**Conclusion: DEFER.** {cut}", _FOUR)),
+                              ("Conclusion: DEFER", _recommendations(_ALONE, cut, _FOUR))):
+        long_line = find_verdict(report)
+        assert long_line["statement"] == statement and long_line["follows"][0].endswith(":"), statement
+        assert (long_line["items"], long_line["listed"]) == ([], None), statement
+    # A list item or a sub-heading that ends with a colon reads no list: the card says the report goes on.
+    item = find_verdict(_report("- The conclusion is DEFER for these reasons [A1]:\n  - Nested reason."))
+    assert (item["items"], item["listed"]) == ([], 0)
     # A Chinese colon counts as one.
     chinese = find_verdict(_report("本报告的结论是暂缓许可，理由如下 [A1]：\n\n1. 缺少组件数据 [A1]。\n2. 专利状态未核实 [P1]。"))
     assert (chinese["items"], chinese["ordered"]) == (["缺少组件数据 [A1]。", "专利状态未核实 [P1]。"], True)

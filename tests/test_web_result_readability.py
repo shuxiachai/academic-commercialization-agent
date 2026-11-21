@@ -1437,6 +1437,10 @@ class DecisionBriefTests(unittest.TestCase):
                                                 ["report", "All are medium credibility at best."]])
         self.assertEqual(view["changer_quotes"], [True, True, True, False], "the report's words are quoted")
         self.assertEqual(view["changers_from"], "The report's own evidence limitations:")
+        # One gap of its own: the market line is still left out, the checks' lines follow.
+        one = self._brief(markdown=_REPORT + "\n- The only gap [A1].\n")
+        self.assertEqual([c["key"] for c in one["brief"]["changers"]],
+                         ["brief_change_report", "brief_change_evidence", "brief_change_grounding", "brief_change_context"])
         # No group heads: the first three entries, labels passed over.
         flat = self._brief(markdown=_REPORT + "\n- **Note:**\n- One gap [A1].\n- Two.\n- Three.\n- Four.\n")
         self.assertEqual([c.get("text") for c in flat["brief"]["changers"][:3]], ["One gap.", "Two.", "Three."])
@@ -2393,10 +2397,15 @@ class DecisionConclusionTests(unittest.TestCase):
         # A passage that does not lead into anything has neither.
         plain = self._card(_reply())["card"]
         self.assertEqual((plain["list"], plain["listed"]), (None, None))
-        # A malformed reply is no list: only strings, and at most four of them.
+        # A malformed reply is no list: only strings, and never a part of a list.
         odd = self._card(_reply(follows=follows, items=["One.", 7, None], listed="4"))["card"]
         self.assertEqual(odd["list"]["items"], ["One."])
         self.assertIsNone(odd["listed"])
+        six = self._card(_reply(follows=follows, items=[f"Entry {n}." for n in range(6)], listed=6))["card"]
+        self.assertIsNone(six["list"])
+        self.assertEqual(six["listed"], "(The report lists 6 points here: see them in the report.)")
+        uncounted = self._card(_reply(follows=follows, items=[f"Entry {n}." for n in range(5)], listed=None))["card"]
+        self.assertEqual(uncounted["listed"], "(The report lists 5 points here: see them in the report.)")
         # Where the passage is too long to show at once, the list waits for it.
         long = self._card(_reply(follows=["Licensing should wait for outdoor data [A3]. " * 12 + "Conditions:"],
                                  items=items, ordered=True, listed=4))["card"]

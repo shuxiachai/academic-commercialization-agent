@@ -869,9 +869,12 @@ export function decisionVerdict(reply) {
     // Where the passage ends with a colon, the list right under it in the
     // report (decision_verdict._list_after): its entries as written, or how
     // many there are where the server quoted none, 0 for no list at all.
-    const items = (Array.isArray(conclusion.items) ? conclusion.items : []).map(said).filter(Boolean)
-      .slice(0, VERDICT_ITEMS_LIMIT);
-    const listed = Number.isInteger(conclusion.listed) && conclusion.listed >= 0 ? conclusion.listed : null;
+    // Never a part of a list: more entries than the server ever sends are
+    // not shown, only counted, as a list the server did not quote is.
+    const given = (Array.isArray(conclusion.items) ? conclusion.items : []).map(said).filter(Boolean);
+    const items = given.length <= VERDICT_ITEMS_LIMIT ? given : [];
+    const counted = Number.isInteger(conclusion.listed) && conclusion.listed >= 0 ? conclusion.listed : null;
+    const listed = items.length || given.length === 0 ? counted : Math.max(counted ?? 0, given.length);
     return {
       state: "stated", asked, verdict: conclusion.verdict, tone: VERDICT_TONES[conclusion.verdict],
       statement, whole, follows, bare, items, ordered: conclusion.ordered === true, listed,

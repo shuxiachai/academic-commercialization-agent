@@ -605,21 +605,26 @@ def find_verdict(report: str) -> dict[str, Any]:
                 own_lines.append(len(statements))
             shown = _plain(_LIST_ITEM.sub("", sentence))
             follows = [_plain(s)[:_STATEMENT_LIMIT] for s in sentences[index + 1:index + 1 + _FOLLOWS]]
-            # The paragraph whose last sentence the passage ends with, if it does.
-            closes = at if kind == PARAGRAPH and index + len(follows) == len(sentences) - 1 else None
+            # The sentence the passage ends with, as written, and the block it
+            # stands in. A colon is not a stop (_STOP), so a sentence that ends
+            # with one is the last of its block: the list under that block is
+            # the one it introduces. Read whole, not cut to _STATEMENT_LIMIT,
+            # where a colon could fall by chance in the middle of a sentence.
+            last, closes = sentences[index + len(follows)], at
             if kind == PARAGRAPH and len(sentences) == 1:
                 # The conclusion is the whole paragraph; its reasons, if the
                 # writer gave them, open the next one.
                 follows = _next_paragraph(parts, at)
                 if follows:
-                    closes = at + 1 if len(_sentences(parts[at + 1][2])) <= _FOLLOWS else None
+                    last, closes = _sentences(parts[at + 1][2])[len(follows) - 1], at + 1
             items: list[str] = []
             ordered = False
             listed: int | None = None
-            if leads_in((follows or [shown])[-1]):
-                # What the passage introduces: the list right under it, or
-                # nothing, and then the card says the report goes on.
-                items, ordered, listed = _list_after(parts, closes) if closes is not None else ([], False, 0)
+            if leads_in(_plain(last)):
+                # What the passage introduces: the list right under a paragraph,
+                # or nothing (a list item, a quote, a sub-heading ending with a
+                # colon), and then the card says the report goes on.
+                items, ordered, listed = _list_after(parts, closes) if kind == PARAGRAPH else ([], False, 0)
             statements.append({
                 "verdict": code,
                 "statement": shown[:_STATEMENT_LIMIT],
