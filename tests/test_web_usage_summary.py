@@ -484,7 +484,9 @@ class UsageSummaryTests(unittest.TestCase):
     def test_app_delivers_the_outcome_line_to_its_own_dom_seam(self):
         source = _APP_JS.read_text(encoding="utf-8")
         markup = _INDEX_HTML.read_text(encoding="utf-8")
-        self.assertIn("outcomeSummary({ state, error, error_code, funded_by, daily_charge, daily_charge_reason, checkpointing })", source)
+        # Whether the run spent a daily run is said to its owner; a reader of a shared link is told the reason only.
+        self.assertIn("outcomeSummary({ state, error, error_code, funded_by, daily_charge: reader ? null : daily_charge,\n"
+                      "    daily_charge_reason, checkpointing })", source)
         self.assertIn('id="run-outcome"', markup)
 
 
