@@ -538,6 +538,9 @@ const STRINGS = {
     rel_trail_incomplete: "The per-agent evidence files could not be written; the report is unaffected",
 
     readiness: "commercialization readiness",
+    // A sample whose run was given a decision context, on the landing's list
+    // (the reader's card says samples_card_decision, the same words).
+    sample_decision: "With a decision conclusion",
     sample_verdict: "{score} / 100 · {band}",
     sample_language_english: "Report in English",
     sample_language_chinese: "Report in Chinese",
@@ -810,6 +813,10 @@ const STRINGS = {
     byok_guide: "New to this? One model key and one search key are enough. Measured here, one cost about $0.05 in model fees with DeepSeek, $0.10 to $0.25 with Qwen, and about $0.55 with Anthropic. Your providers bill you directly, and this service adds nothing.",
     // "Get both keys in 3 steps", on the landing and under the keys form.
     key_guide_title: "Get both keys in 3 steps",
+    // After the three steps, on the landing and in the key form: no sum and no
+    // one provider's rule, which change; the failure a run then meets says
+    // "cannot be billed" (api/runs.py provider_billing).
+    key_guide_balance: "Some model providers let a new key make calls only once the account has a balance. If your first assessment stops because the account cannot be billed, top it up with that provider. Each provider's current terms apply.",
     key_guide_trial: "Your free first assessment needs neither key. For the assessments after it:",
     key_guide_step1: "Model key: create an API key at DeepSeek, the cheapest provider measured here.",
     key_guide_step2: "Search key: create an API key at Tavily. Its free plan includes 1,000 searches a month.",
@@ -879,8 +886,8 @@ const STRINGS = {
     landing_point3_title: "Checks shown with every report",
     landing_point3_body: "Automated checks come with each report and say where it is weakest, and where a check could not reach a result.",
     landing_shot_title: "What a finished assessment looks like",
-    landing_shot_caption: "A screenshot of this interface from November 2026: the sample assessment of continuous glucose monitoring, opened at its decision brief and scorecard. Select it to read the whole report.",
-    landing_shot_alt: "Screenshot: a decision brief headed 74.0 / 100, Strong, with its main source, biggest risk and first recommended step, above a scorecard of five scored dimensions.",
+    landing_shot_caption: "A screenshot of this interface from November 2026: the sample assessment of perovskite-silicon tandem solar cells, run with a decision context (a technology transfer office deciding whether to license the technology), opened at its decision conclusion. Select it to read its brief and the whole report.",
+    landing_shot_alt: "Screenshot: the decision conclusion DEFER for the decision owner Technology transfer office and the decision License the technology, quoting the report's sentence and the four conditions it lists.",
     landing_sources: "Evidence comes from public sources: papers from OpenAlex, Crossref, PubMed, arXiv and Semantic Scholar, patents from Google Patents, and market sources through the web search service you choose.",
     landing_faq_title: "Common questions",
     landing_faq_q1: "How long is my data kept?",
@@ -891,6 +898,8 @@ const STRINGS = {
     landing_faq_a3: "An optional part of the form that says whose decision the report is for: the asset, the target application, the decision owner and the decision to make. With all four, the report may give a GO / NO-GO for that decision, bounded by its evidence. Without them the assessment still runs, as an orientation brief that claims no decision.",
     landing_faq_q4: "Can I upload a paper?",
     landing_faq_a4: "Yes: attach a PDF of up to 50 MB instead of typing a topic. Text selected from it is sent to the model provider you chose, to extract what the paper contributes. The PDF is deleted as soon as that succeeds, and an extracted summary that no assessment uses is deleted within 24 hours. Upload only papers you are allowed to send to that provider.",
+    landing_faq_q6: "What if an assessment fails partway? Am I charged?",
+    landing_faq_a6: "Its page says why it stopped. If the report had been written, the page keeps it as a draft, marked as unreviewed or unscored. You can resume the run from its last checkpoint: it starts again at the step that failed and reuses what was saved before it, and it uses one more of today's runs. Model tokens your provider has already billed stay billed by that provider, as for any run: this service cannot refund them. If the run failed because the model service could not be reached, it does not count toward today's runs, up to three such runs a day per account.",
     landing_faq_q5: "How are the fees worked out?",
     landing_faq_a5: "This service charges nothing and cannot refund a provider's charge. An assessment runs on your own model key and search key, and each provider bills you directly, by its own meter. The table above is what one assessment cost in model fees when it was measured here; searches are billed by the search service, and both search services have a free allowance.",
     landing_figure_caption: "A real run from November 2026, opened in the current interface.",
@@ -1372,6 +1381,7 @@ const STRINGS = {
     rel_trail: "审计记录",
     rel_trail_incomplete: "各智能体的证据文件未能写入；报告本身不受影响",
     readiness: "商业化就绪度",
+    sample_decision: "含决策结论",
     sample_verdict: "{score} / 100 · {band}",
     sample_language_english: "英文报告",
     sample_language_chinese: "中文报告",
@@ -1621,6 +1631,7 @@ const STRINGS = {
     byok_close: "关闭",
     byok_guide: "第一次用？一个模型 Key 加一个检索 Key 就够了。本项目实测的一次评估的模型费用：DeepSeek 约 $0.05，Qwen 约 $0.10 到 $0.25，Anthropic 约 $0.55。费用由服务商直接向你收取，本服务不加收任何费用。",
     key_guide_title: "3 步拿到两个 Key",
+    key_guide_balance: "有的模型服务商要先充值、账户有余额后，新 Key 才能调用。如果第一次评估因账户无法扣费而停下，请到该服务商处充值。具体以各服务商当前的规则为准。",
     key_guide_trial: "免费的首次评估不需要这两个 Key。之后的评估需要：",
     key_guide_step1: "模型 Key：在 DeepSeek 创建一个 API Key，它是本项目实测里最便宜的服务商。",
     key_guide_step2: "检索 Key：在 Tavily 创建一个 API Key，免费套餐每月含 1,000 次检索。",
@@ -1690,8 +1701,8 @@ const STRINGS = {
     landing_point3_title: "每份报告都附自动检查",
     landing_point3_body: "自动检查的结果随报告一起给出，指出报告最薄弱的地方，也说明哪项检查没能得出结论。",
     landing_shot_title: "一份完成的评估长什么样",
-    landing_shot_caption: "2026 年 11 月截自本界面：示例评估“糖尿病连续血糖监测”，停在它的决策简报和评分卡处。点击可阅读完整报告。",
-    landing_shot_alt: "界面截图：一份决策简报，开头是 74.0 / 100、较强，列出主要来源、最大风险和建议的第一步，下面是含五个维度得分的评分卡。",
+    landing_shot_caption: "2026 年 11 月截自本界面：示例评估“钙钛矿-硅叠层太阳能电池”，运行时填写了决策场景（技术转移办公室决定是否许可这项技术），停在它的决策结论处。点击可阅读它的简报和完整报告。",
+    landing_shot_alt: "界面截图：决策结论为暂缓，决策负责人 Technology transfer office，待作决策 License the technology，引用报告原文和它列出的四个条件。",
     landing_sources: "证据来自公开来源：论文来自 OpenAlex、Crossref、PubMed、arXiv 和 Semantic Scholar，专利来自 Google Patents，市场资料通过你选择的网页检索服务获取。",
     landing_faq_title: "常见问题",
     landing_faq_q1: "数据保存多久？",
@@ -1702,6 +1713,8 @@ const STRINGS = {
     landing_faq_a3: "表单里的可选部分，用来说明这份报告是为谁的决策写的：资产或科研成果、目标应用、决策负责人和待作决策。四项都填，报告可以针对这个决策给出 GO / NO-GO，但仍以证据为限。不填也能运行，得到的是一份方向性简报，不下决策结论。",
     landing_faq_q4: "能上传论文吗？",
     landing_faq_a4: "可以：上传一份不超过 50 MB 的 PDF，代替手动输入主题。从中选取的文本会发送给你选择的模型服务商，用来提取论文的贡献。提取成功后 PDF 立即删除；提取出的摘要如果没有被任何评估使用，会在 24 小时内删除。只上传你有权发送给该服务商的论文。",
+    landing_faq_q6: "评估中途失败了怎么办？会扣费吗？",
+    landing_faq_a6: "运行页会说明它为什么停下。如果报告已经写出，页面会把它保留为草稿，并标明未经审稿或未评分。你可以从最近的检查点续跑：从失败的那一步重新开始，沿用之前已保存的部分，并再用 1 次今日额度。服务商已经计费的 token 和任何一次运行一样由服务商收取，本服务无法退还。如果失败是因为连不上模型服务，这次运行不计入今日额度，每个账户每天最多 3 次。",
     landing_faq_q5: "费用怎么算？",
     landing_faq_a5: "本服务不收费，也无法退还服务商收取的费用。评估使用你自己的模型 Key 和检索 Key 运行，由各服务商按它自己的计量直接向你收费。上面的表格是本项目实测的一次评估的模型费用；检索由检索服务商计费，两家检索服务都有免费额度。",
     landing_figure_caption: "2026 年 11 月的一次真实运行，在当前界面中打开。",

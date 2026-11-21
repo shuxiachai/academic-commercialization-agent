@@ -1572,9 +1572,15 @@ export function sampleFacts(sample) {
   const entry = detailRecord(sample) ? sample : {};
   const grade = scoreNumber(entry.overall_score, 100) ? band(entry.overall_score) : null;
   const language = SAMPLE_LANGUAGES[entry.language];
+  // Run with a decision context: the four fields the reader (samples.js
+  // decisionOf) and the gate require, each a line of text.
+  const given = detailRecord(entry.decision) ? entry.decision : null;
+  const decided = Boolean(given) && ["asset_description", "target_application", "decision_owner", "decision_type"]
+    .every((field) => typeof given[field] === "string" && given[field].trim());
   return {
     verdict: grade ? fillText("sample_verdict", { score: entry.overall_score.toFixed(1), band: grade.name }) : null,
     tone: grade ? grade.tone : null,
+    decision: decided ? t("sample_decision") : null,
     // A list entry carries the score, not the label: the level is the scorer's rounding of it.
     trl: trlReading(entry.trl_score),
     language: language ? t(language) : null,

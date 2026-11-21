@@ -869,14 +869,22 @@ class DecisionBriefTests(unittest.TestCase):
             {"title": "An entry from before scores were listed"},
         ])["sample_facts"]
         self.assertEqual(facts[0], {"verdict": "74.9 / 100 · Strong", "tone": "success", "trl": "TRL 9 (score 9 / 9)",
-                                    "language": "Report in Chinese"})
+                                    "language": "Report in Chinese", "decision": None})
         self.assertEqual(facts[1], {"verdict": "48.6 / 100 · Early", "tone": "warning", "trl": "TRL 6 (score 5.5 / 9)",
-                                    "language": "Report in English"})
+                                    "language": "Report in English", "decision": None})
         self.assertEqual((facts[2]["verdict"], facts[2]["trl"]), ("70.0 / 100 · Strong", None))
         self.assertEqual((facts[3]["verdict"], facts[3]["tone"], facts[3]["language"]), ("40.0 / 100 · Nascent", "muted", None))
-        self.assertEqual(facts[4], {"verdict": None, "tone": None, "trl": "TRL 9 (score 9 / 9)", "language": "Report in English"})
-        self.assertEqual(facts[5], {"verdict": None, "tone": None, "trl": None, "language": None})
-        self.assertEqual(facts[6], {"verdict": None, "tone": None, "trl": None, "language": None})
+        self.assertEqual(facts[4], {"verdict": None, "tone": None, "trl": "TRL 9 (score 9 / 9)", "language": "Report in English",
+                                    "decision": None})
+        self.assertEqual(facts[5], {"verdict": None, "tone": None, "trl": None, "language": None, "decision": None})
+        self.assertEqual(facts[6], {"verdict": None, "tone": None, "trl": None, "language": None, "decision": None})
+        # Run with a decision context: all four fields, each a line of text, as the
+        # reader's samples.js decisionOf and the gate require; anything else is none.
+        given = {"asset_description": "A cell", "target_application": "Modules", "decision_owner": "A TTO",
+                 "decision_type": "License it"}
+        decided = self._run(sample_facts=[{"decision": given}, {"decision": {**given, "decision_type": " "}},
+                                          {"decision": "License it"}, {"decision": None}])["sample_facts"]
+        self.assertEqual([f["decision"] for f in decided], ["With a decision conclusion", None, None, None])
         # The same words as the scorecard above a report uses for the same score.
         for score, name in ((74.9, "Strong"), (55, "Moderate"), (48.6, "Early"), (12, "Nascent")):
             brief = self._brief(scores={**_SCORES, "overall_score": score})["brief"]
@@ -886,7 +894,8 @@ class DecisionBriefTests(unittest.TestCase):
         chinese = self._run(language="Simplified Chinese", sample_facts=[
             {"overall_score": 74.9, "trl_score": 9, "language": "Simplified Chinese"},
             {"overall_score": 48.6, "trl_score": 5, "language": "English"}])["sample_facts"]
-        self.assertEqual(chinese[0], {"verdict": "74.9 / 100 · 较强", "tone": "success", "trl": "TRL 9（评分 9 / 9）", "language": "中文报告"})
+        self.assertEqual(chinese[0], {"verdict": "74.9 / 100 · 较强", "tone": "success", "trl": "TRL 9（评分 9 / 9）", "language": "中文报告",
+                                      "decision": None})
         self.assertEqual(chinese[1]["language"], "英文报告")
 
     def test_the_first_step_is_the_recommendations_sections_first_item_and_falls_back_to_the_first_opportunity(self):

@@ -1766,6 +1766,8 @@ select.gate__input option { background: var(--bg-raised); color: var(--text-prim
 .key-guide li { padding-left: var(--space-1); line-height: var(--leading-normal); }
 .key-guide a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
 .key-guide__trial { margin: 0 0 var(--space-2); }
+/* After the steps: a key may need a balance before it can call. */
+.key-guide__note { margin: var(--space-2) 0 0; line-height: var(--leading-normal); }
 
 /* ═══ A run in progress, stopped, or resumed ═══════════════════════════ */
 
