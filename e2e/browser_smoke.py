@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import urlsplit
@@ -49,6 +49,8 @@ from e2e.isolated_app import (
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+# The model of the production resume of 2026-11-20 (131247Z), which has no price on record.
+UNPRICED_MODEL = "qwen3.8-2.4t-a95b"
 HEADER_UNBROKEN_METADATA = "METADATA_UNBROKEN_TOKEN_" + "x" * 160
 
 
@@ -857,10 +859,142 @@ def _exercise_sample_contents(page: Page, base_url: str) -> int:
     return len(slugs)
 
 
+def _day(run_id: str) -> str:
+    started = datetime.strptime(run_id[:16], "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)
+    return f"{started.day} {started:%b} {started.year}"
+
+
+def _assessed(first_id: str, own_id: str) -> str:
+    """The reader's date, as run.js readerHeader writes it in English: in UTC,
+    from the day the chain's first run began to the day this one did."""
+    first, own = _day(first_id), _day(own_id)
+    return f"Assessed {own}" if first == own else f"Assessed {first} – {own}"
+
+
+# A run id of the right shape that no run has.
+GONE_RUN = "20260101T000000Z-" + "0" * 32
+
+
+def _exercise_shared_link_reader(browser, base_url: str, owned_pair: tuple[str, str],
+                                 account_pair: tuple[str, str]) -> dict[str, int]:
+    """What someone with no code is shown at a shared link, and where a link leads nowhere.
+
+    A context of its own: no stored code, no session, as the colleague a
+    report was forwarded to. Only GET and HEAD to the loopback server; any
+    other request is aborted and fails the journey.
+    """
+    refused: list[str] = []
+    errors: list[str] = []
+    context = browser.new_context(locale=SMOKE_LOCALE)
+
+    def guard(route: Route) -> None:
+        request = route.request
+        if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} or request.method not in {"GET", "HEAD"}:
+            refused.append(f"{request.method} {request.url}")
+            route.abort("blockedbyclient")
+            return
+        route.continue_()
+
+    context.route("**/*", guard)
+    page = context.new_page()
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    pages = 0
+    try:
+        # The code holder's resume read above with its owner's header, as the
+        # reader of its link sees it (production run 20261120T131247Z had
+        # "3:57", the tokens and "see your provider's console" over the report).
+        stopped, resumed = owned_pair
+        page.goto(f"{base_url}/run/{resumed}", wait_until="domcontentloaded")
+        expect(page.locator("#viewer-bar")).to_be_visible()
+        expect(page.locator("#run-pill")).to_have_text("completed")
+        head = page.locator("#run-head")
+        expect(page.locator("#run-assessed")).to_have_text(_assessed(stopped, resumed))
+        expect(page.locator("#run-model")).to_have_text(f"· Model: {UNPRICED_MODEL}")
+        expect(page.locator("#run-elapsed")).to_have_text("· took 29:19 in all")
+        for fold in ("#run-usage-details", "#run-timing-details", "#run-tech-details", "#run-lineage"):
+            expect(page.locator(fold)).to_be_hidden()
+        expect(page.locator("#run-sources")).to_have_text("")
+        for said in ("token", "3:48", "continues an earlier run", "git:"):
+            expect(head).not_to_contain_text(said)
+        page.locator('button.tab[data-view="report"]').click()
+        expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
+        pages += 1
+
+        # A run on an account's own keys, on a model with no price: its owner
+        # is sent to their provider's console for the amount, a reader is not.
+        account_stopped, account_resumed = account_pair
+        page.goto(f"{base_url}/run/{account_resumed}", wait_until="domcontentloaded")
+        expect(page.locator("#run-pill")).to_have_text("completed")
+        expect(page.locator("#run-assessed")).to_have_text(_assessed(account_stopped, account_resumed))
+        expect(page.locator("#run-elapsed")).to_have_text("· took 29:19 in all")
+        expect(head).not_to_contain_text("provider's console")
+        expect(head).not_to_contain_text("token")
+        pages += 1
+
+        # A link to a run that is not there, and this run's own link cut
+        # short as a chat app may cut it: a page that says so, two ways on,
+        # and none of "UNKNOWN", "Usage & cost" or "polling".
+        # Age is a reason only where the deployment deletes runs at an age, and is said in its own number.
+        kept = page.request.get(f"{base_url}/health").json().get("retention_days")
+        for gone in (GONE_RUN, resumed[:26]):
+            page.goto(f"{base_url}/run/{gone}", wait_until="domcontentloaded")
+            notice = page.locator("#run-gone")
+            expect(notice).to_be_visible()
+            expect(notice.get_by_role("heading", level=1)).to_have_text("This assessment can no longer be opened")
+            if kept:
+                expect(page.locator("#run-gone-retention")).to_contain_text(f"keeps an assessment for {kept} days")
+            else:
+                expect(page.locator("#run-gone-retention")).to_be_hidden()
+            expect(notice.get_by_role("link", name="See a sample report")).to_have_attribute("href", "/samples")
+            expect(notice.get_by_role("link", name="Assess your own topic")).to_have_attribute("href", "/")
+            expect(head).to_be_hidden()
+            shown = page.locator("body").inner_text()
+            for said in ("unknown", "polling", "usage & cost"):
+                assert said not in shown.lower(), f"A gone run's page says {said!r}: {shown!r}"
+            pages += 1
+        notice.get_by_role("link", name="See a sample report").click()
+        expect(page).to_have_url(f"{base_url}/samples")
+
+        # An address that is no page: the site's own 404 page, still a 404,
+        # in the reader's language and the other one on a switch.
+        response = page.goto(f"{base_url}/pricing", wait_until="domcontentloaded")
+        assert response is not None and response.status == 404, "A missing page must still answer 404"
+        assert response.headers.get("content-type", "").startswith("text/html")
+        assert "noindex" in response.headers.get("x-robots-tag", "")
+        expect(page).to_have_title("Page not found · Academic Commercialization Assessment")
+        english, chinese = page.locator('[data-lang-block="en"]'), page.locator('[data-lang-block="zh"]')
+        expect(english.get_by_role("heading", level=1)).to_have_text("Page not found")
+        expect(chinese).to_be_hidden()
+        expect(english.get_by_role("link", name="Go to the home page")).to_have_attribute("href", "/")
+        expect(english.get_by_role("link", name="Read a sample report")).to_have_attribute("href", "/samples")
+        page.locator("#ui-lang").select_option("Simplified Chinese")
+        expect(chinese.get_by_role("heading", level=1)).to_have_text("找不到这个页面")
+        expect(page).to_have_title("找不到这个页面 · 学术成果商业化评估")
+        expect(english).to_be_hidden()
+        page.locator("#ui-lang").select_option("English")
+        expect(english.get_by_role("heading", level=1)).to_be_visible()
+        pages += 1
+        # A script asking for the same address, or for one under /api/, is answered as data.
+        data = page.request.get(f"{base_url}/pricing", headers={"Accept": "application/json"})
+        assert data.status == 404 and data.json() == {"detail": "Not Found"}
+        gated = page.request.get(f"{base_url}/api/pricing", headers={"Accept": "text/html"})
+        assert gated.status == 401 and "detail" in gated.json(), "The gate still answers /api/ first"
+
+        assert not refused, "The reader's journey made a request it must not: " + ", ".join(refused)
+        assert not errors, "Uncaught page errors in the reader's journey: " + "; ".join(errors)
+    except Exception:  # noqa: BLE001 - keep the picture of whatever the reader was shown
+        capture_failure(page, {"refused": refused, "page_errors": errors})
+        raise
+    finally:
+        context.close()
+    return {"reader_pages": pages, "reader_refused_requests": len(refused)}
+
+
 def _exercise_browser(
     base_url: str, run_id: str, fault_ids: tuple[str, str, str],
     runtime_ids: tuple[str, str, str], cap_run_id: str, foreign_run_id: str,
     decision_run_id: str, resumed_pair: tuple[str, str],
+    owned_pair: tuple[str, str], account_pair: tuple[str, str],
 ) -> dict[str, int]:
     external_requests: list[str] = []
     mutation_attempts: list[str] = []
@@ -1357,9 +1491,21 @@ def _exercise_browser(
             # A draft is read, not exported or compared: no report download is offered for it.
             expect(page.locator(f'#run-actions a[href$="/api/runs/{stopped_id}/report.pdf"]')).to_have_count(0)
 
-            # Its resume: what was reused and what both runs took, in words
-            # under the header, with the earlier run one click away.
+            # Its resume, someone else's too: a reader's header, which says
+            # when it was assessed and the time both runs took, and nothing
+            # about what was reused, the tokens or the stage times.
             page.goto(f"{base_url}/run/{resumed_id}", wait_until="domcontentloaded")
+            expect(page.locator("#run-pill")).to_have_text("completed")
+            expect(page.locator("#run-assessed")).to_have_text(_assessed(stopped_id, resumed_id))
+            expect(page.locator("#run-elapsed")).to_have_text("· took 29:19 in all")
+            expect(page.locator("#run-lineage")).to_be_hidden()
+            expect(page.locator("#run-usage-details")).to_be_hidden()
+
+            # The same shape, the code holder's own: the owner's header, as it
+            # was. What was reused and what both runs took, in words under the
+            # header, with the earlier run one click away.
+            owned_stopped, owned_resumed = owned_pair
+            page.goto(f"{base_url}/run/{owned_resumed}", wait_until="domcontentloaded")
             expect(page.locator("#run-pill")).to_have_text("completed")
             lineage = page.locator("#run-lineage")
             expect(lineage).to_have_text(
@@ -1368,8 +1514,11 @@ def _exercise_browser(
                 "(35.0k here + at least 141.2k before).")
             expect(page.locator("#run-recovery")).to_have_text("")
             expect(page.locator("#run-elapsed")).to_have_text("3:48")
+            expect(page.locator("#run-assessed")).to_be_hidden()
+            expect(page.locator("#run-usage-label")).to_have_text(
+                f"· About 35.0k tokens · no cost shown, as no unit price is on record yet for {UNPRICED_MODEL}")
             page.locator("#run-lineage-earlier").click()
-            expect(page).to_have_url(f"{base_url}/run/{stopped_id}")
+            expect(page).to_have_url(f"{base_url}/run/{owned_stopped}")
             expect(page.locator("#run-pill")).to_have_text("failed")
             expect(page.locator("article.prose--draft")).to_contain_text(DRAFT_SENTINEL)
 
@@ -1402,6 +1551,10 @@ def _exercise_browser(
             expect(page.locator("html")).to_have_attribute("data-boot", "ready", timeout=10_000)
             expect(byok_row.locator('.runitem__state[data-state="completed"]')).to_have_count(1)
             expect(byok_row.get_by_role("button", name=delete_name, exact=True)).to_have_count(1)
+
+            # The same runs, and a run and an address that are not there, as
+            # someone with no code who was sent the link opens them.
+            reader_audit = _exercise_shared_link_reader(browser, base_url, owned_pair, account_pair)
 
             # A page file the server refused is a page that may never boot:
             # the first failure JSON showed two modules answered 429 by the
@@ -1470,6 +1623,7 @@ def _exercise_browser(
         "sample_contents_reports": sample_contents_reports,
         "console_errors": len(unexpected_console_errors),
         "page_errors": len(page_errors),
+        **reader_audit,
     }
 
 
@@ -1501,6 +1655,11 @@ def main() -> None:
         # Also someone else's, so the owner's history and counts stay as they were.
         decision_run_id = _write_decision_run(output_root, access.owner_id("another-visitors-code"))
         resumed_pair = _write_resumed_pair(output_root, access.owner_id("another-visitors-code"))
+        # The same shape on a model with no price on record: the code holder's
+        # own, and an account's (a run on the account's own keys), each read
+        # by its owner and by someone who was sent the link.
+        owned_pair = _write_resumed_pair(output_root, access.owner_id(ACCESS_CODE), model=UNPRICED_MODEL)
+        account_pair = _write_resumed_pair(output_root, "user:4242", model=UNPRICED_MODEL)
         cap_scores = json.loads((output_root / run_id / "commercialization_scores.json").read_text(encoding="utf-8"))
         cap_scores["market_cap_audit"] = capture_cap(5, cap_scores)
         save_scores(json.dumps(cap_scores), cap_run_id, output_root)
@@ -1567,7 +1726,7 @@ def main() -> None:
                     api_runs._write_daily_charge(output_root / runtime_id, date.today())
             terminal_path.write_text(json.dumps(record), encoding="utf-8")
         with _serve(app) as base_url:
-            audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id, damaged_audit_id), runtime_ids, cap_run_id, foreign_run_id, decision_run_id, resumed_pair)
+            audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id, damaged_audit_id), runtime_ids, cap_run_id, foreign_run_id, decision_run_id, resumed_pair, owned_pair, account_pair)
 
     print(
         json.dumps(

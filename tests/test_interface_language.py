@@ -133,8 +133,9 @@ def test_a_choice_is_remembered_and_the_next_visit_keeps_it():
 
 
 def test_one_rule_for_every_page_and_it_is_i18n_js():
-    """The landing, the workbench, the sample reader, the privacy page and
-    the operator's console each read the language from i18n.js and decide
+    """The landing, the workbench, the sample reader, the privacy page, the
+    operator's console and the page for an address that is no page each read
+    the language from i18n.js and decide
     nothing about it themselves: no other script reads the browser's language
     or the saved choice, so the pages cannot disagree."""
     scripts = sorted((_ROOT / "web/static/js").glob("*.js"))
@@ -146,7 +147,8 @@ def test_one_rule_for_every_page_and_it_is_i18n_js():
         assert not re.search(r"navigator\s*\.\s*languages?\b", source), script.name
         assert "ui-language" not in source, script.name
     for page, module in (("index.html", "app.js"), ("samples.html", "samples.js"),
-                         ("privacy.html", "privacy.js"), ("admin.html", "admin.js")):
+                         ("privacy.html", "privacy.js"), ("admin.html", "admin.js"),
+                         ("not_found.html", "not_found.js")):
         html = (_ROOT / "web" / page).read_text(encoding="utf-8")
         assert f'src="/static/js/{module}"' in html, page
         script = (_ROOT / "web/static/js" / module).read_text(encoding="utf-8")

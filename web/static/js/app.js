@@ -301,12 +301,12 @@ function stopClock() {
   clock = null;
 }
 
-function startClock(fromSeconds) {
+function startClock(fromSeconds, format = runView.formatDuration) {
   stopClock();
   const anchor = Date.now();
   const paint = () => {
     const secs = fromSeconds + Math.floor((Date.now() - anchor) / 1000);
-    $("#run-elapsed").textContent = runView.formatDuration(secs);
+    $("#run-elapsed").textContent = format(secs);
   };
   paint();
   clock = setInterval(paint, 1000);
@@ -320,55 +320,80 @@ function paintHeader({
 }) {
   if (topic) $("#run-title").textContent = topic;
 
+  // Whoever may not change this run reads it: someone it was shared with.
+  // Its header was written for the person who ran it (token counts, "see
+  // your provider's console", stage times, a paragraph about resuming) and
+  // said "3:57" of an assessment that took 29 minutes over two runs. A
+  // reader is told when it was assessed, on which model, and how long it
+  // took in all (run.js readerHeader); the owner's header is unchanged.
+  // What the reads return is not changed either: only what is drawn.
+  const reader = viewerMode || !mayModify(arguments[0]);
+  const view = reader ? runView.readerHeader(arguments[0]) : null;
+
   const pill = $("#run-pill");
   pill.className = `pill pill--${state}`;
   pill.textContent = runView.stateLabel(state);
 
-  if (state === "running") {
-    startClock(elapsed_seconds ?? 0);
+  const assessed = $("#run-assessed");
+  assessed.textContent = view?.assessed ?? "";
+  assessed.title = view?.title ?? "";
+  assessed.hidden = !assessed.textContent;
+  const model = $("#run-model");
+  model.textContent = view?.model ? `${view.assessed ? "· " : ""}${view.model}` : "";
+  model.hidden = !model.textContent;
+
+  // The reader's time is the whole assessment's, and nothing where it is not known for certain.
+  const lead = view && (view.assessed || view.model) ? "· " : "";
+  const elapsedText = view
+    ? (seconds) => (view.seconds === null ? "" : `${lead}${runView.readerTime(view.timeKey, seconds)}`)
+    : runView.formatDuration;
+  if (state === "running" && view?.seconds !== null) {
+    startClock(view ? view.seconds : elapsed_seconds ?? 0, elapsedText);
   } else {
     stopClock();
-    $("#run-elapsed").textContent = runView.formatDuration(elapsed_seconds);
+    $("#run-elapsed").textContent = elapsedText(view ? view.seconds : elapsed_seconds);
   }
 
   // What recent runs on this model took from this step on, for a run still going.
-  const etaText = state === "running" ? runView.etaSummary(eta) : "";
+  const etaText = state === "running" && !reader ? runView.etaSummary(eta) : "";
   $("#run-eta").textContent = etaText ? `· ${etaText}` : "";
   $("#run-eta").title = etaText ? runView.etaTitle(eta, llm_model) : "";
   paintNotifyButton(state);
 
-  const summary = runView.sourceSummary(source_counts);
+  const summary = reader ? "" : runView.sourceSummary(source_counts);
   const el = $("#run-sources");
   el.textContent = summary ? `· ${summary}` : "";
 
   // Which model and which code: the deployment swaps models without notice,
   // so a report must say what produced it rather than leave the reader to
   // assume today's model. Both values ride on the status payload already.
-  const identity = runView.identitySummary(usage, pipeline_revision);
+  // A reader has the model in the line above; the revision is a maintainer's.
+  const identity = reader ? "" : runView.identitySummary(usage, pipeline_revision);
   const identityEl = $("#run-identity");
   identityEl.textContent = identity;
   identityEl.title = identity ? runView.headerLabel("identity_title") : "";
 
   // Shown for failed runs too: a run that died halfway still spent whatever
-  // it spent, and that is the bill nobody can otherwise estimate.
-  const spend = runView.usageSummary(usage, usage_accounting);
+  // it spent, and that is the bill nobody can otherwise estimate. Not to a
+  // reader: what the run used and cost is its owner's account.
+  const spend = reader ? "" : runView.usageSummary(usage, usage_accounting);
   const spendEl = $("#run-usage");
-  const auxiliary = runView.auxiliarySummary(auxiliary_usage);
+  const auxiliary = reader ? "" : runView.auxiliarySummary(auxiliary_usage);
   spendEl.textContent = [spend, auxiliary].filter(Boolean).join(" · ");
-  spendEl.title = [runView.usageTitle(usage, usage_accounting), auxiliary].filter(Boolean).join("\n");
+  spendEl.title = reader ? "" : [runView.usageTitle(usage, usage_accounting), auxiliary].filter(Boolean).join("\n");
   // Folded, never dropped: the full accounting text with its caveats stays in
   // the DOM and one click away, while the header leads with the outcome.
   $("#run-usage-details").hidden = !spendEl.textContent;
   // The fold is headed by what the run used and what that is estimated to
   // have cost; where nothing was counted it keeps its plain name. The text
   // above, with the helper ledger and every caveat, is the detail inside.
-  const headline = runView.usageHeadline(usage, usage_accounting, funded_by);
+  const headline = reader ? "" : runView.usageHeadline(usage, usage_accounting, funded_by);
   $("#run-usage-label").textContent = `· ${headline || runView.headerLabel("usage_details")}`;
 
   // Where the time went, folded the same way. The stage list shows it while
   // the run is going; the finished view replaces that list.
   const timingEl = $("#run-timing");
-  timingEl.textContent = runView.timingSummary(stage_timings, recovery);
+  timingEl.textContent = reader ? "" : runView.timingSummary(stage_timings, recovery);
   $("#run-timing-details").hidden = !timingEl.textContent;
   $("#run-timing-label").textContent = `· ${runView.headerLabel("stage_timing")}`;
 
@@ -393,17 +418,20 @@ function paintHeader({
   const tech = $("#run-tech-details");
   if (ordinaryEnding) tech.append?.(terminalEl);
   else $("#run-status-record").before?.(terminalEl);
-  tech.hidden = !(identity || ordinaryEnding);
+  tech.hidden = reader || !(identity || ordinaryEnding);
   $("#run-tech-label").textContent = `· ${runView.headerLabel("tech_details")}`;
 
   // Why it ended and whether it spent one of today's runs, kept with the run
   // rather than in a toast that is gone before the page is read again.
   const outcomeEl = $("#run-outcome");
-  const outcome = runView.outcomeSummary({ state, error, error_code, funded_by, daily_charge, daily_charge_reason, checkpointing });
+  // Whether it spent a daily run is said to the owner whose run it was.
+  const outcome = runView.outcomeSummary({ state, error, error_code, funded_by, daily_charge: reader ? null : daily_charge,
+    daily_charge_reason, checkpointing });
   outcomeEl.textContent = outcome;
   outcomeEl.hidden = !outcome;
   paintRunHelp({ state, error_code, funded_by, run_id });
-  paintLineage({ state, recovery, lineage, elapsed_seconds, usage, usage_accounting });
+  // What a resume reused and the two runs' sums are the owner's; a reader has the total above.
+  paintLineage(reader ? {} : { state, recovery, lineage, elapsed_seconds, usage, usage_accounting });
   paintContinued(continued_by);
 
   // A run takes minutes and does not need the page. Said to whoever started
@@ -966,13 +994,46 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden) document.title = baseTitle();
 });
 
+/* A link to a run that is not there: its owner deleted it, the deployment's
+ * retention removed it, or the link was cut short when it was copied. Every
+ * shared link comes to this once its run reaches the retention age. Until
+ * 2026-11-21 the page kept the run's header, reading "…", UNKNOWN and "— ·
+ * Usage & cost", over one line, "The server could not find this run.
+ * Automatic polling has stopped.", and nothing else. It says now that the
+ * assessment cannot be opened and why that may be, and offers the samples
+ * and an assessment of one's own: plain links, the same for a reader and a
+ * signed-in user. */
+function showGone() {
+  stopClock();
+  $("#run-head").hidden = true;
+  $("#run-body").hidden = true;
+  $("#run-gone").hidden = false;
+  paintGone();
+}
+
+/* The reason about age, in the deployment's own terms: its retention period
+ * from /health (refreshCapacity, which paints this again when it reads one).
+ * A deployment that keeps runs until they are deleted has no such reason to
+ * give; before any reading it is said without a number. */
+function paintGone() {
+  const line = $("#run-gone-retention");
+  const reading = capacityReading && capacityReading !== "offline" ? capacityReading : null;
+  const days = reading?.retention_days;
+  const kept = Number.isSafeInteger(days) && days > 0;
+  line.hidden = Boolean(reading) && !kept;
+  line.textContent = kept ? t("gone_retention_days").replace("{days}", String(days)) : t("gone_retention");
+}
+
 async function openRun(runId, { known } = {}) {
   stopFollowing();
   showRun(runId);
   $("#run-connection").textContent = "";
+  $("#run-gone").hidden = true;
+  $("#run-head").hidden = false;
 
   const body = $("#run-body");
   body.innerHTML = "";
+  body.hidden = false;
   paintHeader({ topic: known?.topic ?? "…", state: known?.state ?? "unknown" });
   paintActions(known?.state ?? "unknown", known?.checkpointing, mayModify(known), known ?? null);
   try { history.pushState({}, "", `/run/${runId}`); }
@@ -988,9 +1049,9 @@ async function openRun(runId, { known } = {}) {
     onConnection({ state, lastSuccessAt }) {
       // Connectivity is a fact about our read, not a new worker state. Stop
       // extrapolating elapsed time until a fresh progress response anchors it.
+      // A run that is not there is said by the page in its place (showGone), not here.
       $("#run-connection").textContent = state === "stale"
-        ? t(lastSuccessAt === null ? "run_connection_unconfirmed" : "run_connection_stale")
-        : state === "missing" ? t("run_connection_missing") : "";
+        ? t(lastSuccessAt === null ? "run_connection_unconfirmed" : "run_connection_stale") : "";
       if (state !== "connected") stopClock();
     },
     onUpdate(progress) {
@@ -1028,7 +1089,8 @@ async function openRun(runId, { known } = {}) {
       }
     },
     onError(err) {
-      toast(errorText(err), "error");
+      if (err.status === 404) showGone();
+      else toast(errorText(err), "error");
     },
   });
 }
@@ -1782,6 +1844,7 @@ async function refreshCapacity() {
     capacityReading = "offline";
   }
   paintCapacityLabel();
+  if (!$("#run-gone").hidden) paintGone();
 }
 
 function paintCapacityLabel() {

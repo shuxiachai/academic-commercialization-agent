@@ -196,7 +196,7 @@ def _main_spa_navigation(browser, base, faults, *, proxy=False, old_link=False):
               *(f"/static/js/{name}.js" for name in
                 ("app", "api", "run", "sidebar", "result", "i18n", "topic", "paid_receipts",
                  "samples_links", "samples_i18n", "byok_fields", "model_kind", "chrome", "theme", "gate_focus", "starters",
-                 "decision_context", "compare")),
+                 "decision_context", "compare", "not_found")),
               *(f"/static/css/{name}.css" for name in ("tokens", "base", "workbench", "result", "landing")),
               *(f"/source-locator-static/{name}" for name in
                 ("entry.js", "outcome.js", "receipt.js", "result.js", "accounting.js", "app.css", "receipt.css"))}

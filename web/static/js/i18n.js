@@ -11,7 +11,17 @@
 
 const STRINGS = {
   English: {
-    run_connection_missing: "The server could not find this run. Automatic polling has stopped.",
+    // A link to a run that is not there (app.js showGone). Until 2026-11-21
+    // one line said so: "The server could not find this run. Automatic
+    // polling has stopped." under a header reading UNKNOWN.
+    gone_title: "This assessment can no longer be opened",
+    gone_lede: "Nothing is kept at this link any more. The likely reasons:",
+    gone_deleted: "Its owner deleted it.",
+    gone_retention_days: "It was deleted automatically: this site keeps an assessment for {days} days.",
+    gone_retention: "It was deleted automatically at the end of the period this site keeps assessments for.",
+    gone_link: "The link is incomplete: part of it may have been cut off when it was copied or forwarded. Compare it with the one you were sent.",
+    gone_samples: "See a sample report",
+    gone_own: "Assess your own topic",
     invalid_byok: "Saved BYOK credentials are invalid. Re-enter your keys or explicitly choose an access code; no paid request was sent.",
     logout_wait_paid: "Wait for the paid request's reply before signing out. Switching now could lose its result; this does not cancel provider work.",
     run_connection_stale: "Connection interrupted. Displaying the last confirmed state; retrying. This does not mean the run failed.",
@@ -910,7 +920,14 @@ const STRINGS = {
   },
 
   "Simplified Chinese": {
-    run_connection_missing: "服务器未找到此任务，已停止自动轮询。",
+    gone_title: "这份评估已无法打开",
+    gone_lede: "这个链接上已经没有内容了。可能的原因：",
+    gone_deleted: "评估的所有者删除了它。",
+    gone_retention_days: "它已被自动删除：本站的评估保存 {days} 天。",
+    gone_retention: "它已到本站的保存期限，被自动删除。",
+    gone_link: "链接不完整：复制或转发时可能被截掉了一部分。请和你收到的原链接核对一下。",
+    gone_samples: "看示例报告",
+    gone_own: "评估你自己的课题",
     invalid_byok: "保存的 BYOK 凭据格式异常。请重新填写密钥，或明确选择使用口令；尚未发送付费请求。",
     logout_wait_paid: "请等待付费请求回包后再退出，避免丢失结果。此提示不会取消供应商调用。",
     run_connection_stale: "连接中断，当前展示最后一次确认的状态，正在重试；这不代表任务运行失败。",

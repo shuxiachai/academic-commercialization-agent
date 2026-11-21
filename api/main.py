@@ -32,10 +32,12 @@ from dotenv import load_dotenv
 from fastapi import (
     FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile,
 )
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 # Load .env before anything reads os.environ. Some dependency imports also
 # happen to load it, but that is a side effect to observe, not a configuration
@@ -1989,6 +1991,41 @@ if _WEB_ROOT.is_dir():
         everyone keeps the page a plain file, like the others.
         """
         return FileResponse(_WEB_ROOT / "admin.html", media_type="text/html")
+
+    @app.exception_handler(StarletteHTTPException)
+    async def _missing_page(request: Request, exc: StarletteHTTPException) -> Response:
+        """The site's own page for an address that is no page, to a browser.
+
+        Until 2026-11-21 a person who followed a wrong link, typed an address
+        or tried a likely one (/pricing) read the bare JSON the API answers
+        with, `{"detail":"Not Found"}`, in a tab with no title. They get a
+        page now, in both languages, with the way to the home page and to the
+        samples; the status is still 404, so a crawler or a link checker is
+        told the same thing as before, and the page and the header both say
+        noindex (the header is `_keep_out_of_search`'s: no such address is on
+        the list of what may be indexed).
+
+        Only for what all of these say, and the framework's JSON otherwise:
+
+        - no route matched the address. A 404 an endpoint raises is that
+          endpoint's answer: a run that is not there is the run page's to say
+          (it reads the JSON), and a file missing under /static is a file. The
+          router puts the endpoint it chose in the scope; nothing chose one here.
+        - not under /api/. A script asking the API for a wrong address is
+          answered as before. Without a credential the access gate answers
+          those first, with the 401 it gives an address that exists, so the
+          page says nothing about which /api/ addresses do.
+        - from a client that asks for HTML: a browser's address bar sends
+          `text/html` in Accept; fetch, curl and the API clients do not.
+
+        Answered from here rather than by a catch-all route: a route at every
+        address would take every method too, and turn a 405 into a 404.
+        """
+        if (exc.status_code == 404 and "endpoint" not in request.scope
+                and not request.url.path.startswith("/api/")
+                and "text/html" in request.headers.get("accept", "")):
+            return FileResponse(_WEB_ROOT / "not_found.html", status_code=404, media_type="text/html")
+        return await http_exception_handler(request, exc)
 
 
 @app.get("/api/samples", response_model=list[SampleSummary], tags=["samples"])

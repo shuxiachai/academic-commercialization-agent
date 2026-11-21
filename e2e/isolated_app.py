@@ -214,7 +214,7 @@ def _write_completed_run(output_root: Path, owner: str) -> str:
 _REUSED_BY_THE_RESUME = ("retrieval", "academic", "patent", "market", "writer", "reviewer")
 
 
-def _write_resumed_pair(output_root: Path, owner: str) -> tuple[str, str]:
+def _write_resumed_pair(output_root: Path, owner: str, *, model: str | None = None) -> tuple[str, str]:
     """A run that failed in scoring and the resume that finished it; returns (parent, child).
 
     The shape of the production pair of 2026-11-18, with made-up content: the
@@ -286,6 +286,15 @@ def _write_resumed_pair(output_root: Path, owner: str) -> tuple[str, str]:
     record = json.loads(terminal_path.read_text(encoding="utf-8"))
     record.update(elapsed_seconds=228, recovery=recovery)
     record["usage"]["total_tokens"] = 35_012
+    if model is not None:
+        # The production resume of 2026-11-20 (131247Z): its scorer's usage on
+        # a model with no price on record, and the model its worker was given.
+        record["usage"].update(cost_usd=None, cost_complete=False, unpriced_models=[model],
+                               agents=[{"role": "Commercialization Scorer", "model": model, "total_tokens": 35_012}])
+        status_path = output_root / child_id / "status.json"
+        status = json.loads(status_path.read_text(encoding="utf-8"))
+        status["llm_model"] = model
+        status_path.write_text(json.dumps(status, indent=2), encoding="utf-8")
     terminal_path.write_text(json.dumps(record), encoding="utf-8")
     return parent_id, child_id
 

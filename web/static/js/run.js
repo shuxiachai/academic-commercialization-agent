@@ -1,7 +1,7 @@
 /* Live run: stage model, polling, and the progress view. */
 
 import * as api from "./api.js";
-import { t, language as uiLanguage } from "./i18n.js";
+import { t, language as uiLanguage, locale } from "./i18n.js";
 
 /* ── Stage model ───────────────────────────────────────────────────────
  * The worker reports one free-text stage string at a time. The UI shows the
@@ -431,6 +431,19 @@ const HEADER_STRINGS = {
     // On the run a resume continued (the reads' continued_by).
     continued_note: "This run was resumed later.",
     continued_open: "Open the run that continued it",
+    // The header a reader of someone else's run is shown (readerHeader).
+    reader_assessed: "Assessed {date}",
+    reader_started: "Started {date}",
+    reader_assessed_range: "Assessed {from} – {to}",
+    reader_started_range: "Started {from} – {to}",
+    reader_dates_title: "Dates are in UTC.",
+    reader_model: "Model: {model}",
+    reader_took: "took {time}",
+    reader_took_all: "took {time} in all",
+    reader_ran: "ran for {time}",
+    reader_ran_all: "ran for {time} in all",
+    reader_running: "running for {time}",
+    reader_running_all: "running for {time} in all",
     // While the account's own assessment is going (activeRunNotice).
     busy_banner: "You have an assessment in progress: {topic}.",
     busy_banner_plain: "You have an assessment in progress.",
@@ -521,6 +534,18 @@ const HEADER_STRINGS = {
     lineage_missing: "上一次运行的记录已被删除，所以这些数字只包含本次运行。",
     continued_note: "这次运行后来已被续跑。",
     continued_open: "打开接着它做的那次运行",
+    reader_assessed: "评估于 {date}",
+    reader_started: "开始于 {date}",
+    reader_assessed_range: "评估于 {from}至{to}",
+    reader_started_range: "开始于 {from}至{to}",
+    reader_dates_title: "日期按 UTC 计。",
+    reader_model: "模型：{model}",
+    reader_took: "用时 {time}",
+    reader_took_all: "合计用时 {time}",
+    reader_ran: "运行了 {time}",
+    reader_ran_all: "合计运行了 {time}",
+    reader_running: "已运行 {time}",
+    reader_running_all: "合计已运行 {time}",
     busy_banner: "你有一份评估正在进行：{topic}。",
     busy_banner_plain: "你有一份评估正在进行。",
     busy_view: "查看",
@@ -744,6 +769,83 @@ export function lineageSummary({ state, recovery, lineage, elapsed_seconds, usag
   }
   // Chinese sets no space between a word and the "至少" that follows it.
   return { reuse, earlier, totals: totals.replace(/([一-鿿]) (?=至少)/g, "$1"), missing };
+}
+
+/* When a run was started, from its id: create_run_id() begins every id with
+ * that moment in UTC. null for an id that does not. */
+export function runStartedAt(runId) {
+  const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z-/.exec(typeof runId === "string" ? runId : "");
+  if (!m) return null;
+  const when = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]));
+  return Number.isNaN(when.getTime()) ? null : when;
+}
+
+/**
+ * The header a reader of someone else's run is shown: when it was assessed,
+ * on which model, and how long it took. The header under the title was
+ * written for whoever ran it, and a shared link is how a report travels: a
+ * colleague it was forwarded to read token counts, "see your provider's
+ * console", the stage times and a paragraph about resuming, and "3:57" for
+ * an assessment that had taken 29 minutes over two runs (production run
+ * 20261120T131247Z, 2026-11-21). app.js shows this instead of those to
+ * anyone who may not modify the run; its owner's header is unchanged.
+ *
+ * Returns { assessed, title, model, seconds, timeKey }, each "" or null when
+ * there is nothing sure to say:
+ *  - `assessed`: the day the assessment began, which is when its evidence
+ *    was gathered. A resume takes its evidence from the run it continues,
+ *    so a chain begins with its oldest run (every id in `lineage`, which the
+ *    reads give any reader), unless this run could reuse nothing and
+ *    gathered its own (`cold_start`); a chain over several days is said as
+ *    a span. In UTC, as the ids are, and the title says so.
+ *  - `model`: the model the run was configured with, else its usage record's.
+ *  - `seconds` and `timeKey`: how long it took, in all for a resume. The
+ *    total follows the server's rule (runs._lineage): written only when it
+ *    knows every run's time (`elapsed_complete`), never a partial sum.
+ */
+export function readerHeader({ run_id, state, llm_model, usage, elapsed_seconds, lineage, recovery, stage_timings } = {}) {
+  const firstStage = Array.isArray(stage_timings) ? new Date(stage_timings[0]?.started_at ?? NaN) : null;
+  const own = runStartedAt(run_id) ?? (firstStage && !Number.isNaN(firstStage.getTime()) ? firstStage : null);
+  const earlier = Array.isArray(lineage?.earlier) ? lineage.earlier : [];
+  let from = own;
+  if (own && recovery?.state !== "cold_start") {
+    for (const row of earlier) {
+      const began = runStartedAt(row?.run_id);
+      if (began && began < from) from = began;
+    }
+  }
+  const day = (when) => new Intl.DateTimeFormat(locale(), { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
+    .format(when);
+  const done = state === "completed";
+  let assessed = "";
+  if (own) {
+    assessed = day(from) === day(own)
+      ? say(done ? "reader_assessed" : "reader_started", { date: day(own) })
+      : say(done ? "reader_assessed_range" : "reader_started_range", { from: day(from), to: day(own) });
+  }
+
+  const configured = typeof llm_model === "string" ? llm_model.trim() : "";
+  const recorded = [...new Set((usage?.agents ?? []).map((agent) => agent?.model).filter((name) => typeof name === "string" && name))];
+  const named = configured || recorded.join(", ");
+
+  const known = (value) => Number.isFinite(value) && value >= 0;
+  const all = Boolean(lineage);
+  const combined = lineage?.combined;
+  const seconds = !all ? (known(elapsed_seconds) ? elapsed_seconds : null)
+    : combined?.elapsed_complete === true && known(combined.elapsed_seconds) ? combined.elapsed_seconds : null;
+  const verb = state === "running" ? "reader_running" : done ? "reader_took" : "reader_ran";
+  return {
+    assessed,
+    title: assessed ? headerLabel("reader_dates_title") : "",
+    model: named ? say("reader_model", { model: named }) : "",
+    seconds,
+    timeKey: all ? `${verb}_all` : verb,
+  };
+}
+
+/** "took 29:28 in all": a reader's time line for `seconds`, by readerHeader's key. */
+export function readerTime(timeKey, seconds) {
+  return say(timeKey, { time: formatDuration(seconds) });
 }
 
 /**

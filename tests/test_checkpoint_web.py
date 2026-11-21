@@ -57,6 +57,6 @@ def test_reuse_and_degradation_reach_the_visible_run_header() -> None:
     # it used to be a count of checkpoints in this badge. The badge is still
     # where a degraded checkpoint write is shown, whatever was reused.
     assert 'id="run-lineage"' in _INDEX
-    assert "paintLineage({ state, recovery, lineage, elapsed_seconds, usage, usage_accounting });" in _APP_JS
+    assert "paintLineage(reader ? {} : { state, recovery, lineage, elapsed_seconds, usage, usage_accounting });" in _APP_JS
     assert 'const degraded = checkpointing?.state === "degraded";' in _APP_JS
     assert 'recoveryEl.textContent = degraded ? `· ${t("recovery_degraded_short")}` : "";' in _APP_JS

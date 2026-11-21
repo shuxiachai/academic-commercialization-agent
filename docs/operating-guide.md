@@ -523,6 +523,7 @@ first sample when no slug is given.
 | `/`, `/samples`, `/samples/{listed slug}`, `/privacy` | yes | Listed in `/sitemap.xml`; no robots header or tag |
 | `/run/…`, `/compare/…` | no | `X-Robots-Tag: noindex, nofollow`, and the same tag in the page. **Not** disallowed in `/robots.txt` |
 | `/history`, `/verify`, `/reset`, an unlisted `/samples/{name}` | no | Header and tag, as above |
+| An address no route answers | no | Status 404; to a browser (`text/html` in Accept, outside `/api/`) the site's 404 page `web/not_found.html`, with the header and the tag; to anything else the JSON `{"detail":"Not Found"}` as before |
 | `/api/` (run reads under `/api/runs/` included), `/admin`, `/source-locator` | no | Header, and `Disallow` in `/robots.txt` |
 
 What may be indexed is one list (`crawlers.public_paths()`); the sitemap is
@@ -791,7 +792,10 @@ server idempotency or a guarantee against duplicate charges. See the
 
 A progress read failing or exceeding its 15-second deadline shows either no
 confirmed observation or a stale last state, separate from the worker outcome.
-Successful polling clears the warning; 404 stops polling. Other read requests
+Successful polling clears the warning; 404 stops polling, and the page then
+says in place of the run that the assessment cannot be opened (deleted by its
+owner, past the deployment's retention, or a link cut short), with links to
+the samples and to the home page. Other read requests
 do not acquire this deadline except receipt lookup's separately bounded GET;
 browser suspension can delay timers. See the
 [combined boundary contract](results-2026-09-08-client-boundary-combinations.md).
@@ -1658,6 +1662,21 @@ count, then the folds for usage and cost, for stage timing and for
 "Technical details", which holds the model, the code revision and the plain
 "worker completed" ending; any other ending stays in the line. On a phone
 the header scrolls away with the report.
+
+That header is its owner's. Anyone else who opens the run (a visitor with
+no identity, or a signed-in reader for whom `viewer_can_modify` is not
+`true`) is shown under the title the state, the day it was assessed, the
+model and how long it took: "Assessed 20 Nov 2026 · Model: … · took 29:19 in
+all" (run.js `readerHeader`). The day is in UTC and is the day the
+assessment began: for a resume, the start of the oldest run it continues,
+since that is when its evidence was gathered, unless it could reuse nothing;
+a chain over several days is said as a span. A resume's time is the
+combined time of the chain, and is not written at all when the server does
+not know every run's time (`elapsed_complete` false). A reader is not shown
+the token count, the cost, the stage times, the technical details, the
+source count in the header line, the paragraph about what a resume reused,
+or whether a failed run spent its owner's daily run. Only what is drawn
+differs: both reads return the same fields to everyone, as before.
 
 The run's two status reads carry `viewer_can_modify`, the answer of the rule
 that guards Cancel, Delete and Resume for the caller who asked. A signed-in
