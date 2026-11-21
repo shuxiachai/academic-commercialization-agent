@@ -130,14 +130,16 @@ def test_a_readiness_label_is_said_in_the_readers_language(page):
     english, chinese = page["views"]["English"], page["views"]["Simplified Chinese"]
     # English: every label exactly as saved, the nine and the odd ones alike.
     assert english["trl"] == LABELS + ODD_LABELS
-    assert english["brief"] == LABELS[6]
+    # The brief says the level and the score (result.js trlReading); the level's
+    # sentence is said under the scorecard's "Why" where the score is between levels.
+    assert english["brief"] == "TRL 7 (score 7 / 9)"
     # Chinese: the nine fixed sentences, by level; anything else as saved.
     assert chinese["trl"][9:] == ODD_LABELS
     for level, shown in enumerate(chinese["trl"][:9], start=1):
         assert shown == zh[f"trl_level_{level}"]
         assert re.fullmatch(rf"TRL {level}（[^（）A-Za-z]+）", shown), shown
     assert len(set(chinese["trl"][:9])) == 9
-    assert chinese["brief"] == "TRL 7（系统原型在实际运行环境中完成演示）"
+    assert chinese["brief"] == "TRL 7（评分 7 / 9）"
     # The English table's sentences are the pipeline's own, word for word, so
     # the level a Chinese reader is told is the level the scorecard recorded.
     for level in range(1, 10):
@@ -271,7 +273,6 @@ NOT_TRANSLATED = {
     "tokens_suffix": "the unit, as providers and the usage tables write it",
     "brief_verdict": "a pattern of placeholders",
     "sample_verdict": "a pattern of placeholders",
-    "sample_trl": "the abbreviation and a number",
     "reviewer_notes_join": "punctuation",
     "rel_numbers_sep": "punctuation",
     "byok_llm_placeholder": "the term on every provider's console",

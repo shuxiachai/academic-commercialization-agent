@@ -95,6 +95,30 @@ class Sample:
 
 
 SAMPLES: tuple[Sample, ...] = (
+    # Local web run of 2026-11-20 (pipeline ab908f9, claude-opus-5-5), the
+    # run the README's demo recording shows, kept verbatim: the one sample
+    # that was given a decision context, and so the one whose report states a
+    # conclusion (DEFER). First on purpose since 2026-11-21: it was last, so
+    # the landing page (which lists the first five) never named it and
+    # /samples (which opens the first) showed it seventh, off the screen on a
+    # window 717 px wide, though it is the one report that shows what the
+    # decision fields buy.
+    Sample(
+        slug="perovskite-silicon-tandem",
+        file="perovskite-silicon-tandem.md",
+        title="Perovskite-silicon tandem solar cells",
+        title_zh="钙钛矿-硅叠层太阳能电池",
+        topic="perovskite-silicon tandem solar cells",
+        committed="2026-11-20",
+        commit="ab908f9",
+        model="claude-opus-5-5",
+        decision=SampleDecision(
+            asset_description="Lab-scale perovskite-silicon tandem solar cell technology from a university research group",
+            target_application="Utility-scale photovoltaic modules",
+            decision_owner="Technology transfer office",
+            decision_type="License the technology",
+        ),
+    ),
     # Live runs of 2026-11-08 from the CLI on the current pipeline, with
     # deepseek-v4-pro: five of the ten held-out topics of the spot check
     # (docs/results-2026-11-08-heldout-spot-check-deepseek-v4-pro*.md), kept
@@ -163,27 +187,6 @@ SAMPLES: tuple[Sample, ...] = (
         committed="2026-10-21",
         commit="a8cc424",
         model="qwen3.8-27b",
-    ),
-    # Local web run of 2026-11-20 (pipeline ab908f9, claude-opus-5-5), the
-    # run the README's demo recording shows, kept verbatim: the one sample
-    # that was given a decision context, and so the one whose report states a
-    # conclusion (DEFER). Last in the list on purpose: the landing page lists
-    # the first five, and /samples opens the first.
-    Sample(
-        slug="perovskite-silicon-tandem",
-        file="perovskite-silicon-tandem.md",
-        title="Perovskite-silicon tandem solar cells",
-        title_zh="钙钛矿-硅叠层太阳能电池",
-        topic="perovskite-silicon tandem solar cells",
-        committed="2026-11-20",
-        commit="ab908f9",
-        model="claude-opus-5-5",
-        decision=SampleDecision(
-            asset_description="Lab-scale perovskite-silicon tandem solar cell technology from a university research group",
-            target_application="Utility-scale photovoltaic modules",
-            decision_owner="Technology transfer office",
-            decision_type="License the technology",
-        ),
     ),
 )
 

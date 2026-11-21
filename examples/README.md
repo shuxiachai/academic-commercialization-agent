@@ -27,7 +27,8 @@ and strategic recommendations.
   license a lab-scale university technology for utility-scale modules). Its
   report therefore states a conclusion for that decision-maker, DEFER, and the
   web reader shows the decision-conclusion card a run's page shows, read from
-  the committed report. It is one run on one model, not a benchmark.
+  the committed report. It is one run on one model, not a benchmark. It is
+  listed first, so the landing page names it and `/samples` opens it.
 
 None of them is a measure of model accuracy or an up-to-date market assessment,
 and their citations have not been re-verified. A reader who checked them found

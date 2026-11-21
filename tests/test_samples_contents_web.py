@@ -82,9 +82,10 @@ export const passageIn = (blocks, _needle, section) => blocks.findIndex((block) 
 @pytest.mark.parametrize("scenario", [
     "each_sample", "rebuilt", "fragment", "failed_read", "deep_link", "wide", "narrow", "no_headings",
     "scorecard", "scorecard_missing",
-    "cards", "cards_without_scores", "phone_row", "evidence",
+    "cards", "cards_without_scores", "evidence",
     "next_create", "next_sign_in", "next_without_accounts", "next_when_sign_up_is_not_said",
-    "decision", "decision_with_scores", "decision_open", "decision_not_asked",
+    "decision", "decision_with_scores", "decision_open", "decision_not_asked", "first_card_is_the_decision",
+    "skeleton", "skeleton_empty", "skeleton_failed", "notice",
     *(f"decision_unread:{number}" for number in range(3)),
     *(f"next_when_the_question_fails:{number}" for number in range(6)),
 ])

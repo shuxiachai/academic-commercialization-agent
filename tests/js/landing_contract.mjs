@@ -27,7 +27,9 @@ globalThis.sessionStorage = {
 // scorecard that holds none is listed.
 const SAMPLES = [
   { slug: "hyperloop", title: "Hyperloop", topic: "hyperloop", committed: "2026-10-21", commit: "a8cc424",
-    language: "English", overall_score: 48.6, trl_score: 5 },
+    language: "English", overall_score: 48.6, trl_score: 5,
+    decision: { asset_description: "A pod", target_application: "Freight", decision_owner: "An investor",
+                decision_type: "Invest" } },
   { slug: "solid-state-batteries-ev-zh", title: "电动汽车用固态电池", topic: "电动汽车用固态电池",
     committed: "2026-10-21", commit: "a8cc424", language: "Simplified Chinese", overall_score: 74.9, trl_score: null },
   { slug: "../etc/passwd", title: "Not a sample", topic: "", committed: "", commit: "" },
@@ -195,8 +197,10 @@ const scenarios = {
     assert.deepEqual(links.map((a) => a.textContent), ["Hyperloop", "电动汽车用固态电池"]);
     // Under each title, what the reader's cards say: the verdict in the
     // scorecard's words, the readiness level where there is one, the language.
+    // A sample whose run was given a decision context says so, as its card on /samples does.
     assert.deepEqual(links.map((a) => a.children.map((c) => [c.className, c.textContent, c.dataset.tone])), [
-      [["landing__sample-facts", "48.6 / 100 · Early · TRL 5 · Report in English", "warning"]],
+      [["landing__sample-facts", "48.6 / 100 · Early · TRL 5 (score 5 / 9) · Report in English", "warning"],
+       ["landing__sample-decision", "With a decision conclusion", undefined]],
       [["landing__sample-facts", "74.9 / 100 · Strong · Report in Chinese", "success"]],
     ]);
     assert.deepEqual(f.replaced, [], "A plain visit to / changes no address");
@@ -769,7 +773,7 @@ const scenarios = {
     const shot = (f) => ({ desk: f.get("#landing-shot").src, phone: f.get("#landing-shot-phone").srcset });
     const sizes = (f) => [f.get("#landing-shot").width, f.get("#landing-shot").height,
       f.get("#landing-shot-phone").width, f.get("#landing-shot-phone").height];
-    const file = (size, theme, language) => `/static/landing/brief-scorecard-${size}-${theme}-${language}.png`;
+    const file = (size, theme, language) => `/static/landing/decision-conclusion-${size}-${theme}-${language}.png`;
     const f = fixture({ access: refused(ACCOUNTS), hold: true });
     await settle();
     assert.deepEqual(shown(f), { landing: true, workbench: false, gate: false });
@@ -778,14 +782,14 @@ const scenarios = {
     f.answer();
     await settle();
     assert.deepEqual(shot(f), { desk: file("desktop", "light", "en"), phone: file("phone", "light", "en") });
-    assert.deepEqual(sizes(f), [1744, 1912, 734, 3020], "Each file's own size, so the page does not move when it loads");
+    assert.deepEqual(sizes(f), [1744, 836, 764, 1416], "Each file's own size, so the page does not move when it loads");
     assert.equal(f.get("#landing-shot").alt, "landing_shot_alt", "Described in the reader's language");
     // The interface language changes: the capture of the interface changes with it.
     f.run('i18n.language = () => "Simplified Chinese"');
     f.get("#ui-lang").listeners.change();
     await settle();
     assert.deepEqual(shot(f), { desk: file("desktop", "light", "zh"), phone: file("phone", "light", "zh") });
-    assert.deepEqual(sizes(f), [1744, 1912, 734, 2794]);
+    assert.deepEqual(sizes(f), [1744, 836, 764, 1336]);
     // The system goes dark while the page is open, and the page is told.
     assert.equal(f.system.heard.length, 1, "The page listens for the system's theme once");
     f.system.dark = true;

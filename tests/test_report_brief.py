@@ -132,6 +132,12 @@ _EDGE_REPORTS = [
     _report("Pilot lines exist [A1].", "**Primary Commercialization Route:**\n\nA joint venture with an incumbent [A1].\n"),
     # A step too long for the brief keeps its whole sentence.
     _report("Pilot lines exist [A1].", "- " + _LONG),
+    # A step cut from behind its label starts with a capital, a name's own case kept (capitalized).
+    _report("Pilot lines exist [A1].", "**Primary commercialization route: out-license to a module maker [M1].**"),
+    _report("Pilot lines exist [A1].", "- mRNA vaccines licensed to a manufacturer [A1]."),
+    _report("Pilot lines exist [A1].", "- e-beam lithography through a foundry [A1]."),
+    _report("Pilot lines exist [A1].", "- ǆungla partnership, ꞵeta and ﬀ [A1]."),
+    _report("Pilot lines exist [A1].", "- 𐐨ostly a pilot [A1]."),
     # Nothing to find.
     _report("", ""),
     "No headings at all.",
@@ -142,6 +148,27 @@ def test_each_rule_s_edge_gives_the_page_s_lines():
     scores = {"overall_score": 61.0, "key_risks": ["  Durability is unproven [A1].  "],
               "key_opportunities": ["A fallback opportunity."]}
     _same([{"scores": scores, "markdown": markdown} for markdown in _EDGE_REPORTS])
+
+
+def test_a_first_step_cut_from_behind_its_label_starts_with_a_capital():
+    """The public sample perovskite-silicon-tandem (2026-11-21) showed its first
+    step as "out-license to an established crystalline-silicon module
+    manufacturer…": the route's label "Primary commercialization route:" is
+    taken off and what is left began in lower case, as if cut from the middle
+    of a sentence. Only a word wholly in lower case is capitalised; "mRNA" and
+    "iPSC" are written that way on purpose."""
+    scores = {"overall_score": 61.0}
+    step = lambda recommendations: brief_lines(scores, _report("Pilot lines exist [A1].", recommendations))["next"]  # noqa: E731
+    assert step("**Primary commercialization route: out-license to a module maker [M1].**") == (
+        "Out-license to a module maker.")
+    assert step("- **Recommendation:** partner with a utility [A1].") == "Partner with a utility."
+    assert step("- e-beam lithography through a foundry [A1].") == "E-beam lithography through a foundry."
+    for kept in ("mRNA vaccines licensed to a manufacturer.", "iPSC-derived cells through a CDMO.",
+                 "以技术许可为主。", "License to a module maker."):
+        assert step(f"- {kept}") == kept
+    sample = brief_lines(samples.read_sample_scores("perovskite-silicon-tandem"),
+                         report_for_display(samples.read_sample("perovskite-silicon-tandem")))
+    assert sample["next"].startswith("Out-license to an established crystalline-silicon module manufacturer")
 
 
 def test_a_scorecard_without_risks_or_opportunities():

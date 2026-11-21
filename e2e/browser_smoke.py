@@ -448,8 +448,14 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
         verdict = page.locator("#sample-reader > .verdict-card")
         if slug in with_decision:
             verdicts_checked += 1
-            expect(page.locator("#sample-reader > .samples__context")).to_contain_text("Technology transfer office")
+            # What was asked: the asset and the application; the owner and the
+            # decision are the card's, under it (said twice until 2026-11-21).
+            context = page.locator("#sample-reader > .samples__context")
+            expect(context).to_contain_text("Utility-scale photovoltaic modules")
+            expect(context).not_to_contain_text("Technology transfer office")
             expect(verdict).to_be_visible()
+            # The four conditions the quoted passage introduces, under it.
+            expect(verdict.locator(".verdict-card__items > li")).to_have_count(4)
             expect(verdict.locator(".verdict-card__verdict")).to_have_text("DEFER")
             expect(verdict.locator(".verdict-card__asked")).to_have_text(
                 "Decision owner: Technology transfer office · Decision to make: License the technology")
@@ -758,8 +764,11 @@ def _exercise_sample_contents(page: Page, base_url: str) -> int:
             # scroll sideways at phone width without contents, so only here.)
             assert wide["scrollWidth"] <= wide["clientWidth"], (slug, "horizontal scroll", wide)
             # Keyboard only: Tab from the language menu into the contents, then Enter.
+            # Up to 80 presses: the decision sample's card quotes the four
+            # conditions its passage introduces, each with its citation buttons,
+            # and every card of the list and the notice's fold come first.
             page.focus("#ui-lang")
-            assert focus_in_contents(40) == "SUMMARY", slug
+            assert focus_in_contents(80) == "SUMMARY", slug
             for target in ("#section-1", "#section-2", "#section-3"):
                 assert focus_in_contents() == target, (slug, target)
             before = len(reads)
@@ -782,33 +791,42 @@ def _exercise_sample_contents(page: Page, base_url: str) -> int:
         show(0)
         narrow = state(slugs[0])
         assert not narrow["open"], "The contents start closed above a narrow report."
-        # On a phone the cards are one row that scrolls sideways inside itself,
-        # so the report opens on the first screen: stacked, they pushed it 849px
-        # down a 375 by 812 window. Each card says its verdict under its title.
-        row = page.evaluate("""() => {
+        # Every card on the first screen, none past the edge and nothing that
+        # scrolls sideways: until 2026-11-21 the cards were one sideways row
+        # here, and at 717 px two and a half showed, the decision sample
+        # seventh. The report still begins on the first screen. Each card
+        # says its verdict under its title.
+        cards_on_screen = """() => {
             const list = document.querySelector(".samples__list");
             const cards = [...list.querySelectorAll(".sample-card")];
             return {
-                tops: [...new Set(cards.map((card) => Math.round(card.getBoundingClientRect().top)))].length,
-                scrolls: list.scrollWidth > list.clientWidth,
-                inside: list.getBoundingClientRect().right <= document.documentElement.clientWidth,
+                scrolls: list.scrollWidth > list.clientWidth || document.documentElement.scrollWidth > document.documentElement.clientWidth,
+                inside: cards.every((card) => card.getBoundingClientRect().right <= document.documentElement.clientWidth),
+                lastBottom: Math.round(Math.max(...cards.map((card) => card.getBoundingClientRect().bottom + window.scrollY))),
                 readerTop: Math.round(document.querySelector("#sample-reader").getBoundingClientRect().top + window.scrollY),
                 screen: window.innerHeight,
                 verdicts: cards.filter((card) => card.querySelector(".sample-card__verdict")?.textContent.includes(" / 100 · ")).length,
                 cards: cards.length,
+                firstDecided: Boolean(cards[0]?.querySelector(".sample-card__decision")),
                 next: document.querySelector("#sample-reader > .samples__next a")?.getAttribute("href") ?? null,
             };
-        }""")
-        assert row["tops"] == 1 and row["scrolls"] and row["inside"], row
-        assert row["readerTop"] < row["screen"], row
+        }"""
+        row = page.evaluate(cards_on_screen)
+        assert not row["scrolls"] and row["inside"], row
+        assert row["lastBottom"] <= row["screen"] and row["readerTop"] < row["screen"], row
         assert row["verdicts"] == row["cards"] == len(slugs), row
+        assert row["firstDecided"], "The sample with a decision conclusion is the first card"
+        page.set_viewport_size({"width": 717, "height": 800})
+        wide_row = page.evaluate(cards_on_screen)
+        assert not wide_row["scrolls"] and wide_row["inside"] and wide_row["lastBottom"] <= wide_row["screen"], wide_row
+        page.set_viewport_size({"width": 390, "height": 844})
         # The isolated app has no accounts, so the way on is the app itself.
         assert row["next"] == "/", row
         assert narrow["toc"]["bottom"] <= narrow["article"]["y"], (narrow["toc"], narrow["article"])
         assert abs(narrow["toc"]["x"] - narrow["article"]["x"]) < 1, (narrow["toc"], narrow["article"])
         expect(page.locator(".samples__toc a").first).to_be_hidden()
         page.focus("#ui-lang")
-        assert focus_in_contents(40) == "SUMMARY"
+        assert focus_in_contents(80) == "SUMMARY"
         page.keyboard.press("Enter")
         expect(page.locator(".samples__toc a").first).to_be_visible()
         assert focus_in_contents() == "#section-1"
@@ -818,12 +836,12 @@ def _exercise_sample_contents(page: Page, base_url: str) -> int:
         # Widening moves the contents beside the report, open; narrowing again closes them.
         page.set_viewport_size({"width": 1280, "height": 720})
         expect(page.locator(".samples__toc details")).to_have_attribute("open", "")
-        # ...and the cards wrap again, as they always did at this width.
+        # ...and the cards are the same wrapping grid at this width.
         assert page.evaluate("""() => {
             const list = document.querySelector(".samples__list");
             const tops = new Set([...list.querySelectorAll(".sample-card")].map((card) => Math.round(card.getBoundingClientRect().top)));
             return tops.size > 1 && list.scrollWidth <= list.clientWidth;
-        }"""), "The cards are a wrapping grid from 768px."
+        }"""), "The cards are a wrapping grid at every width."
         page.set_viewport_size({"width": 390, "height": 844})
         expect(page.locator(".samples__toc details")).not_to_have_attribute("open", "")
 

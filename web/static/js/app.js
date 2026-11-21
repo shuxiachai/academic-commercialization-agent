@@ -2369,8 +2369,11 @@ function paintLanding() {
 }
 
 /* The screenshot of a finished assessment, further down the landing: the
- * decision brief and scorecard of the sample the card above draws its
- * scorecard from, as that sample's page shows them. One file for each theme,
+ * sample run with a decision context (perovskite-silicon-tandem), at its
+ * decision conclusion, as that sample's page shows it. Until 2026-11-21 it
+ * was the glucose-monitoring sample's brief and scorecard: the same sample,
+ * and the same scorecard, as the card beside the pitch, and no decision
+ * conclusion anywhere on the landing. One file for each theme,
  * width and interface language (web/static/landing/), so the capture is in
  * the theme the visitor reads in and legible at a phone's width: the single
  * dark, 900 px picture this page had until 2026-11-13 was neither.
@@ -2384,8 +2387,8 @@ function paintLanding() {
  * does not move when it arrives; tests/test_landing_page.py reads the sizes
  * back from the files. */
 const LANDING_SHOT_SIZES = {
-  en: { desktop: [1744, 1912], phone: [734, 3020] },
-  zh: { desktop: [1744, 1912], phone: [734, 2794] },
+  en: { desktop: [1744, 836], phone: [764, 1416] },
+  zh: { desktop: [1744, 836], phone: [764, 1336] },
 };
 let landingShotShown = false;
 
@@ -2402,7 +2405,7 @@ function paintLandingShot() {
   const narrow = $("#landing-shot-phone");
   const language = i18n.language() === "Simplified Chinese" ? "zh" : "en";
   const theme = themeInUse();
-  const file = (size) => `/static/landing/brief-scorecard-${size}-${theme}-${language}.png`;
+  const file = (size) => `/static/landing/decision-conclusion-${size}-${theme}-${language}.png`;
   const sized = (node, [width, height]) => { node.width = width; node.height = height; };
   sized(narrow, LANDING_SHOT_SIZES[language].phone);
   sized(picture, LANDING_SHOT_SIZES[language].desktop);
@@ -2568,6 +2571,15 @@ function drawLandingSamples() {
       note.textContent = said;
       if (facts.tone) note.dataset.tone = facts.tone;
       link.append(note);
+    }
+    // The sample whose report states a conclusion for a decision-maker says
+    // so here, as its card on /samples does: until 2026-11-21 it was not in
+    // this list at all, and nothing on the landing showed a conclusion.
+    if (facts.decision) {
+      const tag = document.createElement("span");
+      tag.className = "landing__sample-decision";
+      tag.textContent = facts.decision;
+      link.append(tag);
     }
     item.append(link);
     list.append(item);

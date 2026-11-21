@@ -346,7 +346,7 @@ class SampleHttpTests(unittest.TestCase):
         model = schema["components"]["schemas"][answer["$ref"].rsplit("/", 1)[-1]]
         self.assertEqual(set(model["properties"]), {"asked", "question", "conclusion"})
         listed = self.client.get("/api/samples").json()
-        self.assertEqual(listed[-1]["decision"], {
+        self.assertEqual(listed[0]["decision"], {
             "asset_description": "Lab-scale perovskite-silicon tandem solar cell technology from a university research group",
             "target_application": "Utility-scale photovoltaic modules",
             "decision_owner": "Technology transfer office",
@@ -481,11 +481,52 @@ class SampleClientTests(unittest.TestCase):
                 found = dict(re.findall(r'^\s+(samples_\w+): "((?:[^"\\]|\\.)*)",?\s*$', table, re.M))
                 self.assertGreaterEqual(len(found), 14)
                 self.assertEqual([key for key, text in found.items() if caution.search(text)], ["samples_historical"])
-                for part in ("{date}", "{commit}", "{model}"):
+                for part in ("{date}", "{model}"):
                     self.assertIn(part, found["samples_historical"])
+                # "On pipeline 9bd948c" was a term to a reader: the commit is
+                # under "Technical details" (samples_revision), not in the sentence.
+                self.assertNotIn("{commit}", found["samples_historical"])
+                self.assertNotRegex(found["samples_historical"], r"(?i)pipeline|流水线")
+                self.assertIn("{commit}", found["samples_revision"])
         self.assertEqual(re.search(r'samples_sub: "([^"]+)"', english)[1],
                          "Finished assessments you can read without an account or API keys.")
         self.assertEqual(re.search(r'samples_sub: "([^"]+)"', chinese)[1], "无需账号或 API Key 即可阅读的完整评估。")
+
+
+class SampleListLayoutTests(unittest.TestCase):
+    """Seen at 717 px on 2026-11-21: the cards were one row that scrolled
+    sideways, two and a half of them showed, and the one sample with a
+    decision conclusion was the seventh. The page also said "Choose a report
+    above." before there was anything above to choose."""
+
+    def test_the_sample_with_a_decision_conclusion_comes_first(self):
+        self.assertIsNotNone(samples.SAMPLES[0].decision)
+        self.assertEqual(samples.list_samples()[0]["slug"], "perovskite-silicon-tandem")
+        self.assertEqual(sum(1 for sample in samples.SAMPLES if sample.decision), 1)
+
+    def test_every_card_is_on_the_page_at_every_width(self):
+        css = (_REPO / "web/static/css/samples.css").read_text(encoding="utf-8")
+        listing = css[css.index(".samples__list {"):]
+        self.assertNotRegex(css, r"\.samples__list \{[^}]*overflow-x", "no row that scrolls sideways")
+        self.assertNotIn("scroll-snap", css)
+        self.assertRegex(listing, r"^\.samples__list \{\s*display: grid;")
+        narrow = css[css.index("@media (max-width: 767px)"):]
+        narrow = narrow[:narrow.index("\n}\n")]
+        self.assertRegex(narrow, r"\.samples__list \{[^}]*grid-template-columns: repeat\(auto-fill, minmax\(")
+        reader = (_REPO / "web/static/js/samples.js").read_text(encoding="utf-8")
+        self.assertNotIn("scrollLeft", reader, "nothing scrolls sideways to bring a card into view")
+
+    def test_the_page_holds_placeholders_until_the_list_arrives(self):
+        page = (_REPO / "web/samples.html").read_text(encoding="utf-8")
+        listing = page[page.index('id="sample-list"'):page.index("</nav>")]
+        self.assertIn('aria-busy="true"', listing)
+        self.assertEqual(listing.count('class="sample-card sample-card--placeholder" aria-hidden="true"'), 4)
+        reader = page[page.index('id="sample-reader"'):]
+        reader = reader[:reader.index("</section>")]
+        self.assertNotIn("samples_choose", reader)
+        self.assertIn('<div class="skeleton"></div>', reader)
+        css = (_REPO / "web/static/css/samples.css").read_text(encoding="utf-8")
+        self.assertIn(".sample-card--placeholder", css)
 
 
 _ALLOWED_TAGS = {
@@ -629,8 +670,11 @@ class SampleProvenanceTests(unittest.TestCase):
                 self.assertRegex(sample.commit, r"^[0-9a-f]{7}$")
                 self.assertRegex(sample.model, r"^[a-z0-9][a-z0-9.-]+$")
                 self.assertRegex(sample.committed, r"^\d{4}-\d{2}-\d{2}$")
-        # The notice on the page says all three.
+        # The notice on the page says all three: the date and the model in its
+        # sentence, the revision under "Technical details".
         strings = (_REPO / "web/static/js/samples_i18n.js").read_text(encoding="utf-8")
         self.assertEqual(strings.count("{model}"), 2)
+        self.assertEqual(strings.count("{commit}"), 2)
         source = (_REPO / "web/static/js/samples.js").read_text(encoding="utf-8")
-        self.assertIn('.replace("{model}", sample.model)', source)
+        self.assertIn('.replace("{model}", () => sample.model)', source)
+        self.assertIn('t("samples_revision").replace("{commit}", () => sample.commit)', source)

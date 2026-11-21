@@ -21,6 +21,7 @@ class Element {
   append(...nodes) { this.children.push(...nodes); }
   replaceChildren(...nodes) { this._text = ""; this.html = ""; this.children = nodes; }
   setAttribute(name, value) { this.attributes[name] = String(value); }
+  removeAttribute(name) { delete this.attributes[name]; }
   addEventListener(name, callback) { (this.listeners[name] ??= []).push(callback); }
   // The stub renderer emits no headings, so the contents list (#285) stays empty here.
   querySelectorAll() { return []; }

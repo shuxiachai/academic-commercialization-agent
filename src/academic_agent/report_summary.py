@@ -68,6 +68,9 @@ COPY: dict[str, dict[str, str]] = {
         "compare_context_incomplete": "Incomplete: not all four required fields were given",
         "compare_context_given": "Given: decision support",
         "compare_context_unknown": "Not recorded",
+        "trl_why_fraction": "A TRL is a whole level. The scoring agent rates readiness from 10 to 90, divided by "
+                            "10, so a score can fall between two levels: {score} / 9 here. The level shown is the "
+                            "nearest whole one, {name}.",
         "draft_note": "This is an unreviewed, unscored draft. The run stopped before its report was finished: "
                       "this is what the report writer wrote, before the review that checks its citations and "
                       "claims, and with no score. Do not treat it as the assessment.",
@@ -119,6 +122,8 @@ COPY: dict[str, dict[str, str]] = {
         "compare_context_incomplete": "不完整：四个必填项没有填全",
         "compare_context_given": "已提供：决策支持",
         "compare_context_unknown": "未记录",
+        "trl_why_fraction": "TRL 按定义是整数级。评分智能体按 10 到 90 打分、再除以 10，所以分数可以落在两级之间，"
+                            "这里是 {score} / 9；显示的级别取最接近的整数：{name}。",
         "draft_note": "这是一份未经审稿和打分的草稿。这次运行在报告完成前停下了：下面是报告撰写这一步写出的文字，"
                       "还没有经过核对引用和论断的审查，也没有评分。请不要把它当作评估结论。",
         "draft_reviewed_note": "这是一份已核查、未评分的草稿。这次运行在报告完成前停下了：下面是经过核对引用和论断的审查"
@@ -142,10 +147,20 @@ COPY: dict[str, dict[str, str]] = {
     },
 }
 
-# The Chinese sentence for each readiness level, as i18n.js trl_level_N has
-# it: the scorecard writes its label in English ("TRL 7 (system prototype in
-# operational environment)", evidence.py), and a Chinese reader is shown the
-# same level in Chinese, as result.js trlText does.
+# Each readiness level's sentence, as i18n.js trl_level_N has it. The English
+# ones are the scorecard's own labels (evidence._trl_label); a Chinese reader is
+# shown the same level in Chinese, as result.js trlText does.
+TRL_LEVELS_EN: dict[str, str] = {
+    "1": "TRL 1 (basic principles observed)",
+    "2": "TRL 2 (technology concept formulated)",
+    "3": "TRL 3 (experimental proof of concept)",
+    "4": "TRL 4 (component validated in laboratory)",
+    "5": "TRL 5 (component validated in relevant environment)",
+    "6": "TRL 6 (system prototype demonstrated in relevant environment)",
+    "7": "TRL 7 (system prototype in operational environment)",
+    "8": "TRL 8 (system complete and qualified)",
+    "9": "TRL 9 (actual system proven in operational environment)",
+}
 TRL_LEVELS_ZH: dict[str, str] = {
     "1": "TRL 1（发现并报告基本原理）",
     "2": "TRL 2（形成技术概念或应用设想）",
@@ -191,6 +206,31 @@ def _trl_text(label: str, language: str | None) -> str:
     return label
 
 
+def trl_level(score: Any, label: Any) -> int | None:
+    """result.js trlLevel: the scorecard label's level where it has one of the
+    code's shape, else the score rounded as evidence._trl_label rounds it
+    (Python's round, the even level on a tie); None for neither."""
+    named = _TRL_LABEL.match(label.strip()) if isinstance(label, str) else None
+    if named:
+        return int(named.group(1))
+    return min(9, max(1, round(score))) if _score(score, 9) and score >= 1 else None
+
+
+def _trl_row(scores: dict, copy: dict[str, str], language: str | None) -> tuple[str, str]:
+    """The TRL row's label and its note, as the page's scorecard says them: the
+    level beside the dimension, and where a score between levels comes from
+    (result.js trlWhy) or, for a whole one, the level's sentence."""
+    value, label = scores.get("trl_score"), scores.get("trl_label")
+    level = trl_level(value, label) if _score(value, 9) and value >= 1 else None
+    saved = _trl_text(label.strip(), language) if isinstance(label, str) and label.strip() else ""
+    if level is None:
+        return copy["dim_trl"], saved
+    name = (TRL_LEVELS_ZH if language == "Simplified Chinese" else TRL_LEVELS_EN)[str(level)]
+    if float(value).is_integer():
+        return f"{copy['dim_trl']} · TRL {level}", saved or name
+    return f"{copy['dim_trl']} · TRL {level}", copy["trl_why_fraction"].format(score=js_number(value), name=name)
+
+
 def source_counts(sources: Any) -> dict[str, int] | None:
     """How many sources the registry holds, per domain; None when it cannot be read as one."""
     if not isinstance(sources, dict):
@@ -232,10 +272,8 @@ def summary(*, state: str, scores: Any, sources: Any, mode: Any, question: dict[
     for key, highest, label in DIMENSIONS:
         value = scores.get(key)
         valid = _score(value, highest) and value >= 1
-        note = ""
-        if key == "trl_score" and isinstance(scores.get("trl_label"), str) and scores["trl_label"].strip():
-            note = _trl_text(scores["trl_label"].strip(), language)
-        rows.append((copy[label], f"{js_number(value)} / {js_number(highest)}" if valid else "—", note))
+        named, note = _trl_row(scores, copy, language) if key == "trl_score" else (copy[label], "")
+        rows.append((named, f"{js_number(value)} / {js_number(highest)}" if valid else "—", note))
     counts = source_counts(sources)
     chinese = language == "Simplified Chinese"
     card = _CARD_COPY["Simplified Chinese" if chinese else "English"]

@@ -135,10 +135,13 @@
       </aside>
     </div>
 
-    <!-- What a finished assessment looks like: the decision brief and the
-         scorecard of one sample, as its page shows them. The card above draws
-         a scorecard's verdict and bars; nothing on the landing showed the
-         brief, the reasons or what a reader does with them. A screenshot, one
+    <!-- What a finished assessment looks like: the decision conclusion of
+         the sample run with a decision context (who decides, what, and the
+         report's own answer), as its page shows it. The card above draws a
+         scorecard's verdict and bars, of another sample. Until 2026-11-21 this
+         was that same sample's brief and scorecard: one scorecard on the
+         landing three times, no conclusion anywhere, and on a phone a picture
+         1,510 px tall. The brief is one press away, on the sample's page. A screenshot, one
          for each theme, width and interface language, so it is legible on a
          phone and does not stand as a dark block in the light theme, which
          is what the single picture here did until 2026-11-13. The files are
@@ -148,14 +151,14 @@
     <section class="landing__card landing__shot" aria-labelledby="landing-shot-title">
       <h2 id="landing-shot-title" data-i18n="landing_shot_title">What a finished assessment looks like</h2>
       <figure class="landing__shot-figure">
-        <a class="landing__shot-link" href="/samples/continuous-glucose-monitoring">
+        <a class="landing__shot-link" href="/samples/perovskite-silicon-tandem">
           <picture>
-            <source id="landing-shot-phone" media="(max-width: 640px)" width="734" height="3020">
-            <img id="landing-shot" width="1744" height="1912" loading="lazy" decoding="async"
-                 alt="Screenshot: a decision brief headed 74.0 / 100, Strong, with its main source, biggest risk and first recommended step, above a scorecard of five scored dimensions.">
+            <source id="landing-shot-phone" media="(max-width: 640px)" width="764" height="1416">
+            <img id="landing-shot" width="1744" height="836" loading="lazy" decoding="async"
+                 alt="Screenshot: the decision conclusion DEFER for the decision owner Technology transfer office and the decision License the technology, quoting the report's sentence and the four conditions it lists.">
           </picture>
         </a>
-        <figcaption data-i18n="landing_shot_caption">A screenshot of this interface from November 2026: the sample assessment of continuous glucose monitoring, opened at its decision brief and scorecard. Select it to read the whole report.</figcaption>
+        <figcaption data-i18n="landing_shot_caption">A screenshot of this interface from November 2026: the sample assessment of perovskite-silicon tandem solar cells, run with a decision context (a technology transfer office deciding whether to license the technology), opened at its decision conclusion. Select it to read its brief and the whole report.</figcaption>
       </figure>
     </section>
 
@@ -250,10 +253,11 @@
           <li><span data-i18n="key_guide_step2">Search key: create an API key at Tavily. Its free plan includes 1,000 searches a month.</span> <a href="https://app.tavily.com" target="_blank" rel="noopener noreferrer">app.tavily.com</a></li>
           <li><span data-i18n="key_guide_step3_landing">Create an account here, paste both keys, enter deepseek-chat as the model, and start.</span></li>
         </ol>
+        <p class="key-guide__note" data-i18n="key_guide_balance">Some model providers let a new key make calls only once the account has a balance. If your first assessment stops because the account cannot be billed, top it up with that provider. Each provider's current terms apply.</p>
       </details>
     </section>
 
-    <!-- The five things a visitor asks before signing up. Each answer says
+    <!-- The six things a visitor asks before signing up. Each answer says
          what the privacy page, the form or the documents already say, in a
          sentence or three (tests/test_landing_page.py holds each to its
          source). Closed by default: the page stays a page, and a question
@@ -292,6 +296,16 @@
         <summary data-i18n="landing_faq_q5">How are the fees worked out?</summary>
         <div class="landing__answer">
           <p data-i18n="landing_faq_a5">This service charges nothing and cannot refund a provider's charge. An assessment runs on your own model key and search key, and each provider bills you directly, by its own meter. The table above is what one assessment cost in model fees when it was measured here; searches are billed by the search service, and both search services have a free allowance.</p>
+        </div>
+      </details>
+      <!-- A run that stops partway: what its page offers and what is charged,
+           in the run page's own terms (draft, resume, today's runs) and the
+           refund rule of api/runs.py (an unreachable model service, three a
+           day per account). -->
+      <details class="landing__question">
+        <summary data-i18n="landing_faq_q6">What if an assessment fails partway? Am I charged?</summary>
+        <div class="landing__answer">
+          <p data-i18n="landing_faq_a6">Its page says why it stopped. If the report had been written, the page keeps it as a draft, marked as unreviewed or unscored. You can resume the run from its last checkpoint: it starts again at the step that failed and reuses what was saved before it, and it uses one more of today's runs. Model tokens your provider has already billed stay billed by that provider, as for any run: this service cannot refund them. If the run failed because the model service could not be reached, it does not count toward today's runs, up to three such runs a day per account.</p>
         </div>
       </details>
     </section>
@@ -1071,6 +1085,7 @@
           <li><span data-i18n="key_guide_step2">Search key: create an API key at Tavily. Its free plan includes 1,000 searches a month.</span> <a href="https://app.tavily.com" target="_blank" rel="noopener noreferrer">app.tavily.com</a></li>
           <li><span data-i18n="key_guide_step3_form">Paste both keys into this form, choose DeepSeek and Tavily, enter deepseek-chat as the model, and start.</span></li>
         </ol>
+        <p class="key-guide__note" data-i18n="key_guide_balance">Some model providers let a new key make calls only once the account has a balance. If your first assessment stops because the account cannot be billed, top it up with that provider. Each provider's current terms apply.</p>
       </details>
       <!-- What a provider said about the keys, for a signed-in account
            saving them. Never a dead end: the same keys can be saved anyway. -->

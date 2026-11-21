@@ -17,6 +17,7 @@ import pytest
 from academic_agent import report_summary
 from academic_agent.report_summary import (
     COPY,
+    TRL_LEVELS_EN,
     TRL_LEVELS_ZH,
     content_disposition,
     download_names,
@@ -56,6 +57,8 @@ def test_the_words_the_page_also_says_are_the_page_s():
 def test_the_chinese_readiness_levels_are_the_page_s():
     for level, sentence in TRL_LEVELS_ZH.items():
         assert _page_says(f"trl_level_{level}")[1] == sentence
+    for level, sentence in TRL_LEVELS_EN.items():
+        assert _page_says(f"trl_level_{level}")[0] == sentence
 
 
 def test_the_author_is_the_product_s_name():
@@ -85,8 +88,10 @@ def _summary(**overrides):
 def test_the_summary_of_a_scored_run():
     shown = _summary()
     assert (shown["score"], shown["unit"], shown["band"], shown["band_key"]) == ("69.3", "/ 100", "Moderate", "moderate")
+    # The level beside the dimension, the score as the bar's figure, and where a
+    # score between two levels comes from: as the page's scorecard says them.
     assert shown["rows"] == [
-        ("Technology readiness", "7.3 / 9", "TRL 7 (system prototype in operational environment)"),
+        ("Technology readiness · TRL 7", "7.3 / 9", "A TRL is a whole level. The scoring agent rates readiness from 10 to 90, divided by 10, so a score can fall between two levels: 7.3 / 9 here. The level shown is the nearest whole one, TRL 7 (system prototype in operational environment)."),
         ("Manufacturing readiness", "6.5 / 10", ""),
         ("Patent position", "2.5 / 5", ""),
         ("Market accessibility", "3.5 / 5", ""),
@@ -106,10 +111,25 @@ def test_the_summary_of_a_scored_run():
 def test_the_summary_in_chinese():
     shown = _summary(language="Simplified Chinese")
     assert shown["band"] == "中等" and shown["title"] == "评估概要"
-    assert shown["rows"][0] == ("技术就绪度", "7.3 / 9", "TRL 7（系统原型在实际运行环境中完成演示）")
+    assert shown["rows"][0] == ("技术就绪度 · TRL 7", "7.3 / 9",
+                                "TRL 按定义是整数级。评分智能体按 10 到 90 打分、再除以 10，所以分数可以落在两级之间，"
+                                "这里是 7.3 / 9；显示的级别取最接近的整数：TRL 7（系统原型在实际运行环境中完成演示）。")
     assert shown["sources"] == ("来源", "共 24 个 · 学术 8 · 专利 7 · 市场 9")
     assert shown["context"][2] == [f"{_CARD_COPY['Simplified Chinese']['owner']}：A transfer office",
                                    f"{_CARD_COPY['Simplified Chinese']['decision']}：License it"]
+
+
+def test_a_whole_score_is_its_level_and_the_level_follows_the_scorer_s_rounding():
+    """The page's rule (result.js trlLevel): the label's level, else the
+    score rounded as evidence._trl_label rounds it, to the even level on a tie."""
+    whole = _summary(scores={**_SCORES, "trl_score": 9, "trl_label": "TRL 9 (actual system proven in operational environment)"})
+    assert whole["rows"][0] == ("Technology readiness · TRL 9", "9 / 9",
+                                "TRL 9 (actual system proven in operational environment)")
+    for score, level in ((6.5, 6), (7.5, 8), (1.04, 1)):
+        shown = _summary(scores={**_SCORES, "trl_score": score, "trl_label": None})
+        assert shown["rows"][0][0] == f"Technology readiness · TRL {level}", score
+    unreadable = _summary(scores={**_SCORES, "trl_score": "7.3"})
+    assert unreadable["rows"][0] == ("Technology readiness", "—", "TRL 7 (system prototype in operational environment)")
 
 
 @pytest.mark.parametrize(("mode", "line"), [
