@@ -867,7 +867,7 @@ def _exercise_shared_link_reader(browser, base_url: str, owned_pair: tuple[str, 
     """
     refused: list[str] = []
     errors: list[str] = []
-    context = browser.new_context()
+    context = browser.new_context(locale=SMOKE_LOCALE)
 
     def guard(route: Route) -> None:
         request = route.request
