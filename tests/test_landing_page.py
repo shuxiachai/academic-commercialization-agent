@@ -538,11 +538,12 @@ def _faq() -> list[tuple[str, str]]:
                       section, re.S)
 
 
-def test_the_landing_answers_five_questions_and_each_answer_is_already_written_down_somewhere():
+def test_the_landing_answers_six_questions_and_each_answer_is_already_written_down_somewhere():
     """How long data is kept, which languages, what a decision context is,
-    whether a paper can be uploaded, how fees are worked out. An answer on a
-    landing page is the easiest place for a claim nobody checked, so each is
-    held here to the page, the constant or the document it repeats."""
+    whether a paper can be uploaded, how fees are worked out, and (since
+    2026-11-21) what happens when a run fails partway. An answer on a landing
+    page is the easiest place for a claim nobody checked, so each is held
+    here to the page, the constant or the document it repeats."""
     from api import papers
 
     assert _faq() == [(f"landing_faq_q{n}", f"landing_faq_a{n}") for n in range(1, 7)]

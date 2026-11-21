@@ -446,8 +446,14 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
         verdict = page.locator("#sample-reader > .verdict-card")
         if slug in with_decision:
             verdicts_checked += 1
-            expect(page.locator("#sample-reader > .samples__context")).to_contain_text("Technology transfer office")
+            # What was asked: the asset and the application; the owner and the
+            # decision are the card's, under it (said twice until 2026-11-21).
+            context = page.locator("#sample-reader > .samples__context")
+            expect(context).to_contain_text("Utility-scale photovoltaic modules")
+            expect(context).not_to_contain_text("Technology transfer office")
             expect(verdict).to_be_visible()
+            # The four conditions the quoted passage introduces, under it.
+            expect(verdict.locator(".verdict-card__items > li")).to_have_count(4)
             expect(verdict.locator(".verdict-card__verdict")).to_have_text("DEFER")
             expect(verdict.locator(".verdict-card__asked")).to_have_text(
                 "Decision owner: Technology transfer office · Decision to make: License the technology")
@@ -756,8 +762,11 @@ def _exercise_sample_contents(page: Page, base_url: str) -> int:
             # scroll sideways at phone width without contents, so only here.)
             assert wide["scrollWidth"] <= wide["clientWidth"], (slug, "horizontal scroll", wide)
             # Keyboard only: Tab from the language menu into the contents, then Enter.
+            # Up to 80 presses: the decision sample's card quotes the four
+            # conditions its passage introduces, each with its citation buttons,
+            # and every card of the list and the notice's fold come first.
             page.focus("#ui-lang")
-            assert focus_in_contents(40) == "SUMMARY", slug
+            assert focus_in_contents(80) == "SUMMARY", slug
             for target in ("#section-1", "#section-2", "#section-3"):
                 assert focus_in_contents() == target, (slug, target)
             before = len(reads)
@@ -815,7 +824,7 @@ def _exercise_sample_contents(page: Page, base_url: str) -> int:
         assert abs(narrow["toc"]["x"] - narrow["article"]["x"]) < 1, (narrow["toc"], narrow["article"])
         expect(page.locator(".samples__toc a").first).to_be_hidden()
         page.focus("#ui-lang")
-        assert focus_in_contents(40) == "SUMMARY"
+        assert focus_in_contents(80) == "SUMMARY"
         page.keyboard.press("Enter")
         expect(page.locator(".samples__toc a").first).to_be_visible()
         assert focus_in_contents() == "#section-1"

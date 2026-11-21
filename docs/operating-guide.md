@@ -508,7 +508,11 @@ semantic correctness of all report prose; see the
 | GET | `/api/samples/{slug}/decision` | For a sample whose run was given a decision context: the owner and decision its entry records and the conclusion its report states, in the shape of `/api/runs/{id}/decision`; `asked: false` for the others. Read from the committed report on each request |
 
 The browser reader for these samples is `/samples`. It is a separate page
-from `/` so that it renders on a gated deployment without the access gate.
+from `/` so that it renders on a gated deployment without the access gate. It
+lists every sample as a card at every width, the sample with a decision
+conclusion first (the order of `api/samples.py`, which the landing's list of
+five follows too), shows placeholders until the list arrives, and opens the
+first sample when no slug is given.
 
 ### What a search engine is told
 
