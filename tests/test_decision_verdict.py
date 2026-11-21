@@ -461,7 +461,7 @@ def test_only_the_line_that_closes_its_paragraph_can_introduce_a_list():
     assert find_verdict("")["items"] == [] and find_verdict("")["listed"] is None
     # A sentence longer than the card quotes, cut where a colon happens to fall,
     # does not end with that colon: what is under its paragraph is not its list.
-    cut = "The office should wait for these reasons " + "word " * 111 + "xy: and then the sentence goes on [A1]."
+    cut = "The office should wait for these reasons " + "word " * 111 + "xyz: and then the sentence goes on [A1]."
     assert len(cut.split(":")[0]) + 1 == 600
     for statement, report in (("Conclusion: DEFER.", _recommendations(f"**Conclusion: DEFER.** {cut}", _FOUR)),
                               ("Conclusion: DEFER", _recommendations(_ALONE, cut, _FOUR))):
