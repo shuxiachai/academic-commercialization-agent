@@ -177,7 +177,11 @@ inferred, no score changes, and the code-owned applicability paragraph is
 left out of the reading. Runs in the other two modes, and runs that did not
 complete, have no card. Where a report says its conclusion more than once,
 the card quotes the report's own conclusion line if it has one ("Conclusion:
-DEFER."), else the first place. The rule was written against 1,797 saved
+DEFER."), else the first place. Where the quoted passage ends with a colon
+("…based on four evidence conditions:"), the list right under it in the report
+follows it on the card, numbered as the report numbers it, if it has at most
+four entries and none nested; otherwise the card says how many the report
+lists there and points to it, and it never shows part of a list. The rule was written against 1,797 saved
 reports of the other modes, where it finds no conclusion, and then checked on
 the one decision-support report that exists, read from production; it has not
 been measured on a set of them.
@@ -717,13 +721,14 @@ report repeats ("Assessment mode: decision_support") as words ("decision
 support", 决策支持), each reference entry's source type as a phrase ("Type:
 Market report", 类型：市场报告) and a patent's title without Google Patents'
 " - Google Patents"; a PDF exported before any of these rules is rebuilt once
-on its next download (`ui/pdf_export.DISPLAY_MARK`, now `report-display:v3`).
+on its next download (`ui/pdf_export.DISPLAY_MARK`, now `report-display:v4`).
 
 The PDF is what a reader passes on, so since 2026-11-21 it carries what the
 page shows beside the report (`academic_agent/report_summary.py`). Its first
 page has, after the decision card or the scope paragraph, a summary: the
 overall score and its grade (the thresholds of result.js `band()`), the five
-dimensions with the readiness label, the source counts, the decision context,
+dimensions (the TRL row naming its whole level and, for a score between two
+levels, where the decimal comes from), the source counts, the decision context,
 and the brief's three lines (the report's own summary sentence, the biggest
 risk, the first recommended step), found by the page's own rules ported to
 `academic_agent/report_brief.py` and held to them in Node. A run with no score

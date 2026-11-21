@@ -119,7 +119,8 @@ def test_the_english_pdf_carries_what_the_page_shows(root):
 
     # The score, its grade and the five dimensions, on the first page.
     assert "69.3 / 100 Moderate" in first
-    for row in ("Technology readiness 7.3 / 9 TRL 7 (system prototype in operational environment)",
+    for row in ("Technology readiness · TRL 7 7.3 / 9 A TRL is a whole level.",
+                "The level shown is the nearest whole one, TRL 7 (system prototype in operational environment).",
                 "Manufacturing readiness 6.5 / 10", "Patent position 2.5 / 5", "Market accessibility 3.5 / 5",
                 "Evidence confidence 4 / 5"):
         assert row in first, row
@@ -131,8 +132,11 @@ def test_the_english_pdf_carries_what_the_page_shows(root):
     for line in ("summary", "risk", "next"):
         whole = lines[f"{line}_whole"] if line != "risk" else None
         assert _flat(whole or lines[line]) in first, line
-    # After the decision card and before the report's own first section.
-    assert first.index("Decision conclusion") < first.index("At a glance") < first.index("Executive Summary")
+    # After the decision card and before the report's own first section. Since
+    # the card quotes the four conditions its passage introduces, the report's
+    # first section may begin on the next page.
+    assert first.index("Decision conclusion") < first.index("At a glance")
+    assert everything.index("At a glance") < everything.index("Executive Summary")
 
     # Every page: the header, the page number, the link back, the date and the model.
     for number, page in enumerate(pages, start=1):
@@ -262,7 +266,13 @@ def test_a_cached_export_from_before_the_summary_is_drawn_again(root):
     stale = b"%PDF-1.4 /Subject (report-display:v2) old pages\n%%EOF"
     (run_dir / "commercialization_report.pdf").write_bytes(stale)
     reply = _get(_ZH_RUN)
-    assert reply.content != stale and b"report-display:v3" in reply.content
+    assert reply.content != stale and b"report-display:v4" in reply.content
+    # An export drawn by the rules of v3 (before the card's list and the TRL
+    # wording of 2026-11-21) is drawn again too.
+    stale = b"%PDF-1.4 /Keywords (report-display:v3 decision-card:v1) old pages\n%%EOF"
+    (run_dir / "commercialization_report.pdf").write_bytes(stale)
+    reply = _get(_ZH_RUN)
+    assert reply.content != stale and b"report-display:v4" in reply.content
     again = _get(_ZH_RUN)
     assert again.content == reply.content, "once drawn, the export is served as cached"
 

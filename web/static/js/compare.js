@@ -274,8 +274,9 @@ export function render(container, model, { onOpen = () => {} } = {}) {
     briefRow("compare_context", model.sides.map(s => contextText(s.decision.context))),
     briefRow("compare_verdict", model.sides.map(s => verdictText(s.decision.verdict))),
     briefRow("compare_summary", pick(brief => brief.summary)),
-    briefRow("compare_strongest", pick(brief => (brief.strongest ? `${t(brief.strongest.label)} ${brief.strongest.value} / ${brief.strongest.max}` : null))),
-    briefRow("compare_weakest", pick(brief => (brief.weakest ? `${t(brief.weakest.label)} ${brief.weakest.value} / ${brief.weakest.max}` : null))),
+    // As the brief says them, TRL as a level and a score (result.js trlReading).
+    briefRow("compare_strongest", pick(brief => (brief.strongest ? `${t(brief.strongest.label)} ${brief.strongest.shown}` : null))),
+    briefRow("compare_weakest", pick(brief => (brief.weakest ? `${t(brief.weakest.label)} ${brief.weakest.shown}` : null))),
     briefRow("compare_risk", pick(brief => brief.risk)),
     briefRow("compare_next", pick(brief => (brief.next ? { text: brief.next, whole: brief.nextWhole } : null))),
     briefRow("compare_sources", model.sides.map(s => (s.sources ? sourcesText(s.sources) : null))),

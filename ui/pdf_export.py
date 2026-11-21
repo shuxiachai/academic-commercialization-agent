@@ -54,7 +54,10 @@ DECISION_CARD_MARK = "decision-card:v1"
 #:
 #: v3 (2026-11-21): source types in words, the mode codes in words, no
 #: " - Google Patents", the summary, header, footer, metadata and links.
-DISPLAY_MARK = "report-display:v3"
+#: v4 (2026-11-21): the card quotes the list a passage ending with a colon
+#: introduces; the first step starts with a capital; a TRL is a level and a
+#: score ("Technology readiness · TRL 7", with where 7.3 comes from).
+DISPLAY_MARK = "report-display:v4"
 
 # The marks live in the document information's Keywords. Until v3 they were
 # its Subject, which a reader's document properties show as the PDF's subject:
@@ -577,6 +580,12 @@ def decision_card_story(card: dict, styles: dict) -> list:
         gap = "" if str(lead).endswith("：") else " "
         # decision_verdict.joined breaks the line after a conclusion line with no stop.
         cell.append(Paragraph(f"{text(lead)}{gap}“{text(quote).replace(chr(10), '<br/>')}”", body))
+    # The list a passage ending with a colon introduces, as the report has it.
+    entry = ParagraphStyle("CardEntry", parent=body, leftIndent=14, firstLineIndent=-10)
+    for mark, item in card.get("items", []):
+        cell.append(Paragraph(f"{text(mark)} {text(item)}", entry))
+    if card.get("listed_note"):
+        cell.append(Paragraph(text(card["listed_note"]), body))
     if card.get("where"):
         cell.append(Paragraph(text(card["where"]), small))
     cell.append(Paragraph(text(card["note"]), small))

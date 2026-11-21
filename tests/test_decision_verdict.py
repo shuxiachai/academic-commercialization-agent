@@ -32,7 +32,7 @@ from academic_agent.decision_verdict import card_text, find_verdict
 from academic_agent.report_applicability import add_applicability_block
 from academic_agent.report_display import display_parts, report_for_display
 from academic_agent.run_spec import DecisionContext, RunSpec
-from api import main, runs
+from api import main, runs, samples
 from ui import pdf_export
 
 _ROOT = Path(__file__).resolve().parents[1]
@@ -380,6 +380,110 @@ def test_windows_line_endings_and_an_empty_report_read_the_same():
         assert find_verdict(empty)["status"] == "not_stated"
 
 
+# ── A passage that ends with a colon: the list it introduces ──────────────
+
+_CONDITIONS = ("This report recommends DEFER on the decision to license the technology, based on four "
+               "evidence conditions [A1][A3]:")
+_FOUR = ("1. The asset's certified performance is not in the validated evidence [A1].\n"
+         "2. Field durability, yield and cost data are absent [A1][M6].\n"
+         "3. The patent evidence is snippet-level [P1, P2].\n"
+         "4. The market estimates diverge widely [M3][M8].")
+
+
+def test_a_passage_that_ends_with_a_colon_brings_the_list_right_under_it():
+    """The public sample perovskite-silicon-tandem (2026-11-21): the card read
+    "…based on four evidence conditions [A1][A3][M6][P1–P8]:" and stopped. The
+    four conditions are the list under that sentence; they are quoted as
+    written, numbered as the report numbers them."""
+    found = find_verdict(_recommendations("**Decision applicability and conclusion: DEFER.**", _CONDITIONS, _FOUR,
+                                          "The decision could move to GO if gates G1 and G2 pass [A1]."))
+    assert (found["status"], found["statement"], found["follows"]) == (
+        "stated", "Decision applicability and conclusion: DEFER.", [_CONDITIONS])
+    assert found["items"] == ["The asset's certified performance is not in the validated evidence [A1].",
+                              "Field durability, yield and cost data are absent [A1][M6].",
+                              "The patent evidence is snippet-level [P1, P2].",
+                              "The market estimates diverge widely [M3][M8]."]
+    assert (found["ordered"], found["listed"]) == (True, 4)
+    # A statement that ends its own paragraph with the colon, over bullets.
+    summary = find_verdict(_report("The decision is whether to license. This report concludes **DEFER** for "
+                                   "three reasons [A1][M6]:\n\n- The asset's own data are missing.\n"
+                                   "- There is no field durability data.\n- There is no yield or cost data [M6]."))
+    assert summary["items"] == ["The asset's own data are missing.", "There is no field durability data.",
+                                "There is no yield or cost data [M6]."]
+    assert (summary["ordered"], summary["listed"]) == (False, 3)
+    # A list item whose text runs onto a second line is one item.
+    wrapped = find_verdict(_report(f"{_CONDITIONS}\n\n- The asset's data\n  are missing [A1].\n- Second."))
+    assert wrapped["items"] == ["The asset's data are missing [A1].", "Second."]
+    # The public sample itself.
+    sample = find_verdict(samples.read_sample("perovskite-silicon-tandem"))
+    assert sample["listed"] == 4 and len(sample["items"]) == 4
+    assert sample["items"][0].startswith("The asset's certified performance, stability protocol, reproducibility")
+
+
+def test_a_list_that_cannot_be_shown_whole_is_counted_and_never_cut():
+    """Precision over recall: four entries at most, and only a flat list. A
+    longer list, or one with entries nested under its entries, is not shown in
+    part; the card says how many the report lists and points to it."""
+    five = _FOUR + "\n5. A fifth condition [A2]."
+    found = find_verdict(_recommendations(_ALONE + ".", _CONDITIONS, five))
+    assert (found["items"], found["listed"]) == ([], 5)
+    nested = find_verdict(_recommendations(_ALONE + ".", _CONDITIONS,
+                                           "- Academic evidence:\n  - Only abstracts were read [A1].\n- Patents [P1]."))
+    assert (nested["items"], nested["listed"]) == ([], 2)
+
+
+@pytest.mark.parametrize("after", [
+    # Something other than a list right under the passage.
+    "A paragraph instead [A2].",
+    "> A quoted line [A2].",
+    "| Gate | Owner |\n|---|---|\n| 1 | TTO |",
+    "## 7. Evidence Limitations\n\n- Only abstracts were read.",
+    "---\n\n- An item after a rule.",
+    "### Conditions\n\n- An item under a sub-heading.",
+])
+def test_a_passage_ending_with_a_colon_and_no_list_under_it_says_so_and_takes_nothing(after):
+    found = find_verdict(_recommendations(_ALONE + ".", _CONDITIONS, after))
+    assert (found["items"], found["listed"]) == ([], 0)
+
+
+def test_only_the_line_that_closes_its_paragraph_can_introduce_a_list():
+    # The colon is mid-paragraph: what follows it is the sentence after it, not the list.
+    middle = find_verdict(_recommendations("**Conclusion: DEFER.** It rests on these conditions: [A1] none is met. "
+                                           "More follows [A2].", "- An item."))
+    assert (middle["items"], middle["listed"]) == ([], None)
+    # Three sentences in the paragraph after a bare line: the card quotes two, so the
+    # passage does not end where the paragraph does.
+    long = find_verdict(_recommendations(_ALONE, f"First reason [A1]. Second reason [A2]. {_CONDITIONS}", _FOUR))
+    assert (long["items"], long["listed"]) == ([], None)
+    # No colon, no list, whatever is under it.
+    plain = find_verdict(_recommendations(_ALONE, "The office should wait [A2].", _FOUR))
+    assert (plain["items"], plain["listed"], plain["ordered"]) == ([], None, False)
+    assert find_verdict("")["items"] == [] and find_verdict("")["listed"] is None
+    # A Chinese colon counts as one.
+    chinese = find_verdict(_report("本报告的结论是暂缓许可，理由如下 [A1]：\n\n1. 缺少组件数据 [A1]。\n2. 专利状态未核实 [P1]。"))
+    assert (chinese["items"], chinese["ordered"]) == (["缺少组件数据 [A1]。", "专利状态未核实 [P1]。"], True)
+
+
+def test_the_pdf_card_quotes_the_list_or_says_where_it_is():
+    found = find_verdict(_recommendations(_ALONE + ".", _CONDITIONS, _FOUR))
+    card = card_text(None, found, "English")
+    assert card["items"] == [("1.", "The asset's certified performance is not in the validated evidence [A1]."),
+                             ("2.", "Field durability, yield and cost data are absent [A1][M6]."),
+                             ("3.", "The patent evidence is snippet-level [P1, P2]."),
+                             ("4.", "The market estimates diverge widely [M3][M8].")]
+    assert card["listed_note"] is None
+    bullets = card_text(None, find_verdict(_report(f"{_CONDITIONS}\n\n- One.\n- Two.")), "English")
+    assert [mark for mark, _ in bullets["items"]] == ["•", "•"]
+    five = card_text(None, find_verdict(_recommendations(_ALONE + ".", _CONDITIONS, _FOUR + "\n5. Five.")), "English")
+    assert five["items"] == [] and five["listed_note"] == "(The report lists 5 points here: see them in the report.)"
+    none = card_text(None, find_verdict(_recommendations(_ALONE + ".", _CONDITIONS, "A paragraph.")), "Simplified Chinese")
+    assert none["listed_note"] == "（报告在这里接着写了下去，在报告中查看）"
+    many = card_text(None, find_verdict(_recommendations(_ALONE + ".", _CONDITIONS, _FOUR + "\n5. Five.")),
+                     "Simplified Chinese")
+    assert many["listed_note"] == "（报告在这里列出了 5 项，在报告中查看）"
+    assert card_text(None, find_verdict(_report(_DEFER)), "English")["listed_note"] is None
+
+
 # ── The seam: the page and the PDF get what the rule found ────────────────
 
 _CONTEXT = DecisionContext(
@@ -540,6 +644,16 @@ def test_the_pdf_card_breaks_the_line_after_a_conclusion_line_with_no_stop(run):
     assert card[at + 1].startswith("Evidence conditions behind the conclusion:")
 
 
+def test_the_pdf_card_carries_the_list_its_passage_introduces(run):
+    run_id, directory = run(_recommendations(_ALONE + ".", _CONDITIONS, _FOUR))
+    assert TestClient(main.app).get(f"/api/runs/{run_id}/report.pdf").status_code == 200
+    text = _pdf_text(directory / "commercialization_report.pdf")
+    card = text[text.index("Decision conclusion"):text.index("Stated in the report")]
+    assert "based on four evidence conditions [A1][A3]:”" in card
+    assert "1. The asset's certified performance is not in the validated evidence [A1]." in card
+    assert "4. The market estimates diverge widely [M3][M8]." in card
+
+
 def test_the_pdf_says_when_the_report_states_no_conclusion(run):
     run_id, directory = run(_report("The office should wait for module data [A2]."))
     assert TestClient(main.app).get(f"/api/runs/{run_id}/report.pdf").status_code == 200
@@ -620,6 +734,7 @@ _SHARED = {  # the PDF's key -> the page's
     "not_stated": "verdict_not_stated", "not_stated_detail": "verdict_not_stated_detail",
     "conflicting": "verdict_conflicting", "conflicting_detail": "verdict_conflicting_detail",
     "in_section": "verdict_in_section", "note": "verdict_note",
+    "listed": "verdict_listed", "continues": "verdict_continues",
 }
 
 

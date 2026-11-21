@@ -313,9 +313,24 @@ def _recommendation_in(lines: list[str], route_only: bool) -> str | None:
     return None
 
 
+def _capitalized(sentence: str | None) -> str | None:
+    r"""result.js capitalized(): a first word wholly in lower case gets a capital.
+
+    /^\p{Ll}[\p{Ll}'’-]*(?![\p{L}'’-])/u, then the first code point upper-cased.
+    """
+    if not sentence or unicodedata.category(sentence[0]) != "Ll":
+        return sentence
+    at = 1
+    while at < len(sentence) and (unicodedata.category(sentence[at]) == "Ll" or sentence[at] in "'’-"):
+        at += 1
+    if at < len(sentence) and unicodedata.category(sentence[at]).startswith("L"):
+        return sentence
+    return sentence[0].upper() + sentence[1:]
+
+
 def _first_recommendation(markdown: str) -> str | None:
     lines = _lines(markdown)
-    return _recommendation_in(lines, True) or _recommendation_in(lines, False)
+    return _capitalized(_recommendation_in(lines, True) or _recommendation_in(lines, False))
 
 
 def _strings(value: Any) -> bool:

@@ -215,6 +215,17 @@ class DecisionStatement(BaseModel):
         description="The statement is a conclusion line that says the verdict and nothing "
                     "else (\"Conclusion: DEFER.\"): a one-line summary quotes what follows it.",
     )
+    items: list[str] = Field(
+        default_factory=list,
+        description="Where the quoted passage ends with a colon: the entries of the list right "
+                    "under it, as written, if it has at most four and none nested. Quoted, not chosen.",
+    )
+    ordered: bool = Field(False, description="Whether that list is numbered.")
+    listed: int | None = Field(
+        None,
+        description="How many entries that list has (0: the passage ends with a colon and no list "
+                    "is right under it). None where the passage does not end with a colon.",
+    )
 
 
 class DecisionConclusion(BaseModel):
@@ -231,6 +242,9 @@ class DecisionConclusion(BaseModel):
     follows: list[str] = Field(default_factory=list)
     needle: str | None = None
     bare: bool = False
+    items: list[str] = Field(default_factory=list)
+    ordered: bool = False
+    listed: int | None = None
     statements: list[DecisionStatement] = Field(default_factory=list)
 
 

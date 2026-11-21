@@ -195,13 +195,28 @@ if (input.verdict) {
       cites: nodes.filter(n => n.className === "cite").map(n => n.dataset.cite),
       note: one("verdict-card__note")?.textContent, buttons: nodes.filter(n => n.tagName === "BUTTON" && n.className !== "cite").map(n => [n.className, n.textContent, n.type]),
       more: more ? { text: more.textContent, expanded: more.attributes["aria-expanded"] } : null,
+      list: (() => {
+        const list = nodes.find(n => n.className === "verdict-card__items");
+        return list ? { tag: list.tagName, items: list.children.map(text),
+                        cites: flat(list).filter(n => n.className === "cite").map(n => n.dataset.cite) } : null;
+      })(),
+      listed: one("verdict-card__listed")?.textContent ?? null,
     };
-    if (more) { more.onclick(); card.more.after = text(one("verdict-card__quote")); card.more.gone = more.hidden === true; }
+    if (more) {
+      more.onclick(); card.more.after = text(one("verdict-card__quote")); card.more.gone = more.hidden === true;
+      const after = flat(nodes[0]);
+      card.more.list = after.find(n => n.className === "verdict-card__items")?.children.map(text) ?? null;
+      card.more.listed = after.find(n => n.className === "verdict-card__listed")?.textContent ?? null;
+    }
     for (const node of nodes.filter(n => n.className === "verdict-card__open")) node.listeners?.click?.();
     card.opened = opened;
     card.without_a_report_tab = draw(null).filter(n => n.className === "verdict-card__open").length;
     out.verdict.card = card;
   }
+}
+if (input.score_line) {
+  const node = mod._testRenderReportScoreLine(input.score_line, () => {});
+  out.score_line = node ? flat(node).find(n => n.className === "report-score__text")?.textContent : null;
 }
 if (input.passage) {
   out.passage = mod.passageIn(input.passage.blocks, input.passage.needle, input.passage.section);
@@ -224,8 +239,10 @@ if (input.scores) {
   } : null;
   out.why = nodes.filter(n => n.className === "dim__why").map(n => ({
     summary: n.children[0].textContent, rationale: n.children[1].textContent,
+    level: flat(n).find(c => c.className === "dim__level")?.textContent ?? null,
     cites: flat(n).filter(c => c.className === "cite").map(c => c.dataset.cite) }));
   const caveat = nodes.find(n => (n.className ?? "").includes("scorecard__market-caveat"));
+  out.dims = nodes.filter(n => n.className === "dim").map(n => [n.children[0].textContent, n.children[2].textContent]);
   out.caveat = { tag: caveat.tagName, open: caveat.open,
                  title: flat(caveat).find(n => n.className === "notes__title")?.textContent,
                  status: nodes.find(n => n.className === "scorecard__market-status")?.textContent,
@@ -295,6 +312,7 @@ class ResultReadabilityTests(unittest.TestCase):
         source += "export const _testRenderSavedSource = renderSavedSource;\n"
         source += "export const _testFeedbackView = feedbackView;\n"
         source += "export const _testRenderDecisionBrief = renderDecisionBrief;\n"
+        source += "export const _testRenderReportScoreLine = renderReportScoreLine;\n"
         (work / "result.mjs").write_text(source, encoding="utf-8")
         shutil.copy2(_I18N_JS, work / "i18n.js")
         (work / "harness.mjs").write_text(textwrap.dedent(_HARNESS), encoding="utf-8")
@@ -387,7 +405,7 @@ class ResultReadabilityTests(unittest.TestCase):
                   "trl_rationale": "Component validation only.", "trl_source_ids": ["A2", "M3", "not-an-id"],
                   "mrl_rationale": "No manufacturing line.", "mrl_source_ids": []}
         why = self._run(scores=scores)["why"]
-        self.assertEqual([w["summary"] for w in why], ["Why 4 / 9", "Why 1 / 10"])
+        self.assertEqual([w["summary"] for w in why], ["Why TRL 4 (score 4 / 9)", "Why 1 / 10"])
         self.assertEqual(why[0]["rationale"], "Component validation only.")
         self.assertEqual(why[0]["cites"], ["A2 M3"])
         self.assertEqual(why[1]["cites"], [])
@@ -701,7 +719,7 @@ class DecisionBriefTests(unittest.TestCase):
         shown = self._brief()["brief_view"]
         self.assertEqual(shown["title"], "Decision brief")
         self.assertEqual(shown["verdict"], "Early · 50.0 / 100")
-        self.assertEqual(shown["readiness"], "TRL 4 (component validated in laboratory) · Manufacturing readiness 3.5 / 10")
+        self.assertEqual(shown["readiness"], "TRL 4 (score 4 / 9) · Manufacturing readiness 3.5 / 10")
         self.assertEqual(shown["tone"], "warning")
 
     def test_the_grade_and_the_score_stand_at_the_head_of_the_brief_as_a_badge(self):
@@ -847,13 +865,13 @@ class DecisionBriefTests(unittest.TestCase):
             {"overall_score": "74", "trl_score": 0, "language": None},
             {"title": "An entry from before scores were listed"},
         ])["sample_facts"]
-        self.assertEqual(facts[0], {"verdict": "74.9 / 100 · Strong", "tone": "success", "trl": "TRL 9",
+        self.assertEqual(facts[0], {"verdict": "74.9 / 100 · Strong", "tone": "success", "trl": "TRL 9 (score 9 / 9)",
                                     "language": "Report in Chinese"})
-        self.assertEqual(facts[1], {"verdict": "48.6 / 100 · Early", "tone": "warning", "trl": "TRL 5.5",
+        self.assertEqual(facts[1], {"verdict": "48.6 / 100 · Early", "tone": "warning", "trl": "TRL 6 (score 5.5 / 9)",
                                     "language": "Report in English"})
         self.assertEqual((facts[2]["verdict"], facts[2]["trl"]), ("70.0 / 100 · Strong", None))
         self.assertEqual((facts[3]["verdict"], facts[3]["tone"], facts[3]["language"]), ("40.0 / 100 · Nascent", "muted", None))
-        self.assertEqual(facts[4], {"verdict": None, "tone": None, "trl": "TRL 9", "language": "Report in English"})
+        self.assertEqual(facts[4], {"verdict": None, "tone": None, "trl": "TRL 9 (score 9 / 9)", "language": "Report in English"})
         self.assertEqual(facts[5], {"verdict": None, "tone": None, "trl": None, "language": None})
         self.assertEqual(facts[6], {"verdict": None, "tone": None, "trl": None, "language": None})
         # The same words as the scorecard above a report uses for the same score.
@@ -865,7 +883,7 @@ class DecisionBriefTests(unittest.TestCase):
         chinese = self._run(language="Simplified Chinese", sample_facts=[
             {"overall_score": 74.9, "trl_score": 9, "language": "Simplified Chinese"},
             {"overall_score": 48.6, "trl_score": 5, "language": "English"}])["sample_facts"]
-        self.assertEqual(chinese[0], {"verdict": "74.9 / 100 · 较强", "tone": "success", "trl": "TRL 9", "language": "中文报告"})
+        self.assertEqual(chinese[0], {"verdict": "74.9 / 100 · 较强", "tone": "success", "trl": "TRL 9（评分 9 / 9）", "language": "中文报告"})
         self.assertEqual(chinese[1]["language"], "英文报告")
 
     def test_the_first_step_is_the_recommendations_sections_first_item_and_falls_back_to_the_first_opportunity(self):
@@ -1063,13 +1081,13 @@ class DecisionBriefTests(unittest.TestCase):
             "**Route: a platform-agnostic training and assessment layer** (simulation content sold to hospitals). "
             "It rests on the strongest evidence.\n\n*Why this route is preferred (analyst inference).*\n"
             "- It rests on the strongest-rated evidence in the registry."),
-            "a platform-agnostic training and assessment layer (simulation content sold to hospitals).")
+            "A platform-agnostic training and assessment layer (simulation content sold to hospitals).")
         self.assertEqual(self._next(
             opening + "**Provenance legend.** *Observed facts* are statements in cited source summaries. "
             "*Estimates* are market-report figures.\n\n### Primary commercialization route\n\n"
             "**Primary route (analyst orientation recommendation): an enabling-technology layer sold to every "
             "platform maker.**\n\nRationale from evidence:\n- The fastest-growing value pool is digital [M5]."),
-            "an enabling-technology layer sold to every platform maker.")
+            "An enabling-technology layer sold to every platform maker.")
         self.assertEqual(self._next(
             "### Primary commercialization route\n\nThe preferred route is licensing to cell makers. It needs no plant.\n\n"
             "- Order books are full."), "The preferred route is licensing to cell makers.")
@@ -1417,6 +1435,88 @@ class DecisionBriefTests(unittest.TestCase):
                          "so they cannot be compared directly.")
 
 
+@unittest.skipUnless(shutil.which("node"), "node not installed")
+class TrlWordingTests(unittest.TestCase):
+    """One way of writing a TRL wherever it is shown. The public sample
+    perovskite-silicon-tandem (2026-11-21) said "TRL 7.3" on its card, "TRL 7
+    (system prototype in operational environment)" over its brief and
+    "Technology readiness 7.3 / 9" beside it. A TRL is a whole level by
+    definition; the scorer's 7.3 is a score. Both are said, the same way
+    everywhere, and the decimal is explained once, under "Why". No score is
+    changed."""
+
+    @classmethod
+    def setUpClass(cls):
+        ResultReadabilityTests.setUpClass.__func__(cls)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._tmp.cleanup()
+
+    def _run(self, **payload):
+        return ResultReadabilityTests._run(self, **payload)
+
+    _TANDEM = {**_SCORES, "trl_score": 7.3, "trl_label": "TRL 7 (system prototype in operational environment)",
+               "mrl_score": 6.5, "patent_strength": 2.5, "market_accessibility": 3.0, "evidence_confidence": 2.5,
+               "trl_rationale": "Certified cells exceed 33% on 1 cm² [A3]."}
+
+    def test_the_card_the_brief_and_the_scorecard_say_it_alike(self):
+        brief = self._run(brief={"scores": self._TANDEM, "markdown": _REPORT})
+        self.assertEqual(brief["brief"]["trl"], "TRL 7 (score 7.3 / 9)")
+        self.assertEqual(brief["brief_view"]["readiness"], "TRL 7 (score 7.3 / 9) · Manufacturing readiness 6.5 / 10")
+        self.assertTrue(brief["brief_view"]["lines"][0].startswith(
+            "Strongest dimension: Technology readiness TRL 7 (score 7.3 / 9). Weakest:"), brief["brief_view"]["lines"][0])
+        card = self._run(sample_facts=[{"overall_score": 69.3, "trl_score": 7.3}])["sample_facts"][0]
+        self.assertEqual(card["trl"], "TRL 7 (score 7.3 / 9)")
+        shown = self._run(scores=self._TANDEM)
+        self.assertEqual(shown["dims"][0], ["Technology readiness · TRL 7", "7.3 / 9"])
+        self.assertEqual(shown["why"][0]["summary"], "Why TRL 7 (score 7.3 / 9)")
+        line = self._run(score_line=self._TANDEM)["score_line"]
+        self.assertEqual(line, "Overall 50.0 / 100 · Early · TRL 7 (score 7.3 / 9)")
+
+    def test_why_says_where_the_decimal_comes_from_and_only_where_there_is_one(self):
+        why = self._run(scores=self._TANDEM)["why"][0]
+        self.assertEqual(why["level"], "A TRL is a whole level. The scoring agent rates readiness from 10 to 90, "
+                                       "divided by 10, so a score can fall between two levels: 7.3 / 9 here. "
+                                       "The level shown is the nearest whole one, TRL 7 (system prototype in "
+                                       "operational environment).")
+        self.assertEqual(why["rationale"], "Certified cells exceed 33% on 1 cm² [A3].")
+        whole = self._run(scores={**self._TANDEM, "trl_score": 9, "trl_label": "TRL 9 (actual system proven in "
+                                                                               "operational environment)"})["why"][0]
+        self.assertIsNone(whole["level"])
+        chinese = self._run(scores=self._TANDEM, language="Simplified Chinese")
+        self.assertEqual(chinese["why"][0]["summary"], "为什么是 TRL 7（评分 7.3 / 9）")
+        self.assertEqual(chinese["why"][0]["level"], "TRL 按定义是整数级。评分智能体按 10 到 90 打分、再除以 10，"
+                                                     "所以分数可以落在两级之间，这里是 7.3 / 9；显示的级别取最接近的整数："
+                                                     "TRL 7（系统原型在实际运行环境中完成演示）。")
+        self.assertEqual(chinese["dims"][0], ["技术就绪度 · TRL 7", "7.3 / 9"])
+
+    def test_the_level_is_the_scorecards_own_or_the_scorers_rounding(self):
+        """The level comes from the scorecard's label where it has one; a list
+        entry carries only the score, and its level is evidence._trl_label's
+        rounding, to the even level on a tie (6.5 is TRL 6, 7.5 is TRL 8), so
+        the card and the brief of one sample never name two levels."""
+        facts = self._run(sample_facts=[{"trl_score": s} for s in (6.5, 7.5, 1.0, 8.94, 1.04)])["sample_facts"]
+        self.assertEqual([f["trl"] for f in facts], ["TRL 6 (score 6.5 / 9)", "TRL 8 (score 7.5 / 9)",
+                                                     "TRL 1 (score 1 / 9)", "TRL 9 (score 8.94 / 9)",
+                                                     "TRL 1 (score 1.04 / 9)"])
+        # The label wins where it is readable; a label of another shape is not read.
+        labelled = self._run(brief={"scores": {**self._TANDEM, "trl_score": 6.5,
+                                               "trl_label": "TRL 7 (system prototype in operational environment)"},
+                                    "markdown": _REPORT})["brief"]
+        self.assertEqual(labelled["trl"], "TRL 7 (score 6.5 / 9)")
+        odd = self._run(brief={"scores": {**self._TANDEM, "trl_label": "about seven"}, "markdown": _REPORT})["brief"]
+        self.assertEqual(odd["trl"], "TRL 7 (score 7.3 / 9)")
+        # No readable score: the label alone, as before; neither: nothing.
+        bare = self._run(brief={"scores": {**self._TANDEM, "trl_score": "7.3"}, "markdown": _REPORT})["brief"]
+        self.assertEqual(bare["trl"], "TRL 7 (system prototype in operational environment)")
+        none = self._run(brief={"scores": {**self._TANDEM, "trl_score": None, "trl_label": None},
+                                "markdown": _REPORT})["brief"]
+        self.assertIsNone(none["trl"])
+        missing = self._run(score_line={**self._TANDEM, "trl_score": 0})["score_line"]
+        self.assertEqual(missing, "Overall 50.0 / 100 · Early · Technology readiness —")
+
+
 class SaidAccuratelyTests(unittest.TestCase):
     """Places where the run page said more, or less, than it knew. Display
     only: no score, check or saved file changes with any of them."""
@@ -1660,7 +1760,7 @@ class ScoreSummaryTests(unittest.TestCase):
         self.assertEqual((summary["value"], summary["denom"], summary["band"], summary["tone"]),
                          ("74.0", "/ 100", "Strong", "success"))
         self.assertEqual([row[:3] for row in summary["rows"]], [
-            ["Technology readiness", "9 / 9", "100%"], ["Manufacturing readiness", "9 / 10", "90%"],
+            ["Technology readiness · TRL 9", "9 / 9", "100%"], ["Manufacturing readiness", "9 / 10", "90%"],
             ["Patent position", "3 / 5", "60%"], ["Market accessibility", "3.5 / 5", "70%"],
             ["Evidence confidence", "4 / 5", "80%"]])
         self.assertEqual([row[:3] for row in summary["rows"]], [row[:3] for row in full["rows"]])
@@ -1673,7 +1773,7 @@ class ScoreSummaryTests(unittest.TestCase):
     def test_the_summary_is_said_in_the_readers_language_and_grade(self):
         zh = self._run(summary={**self._SCORES, "overall_score": 48.6}, language="Simplified Chinese")["summary"]
         self.assertEqual((zh["value"], zh["band"], zh["tone"]), ("48.6", "早期", "warning"))
-        self.assertEqual(zh["rows"][0][0], "技术就绪度")
+        self.assertEqual(zh["rows"][0][0], "技术就绪度 · TRL 9")
 
     def test_a_dimension_that_cannot_be_read_is_a_dash_and_nothing_more(self):
         summary = self._run(summary={**self._SCORES, "mrl_score": 0, "patent_strength": "3"})["summary"]
@@ -2179,6 +2279,46 @@ class DecisionConclusionTests(unittest.TestCase):
         # And a first reason too long for the card is not forced in.
         huge = self._card(_reply(statement="Conclusion: DEFER", follows=[first * 3], bare=True))["card"]
         self.assertEqual(huge["says"], "The report says: Conclusion: DEFER Show what follows it")
+
+    def test_a_passage_ending_with_a_colon_is_followed_by_the_list_it_introduces(self):
+        """The public sample perovskite-silicon-tandem (2026-11-21): the card
+        quoted "…based on four evidence conditions [A1][A3][M6][P1–P8]:" and
+        stopped there. The four conditions come with it, numbered as the
+        report numbers them, citations as buttons."""
+        follows = ["This report recommends DEFER on the decision, based on four evidence conditions [A1][A3]:"]
+        items = ["The asset's certified performance is not in the validated evidence [A1].",
+                 "Field durability, yield and cost data are absent [M6].",
+                 "The patent evidence is snippet-level [P1, P2].", "The market estimates diverge widely [M3]."]
+        reply = _reply(statement="Decision applicability and conclusion: DEFER.", follows=follows, bare=True,
+                       items=items, ordered=True, listed=4)
+        card = self._card(reply)["card"]
+        self.assertEqual(card["says"], "The report says: Decision applicability and conclusion: DEFER. " + follows[0])
+        self.assertEqual(card["list"]["tag"], "OL")
+        self.assertEqual(card["list"]["items"], items)
+        self.assertEqual(card["list"]["cites"], ["A1", "M6", "P1 P2", "M3"])
+        self.assertIsNone(card["listed"])
+        bullets = self._card(_reply(follows=follows, items=items[:2], ordered=False, listed=2))["card"]
+        self.assertEqual(bullets["list"]["tag"], "UL")
+        # A list the report has and the card does not quote is pointed to, never cut.
+        many = self._card(_reply(follows=follows, items=[], ordered=True, listed=6))["card"]
+        self.assertIsNone(many["list"])
+        self.assertEqual(many["listed"], "(The report lists 6 points here: see them in the report.)")
+        nothing = self._card(_reply(follows=follows, items=[], listed=0), "Simplified Chinese")["card"]
+        self.assertEqual(nothing["listed"], "（报告在这里接着写了下去，在报告中查看）")
+        chinese = self._card(_reply(follows=follows, items=[], listed=6), "Simplified Chinese")["card"]
+        self.assertEqual(chinese["listed"], "（报告在这里列出了 6 项，在报告中查看）")
+        # A passage that does not lead into anything has neither.
+        plain = self._card(_reply())["card"]
+        self.assertEqual((plain["list"], plain["listed"]), (None, None))
+        # A malformed reply is no list: only strings, and at most four of them.
+        odd = self._card(_reply(follows=follows, items=["One.", 7, None], listed="4"))["card"]
+        self.assertEqual(odd["list"]["items"], ["One."])
+        self.assertIsNone(odd["listed"])
+        # Where the passage is too long to show at once, the list waits for it.
+        long = self._card(_reply(follows=["Licensing should wait for outdoor data [A3]. " * 12 + "Conditions:"],
+                                 items=items, ordered=True, listed=4))["card"]
+        self.assertIsNone(long["list"])
+        self.assertEqual(long["more"]["list"], items)
 
     def test_the_comparison_row_gives_the_conclusion_and_its_first_reason_not_the_conclusion_twice(self):
         """The comparison of 2026-11-20 showed `DEFER: "Conclusion: DEFER."` for a

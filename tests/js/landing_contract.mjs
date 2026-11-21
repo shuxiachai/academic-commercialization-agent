@@ -196,7 +196,7 @@ const scenarios = {
     // Under each title, what the reader's cards say: the verdict in the
     // scorecard's words, the readiness level where there is one, the language.
     assert.deepEqual(links.map((a) => a.children.map((c) => [c.className, c.textContent, c.dataset.tone])), [
-      [["landing__sample-facts", "48.6 / 100 · Early · TRL 5 · Report in English", "warning"]],
+      [["landing__sample-facts", "48.6 / 100 · Early · TRL 5 (score 5 / 9) · Report in English", "warning"]],
       [["landing__sample-facts", "74.9 / 100 · Strong · Report in Chinese", "success"]],
     ]);
     assert.deepEqual(f.replaced, [], "A plain visit to / changes no address");
