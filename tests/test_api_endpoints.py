@@ -117,10 +117,11 @@ class ReportPdfTests(_EndpointTestBase):
     def test_existing_pdf_is_served_without_re_rendering(self):
         run_id, directory = self._run_dir()
         (directory / "commercialization_report.md").write_text("# R", encoding="utf-8")
-        # A cached export names the display rules it was drawn by (ui.pdf_export.DISPLAY_MARK).
+        # A cached export names the display rules it was drawn by
+        # (ui.pdf_export.DISPLAY_MARK), in its document information's Keywords.
         from ui.pdf_export import DISPLAY_MARK
 
-        cached = b"%PDF-1.4 cached " + DISPLAY_MARK.encode("ascii") + b"\n%%EOF"
+        cached = b"%PDF-1.4 cached /Keywords (" + DISPLAY_MARK.encode("ascii") + b")\n%%EOF"
         (directory / "commercialization_report.pdf").write_bytes(cached)
 
         with patch("ui.pdf_export._generate_pdf") as render:
@@ -135,6 +136,11 @@ class ReportPdfTests(_EndpointTestBase):
         run_id, directory = self._run_dir()
         (directory / "commercialization_report.md").write_text("# R", encoding="utf-8")
         (directory / "commercialization_report.pdf").write_bytes(b"%PDF-1.4 cached\n%%EOF")
+        # The mark where v2 kept it, in the Subject, is not the mark.
+        from ui.pdf_export import DISPLAY_MARK, pdf_carries_display
+
+        (directory / "older.pdf").write_bytes(b"%PDF-1.4 /Subject (" + DISPLAY_MARK.encode("ascii") + b")\n%%EOF")
+        self.assertFalse(pdf_carries_display(directory / "older.pdf"))
 
         with patch("ui.pdf_export._generate_pdf") as render:
             r = self.client.get(f"/api/runs/{run_id}/report.pdf")
@@ -146,7 +152,7 @@ class ReportPdfTests(_EndpointTestBase):
         run_id, directory = self._run_dir()
         (directory / "commercialization_report.md").write_text("# R", encoding="utf-8")
 
-        def _fake_render(markdown, run_dir, output_language="English"):
+        def _fake_render(markdown, run_dir, output_language="English", **_kwargs):
             (Path(run_dir) / "commercialization_report.pdf").write_bytes(b"%PDF-1.4 new\n%%EOF")
 
         with patch("ui.pdf_export._generate_pdf", side_effect=_fake_render) as render:

@@ -10,6 +10,8 @@ Step 1 is what makes CJK reports readable everywhere, so the candidate list
 below covers Windows, Linux and macOS font locations.
 """
 
+import html as _html
+import re
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from threading import Lock
@@ -41,30 +43,44 @@ def pdf_cache_complete(path: Path) -> bool:
 #: complete and has none; this is how the endpoint tells the two apart.
 DECISION_CARD_MARK = "decision-card:v1"
 
+#: Written into the document information of every PDF, naming the rules its
+#: pages were drawn by: the display rules of its text (report_display.py) and,
+#: since v3, this module's own page (the first page's summary, the header and
+#: footer, the reference list's links). An export is cached beside the report
+#: for good, so one made before a rule existed keeps the old pages: a PDF of
+#: a Chinese report saved under English headings, exported before the
+#: heading table, would have kept those headings after it. Raise the number
+#: when either changes what a saved report is shown as.
+#:
+#: v3 (2026-11-21): source types in words, the mode codes in words, no
+#: " - Google Patents", the summary, header, footer, metadata and links.
+DISPLAY_MARK = "report-display:v3"
+
+# The marks live in the document information's Keywords. Until v3 they were
+# its Subject, which a reader's document properties show as the PDF's subject:
+# "report-display:v2 decision-card:v1". A mark is looked for there and
+# nowhere else, so report text that happened to contain one cannot pass for it.
+_KEYWORDS = re.compile(rb"/Keywords\s*\(([^)]*)\)")
+
+
+def _marks(path: Path) -> set[str]:
+    """The marks a cached export carries; none when it cannot be read."""
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return set()
+    found = _KEYWORDS.search(data)
+    return set(found.group(1).decode("ascii", "replace").split()) if found else set()
+
 
 def pdf_carries_decision_card(path: Path) -> bool:
     """Whether a cached export was built with the card. A read fault is "no": rebuild."""
-    try:
-        return DECISION_CARD_MARK.encode("ascii") in path.read_bytes()
-    except OSError:
-        return False
-
-
-#: Written into the document information of every PDF, naming the display
-#: rules its text was drawn by (report_display.py). An export is cached beside
-#: the report for good, so one made before a rule existed keeps the old text:
-#: a PDF of a Chinese report saved under English headings, exported before
-#: the heading table, would have kept those headings after it. Raise the
-#: number when report_display changes what a saved report is shown as.
-DISPLAY_MARK = "report-display:v2"
+    return DECISION_CARD_MARK in _marks(path)
 
 
 def pdf_carries_display(path: Path) -> bool:
     """Whether a cached export was drawn by the current display rules. A read fault is "no"."""
-    try:
-        return DISPLAY_MARK.encode("ascii") in path.read_bytes()
-    except OSError:
-        return False
+    return DISPLAY_MARK in _marks(path)
 
 
 # Reportlab built-in CID fonts — no font file needed, cross-platform.
@@ -182,8 +198,13 @@ def _resolve_font(output_language: str) -> str:
     return _FALLBACK_FONT
 
 
-def _build_styles(font_name: str) -> dict:
-    """Build the paragraph styles and palette used by the story builder."""
+def _build_styles(font_name: str, cjk_wrap: bool = False) -> dict:
+    """Build the paragraph styles and palette used by the story builder.
+
+    `cjk_wrap` breaks lines between characters, as Chinese and Japanese are
+    set. Without it a Chinese paragraph broke only at its rare spaces: a line
+    ran on to "kV技术" and the next began "[A8]。", leaving half a line empty.
+    """
     from reportlab.lib.styles import ParagraphStyle
     from reportlab.lib import colors
 
@@ -198,10 +219,12 @@ def _build_styles(font_name: str) -> dict:
     def _s(name, size, mult=1.55, col=DARK, sb=0, sa=5, li=0):
         return ParagraphStyle(name, fontName=font_name, fontSize=size,
                               leading=size * mult, textColor=col,
-                              spaceBefore=sb, spaceAfter=sa, leftIndent=li)
+                              spaceBefore=sb, spaceAfter=sa, leftIndent=li,
+                              wordWrap="CJK" if cjk_wrap else None)
 
     return {
         "font":  font_name,
+        "LINK":  "#1d4ed8",
         "H1":    _s("H1",   14,   col=H1C, sb=0,  sa=8),
         "H2":    _s("H2",   12,   col=H2C, sb=12, sa=4),
         "H3":    _s("H3",   10.5, col=H3C, sb=9,  sa=4),
@@ -216,6 +239,62 @@ def _build_styles(font_name: str) -> dict:
     }
 
 
+#: The width a paragraph is set in: A4 less the two 2 cm margins and the
+#: frame's 6 pt padding on each side (SimpleDocTemplate's defaults).
+_TEXT_WIDTH_PT = (21.0 - 4.0) / 2.54 * 72 - 12
+
+# A web address in the report's text. evidence.py ends every reference entry
+# with one, and the PDF showed them as text: nothing to click, and a long
+# one broken wherever the line ran out ("…/US20|230123456A1…").
+_URL = re.compile(r"https?://[^\s<>\"]+")
+# What may follow an address in prose and is not part of it.
+_URL_TAIL = ".,;:!?'\""
+_PLACEHOLDER = re.compile("\x00(\\d+)\x00")
+_TRAILING_PLACEHOLDER = re.compile("\x00(\\d+)\x00\\s*$")
+# Where an address may be broken across lines: after "/", "-" or "?". A run of
+# them stays together ("https://").
+_URL_PIECES = re.compile(r"[^/?-]*[/?-]+|[^/?-]+")
+
+
+def _split_url(text: str) -> tuple[str, str]:
+    """An address as matched, less what follows it in a sentence."""
+    url = text.rstrip(_URL_TAIL)
+    while url.endswith(")") and url.count(")") > url.count("("):
+        url = url[:-1]
+    return url, text[len(url):]
+
+
+def wrap_url(url: str, font_name: str, font_size: float, width: float) -> list[str]:
+    """`url` as lines no wider than `width`, broken only after "/", "-" or "?".
+
+    A piece with no such place in it that is still wider than a line is cut
+    where the line ends, the one case left where nothing else fits.
+    """
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+
+    def fits(text: str) -> bool:
+        return stringWidth(text, font_name, font_size) <= width
+
+    lines: list[str] = []
+    line = ""
+    for piece in _URL_PIECES.findall(url):
+        if fits(line + piece):
+            line += piece
+            continue
+        if line:
+            lines.append(line)
+        while not fits(piece) and len(piece) > 1:
+            cut = len(piece) - 1
+            while cut > 1 and not fits(piece[:cut]):
+                cut -= 1
+            lines.append(piece[:cut])
+            piece = piece[cut:]
+        line = piece
+    if line:
+        lines.append(line)
+    return lines
+
+
 def _make_story_parser(styles: dict):
     """Return an _HtmlToStory instance bound to the given styles.
 
@@ -223,12 +302,14 @@ def _make_story_parser(styles: dict):
     closes over reportlab flowables that are imported lazily — keeping the
     import cost out of module load, which matters for the CLI paths.
     """
-    import html as _html
     from html.parser import HTMLParser
     from reportlab.lib.units import cm
     from reportlab.platypus import (
         Paragraph, Spacer, Table, TableStyle, HRFlowable,
     )
+
+    def link(url: str, shown: str) -> str:
+        return f'<a href="{_html.escape(url, quote=True)}" color="{styles["LINK"]}">{shown}</a>'
 
     class _HtmlToStory(HTMLParser):
         """Parse markdown-generated HTML into a reportlab Platypus story.
@@ -251,6 +332,10 @@ def _make_story_parser(styles: dict):
             self._row: list = []
             self._cell_is_th: bool = False
             self._row_is_hdr: bool = False
+            # Bare addresses met in the text, written as a placeholder until
+            # their block is flushed, when it is known whether one ends it.
+            self._urls: list[str] = []
+            self._in_link: bool = False
 
         # -- buffer routing -------------------------------------------
 
@@ -272,10 +357,28 @@ def _make_story_parser(styles: dict):
             else:
                 self._block_buf += text
 
+        def _links(self, markup: str, style=None) -> str:
+            """Placeholders as links. Given a `style`, an address that ends
+            the block (every reference entry's) starts a line of its own and
+            is broken only after "/", "-" or "?" (wrap_url); any other
+            address is a link where it stands."""
+            trailing = _TRAILING_PLACEHOLDER.search(markup) if style is not None else None
+            if trailing is not None:
+                url = self._urls[int(trailing.group(1))]
+                width = _TEXT_WIDTH_PT - style.leftIndent - 2
+                lines = wrap_url(url, style.fontName, style.fontSize, width)
+                before = markup[:trailing.start()].rstrip()
+                shown = link(url, "<br/>".join(_html.escape(line, quote=False) for line in lines))
+                markup = (before + "<br/>" if before else "") + shown
+            return _PLACEHOLDER.sub(
+                lambda m: link(self._urls[int(m.group(1))], _html.escape(self._urls[int(m.group(1))], quote=False)),
+                markup,
+            )
+
         def _flush_block(self, style):
             t = self._block_buf.strip()
             if t:
-                self.story.append(Paragraph(t, style))
+                self.story.append(Paragraph(self._links(t, style), style))
             self._block_buf = ""
 
         # -- parser callbacks -----------------------------------------
@@ -304,6 +407,13 @@ def _make_story_parser(styles: dict):
                 self._write("<font face='Courier' size='8'>")
             elif tag == "br":
                 self._write("<br/>")
+            elif tag == "a":
+                # A Markdown link. Only a web or mail address becomes one in
+                # the PDF; an anchor or a relative path stays as its text.
+                href = dict(attrs).get("href") or ""
+                if re.match(r"(?:https?:|mailto:)", href) and not self._in_link:
+                    self._in_link = True
+                    self._write(f'<a href="{_html.escape(href, quote=True)}" color="{styles["LINK"]}">')
 
         def handle_endtag(self, tag):
             if self._stk and self._stk[-1] == tag:
@@ -326,7 +436,11 @@ def _make_story_parser(styles: dict):
             elif tag == "li":
                 t = (self._li_stk.pop() if self._li_stk else "").strip()
                 if t:
-                    self.story.append(Paragraph("• " + t, styles["LI"]))
+                    self.story.append(Paragraph("• " + self._links(t, styles["LI"]), styles["LI"]))
+            elif tag == "a":
+                if self._in_link:
+                    self._in_link = False
+                    self._write("</a>")
             elif tag in ("strong", "b"):
                 self._write("</b>")
             elif tag in ("em", "i"):
@@ -336,7 +450,7 @@ def _make_story_parser(styles: dict):
             elif tag == "pre":
                 self._flush_block(styles["Mono"])
             elif tag in ("td", "th"):
-                self._row.append((self._cell_buf.strip(), self._cell_is_th))
+                self._row.append((self._links(self._cell_buf.strip()), self._cell_is_th))
             elif tag == "tr":
                 if self._row:
                     self._tbl.append((self._row, self._row_is_hdr))
@@ -352,7 +466,18 @@ def _make_story_parser(styles: dict):
             # Escape & < > so reportlab's XML parser doesn't mis-read them
             # as entity/tag markup. Inline <b>/<i> tags added by
             # handle_starttag are written directly and must NOT be escaped.
-            self._write(_html.escape(data))
+            if self._in_link:
+                self._write(_html.escape(data))
+                return
+            last = 0
+            for match in _URL.finditer(data):
+                url, tail = _split_url(match.group())
+                self._write(_html.escape(data[last:match.start()]))
+                self._urls.append(url)
+                self._write(f"\x00{len(self._urls) - 1}\x00")
+                self._write(_html.escape(tail))
+                last = match.end()
+            self._write(_html.escape(data[last:]))
 
         def _build_table(self):
             if not self._tbl:
@@ -468,15 +593,212 @@ def decision_card_story(card: dict, styles: dict) -> list:
     return [Spacer(1, 4), box, Spacer(1, 8)]
 
 
+#: The grade's colour, the one coloured thing in the summary, as the page
+#: colours its badge (result.js band(): success, accent, warning, muted).
+_BAND_TONES = {"strong": "#15803d", "moderate": "#1d4ed8", "early": "#a16207", "nascent": "#475569"}
+
+
+def _text(value) -> str:
+    """Words from the report or the code's copy, as paragraph text: escaped, never markup."""
+    return _html.escape(str(value).translate(_UNICODE_FIX))
+
+
+def _labelled(label: str, chinese: bool) -> str:
+    """A card label as the lead of a line: "Biggest risk:"; a label ending in a colon keeps its own."""
+    if label.endswith((":", "：")):
+        return label
+    return label + ("：" if chinese else ":")
+
+
+def _lead(label: str, chinese: bool) -> str:
+    """A bold label leading a line; a full-width colon needs no space after it."""
+    return f"<b>{_text(_labelled(label, chinese))}</b>" + ("" if chinese else " ")
+
+
+#: The languages set without spaces between words, broken between characters.
+_CJK_WRAP = frozenset({"Simplified Chinese", "Traditional Chinese", "Japanese"})
+
+
+def summary_story(summary: dict, styles: dict, *, chinese: bool = False) -> list:
+    """The first page's summary (report_summary.summary) as flowables.
+
+    One bordered box: the score and its grade, the five dimensions with the
+    readiness level, the source counts, the decision context and the brief's
+    three lines. Without a score, one sentence saying why, and nothing else.
+    """
+    from reportlab.lib import colors
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+
+    base = styles["Body"]
+    muted = styles["H3"].textColor
+    small = ParagraphStyle("SumSmall", parent=base, fontSize=8.5, leading=12, textColor=muted, spaceAfter=2)
+    body = ParagraphStyle("SumBody", parent=base, fontSize=9, leading=13, spaceAfter=3)
+    if "note" in summary:
+        return [Spacer(1, 2), Paragraph(_text(summary["note"]), body), Spacer(1, 6)]
+
+    tone = colors.HexColor(_BAND_TONES.get(summary["band_key"], _BAND_TONES["nascent"]))
+    figure = ParagraphStyle("SumFigure", parent=base, fontSize=18, leading=22, textColor=tone, spaceAfter=4)
+    cell = ParagraphStyle("SumCell", parent=base, fontSize=8.5, leading=11, spaceAfter=0)
+    value = ParagraphStyle("SumValue", parent=cell, alignment=2)
+
+    parts: list = [Paragraph(f"<b>{_text(summary['title'])}</b>", small)]
+    parts.append(Paragraph(
+        f"<b>{_text(summary['score'])}</b> <font size='10' color='#475569'>{_text(summary['unit'])}</font>"
+        f"<font size='11'>  <b>{_text(summary['band'])}</b></font>"
+        f"<font size='9' color='#475569'> · {_text(summary['readiness'])}</font>", figure))
+
+    rows = [[Paragraph(_text(label), cell), Paragraph(_text(shown), value), Paragraph(_text(note), cell)]
+            for label, shown, note in summary["rows"]]
+    table = Table(rows, colWidths=[4.6 * 28.3465, 1.9 * 28.3465, None], hAlign="LEFT")
+    table.setStyle(TableStyle([
+        ("LINEBELOW", (0, 0), (-1, -2), 0.4, styles["GRID"]),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 2.5),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+    ]))
+    parts += [table, Spacer(1, 5)]
+    if summary.get("sources"):
+        label, line = summary["sources"]
+        parts.append(Paragraph(_lead(label, chinese) + _text(line), body))
+    label, line, asked = summary["context"]
+    parts.append(Paragraph(_lead(label, chinese) + _text(line)
+                           + "".join(f" · {_text(more)}" for more in asked), body))
+    for label, line, quoted in summary["brief"]:
+        # The report's own summary sentence is a quotation, as on the page.
+        shown = f"“{_text(line)}”" if quoted else _text(line)
+        parts.append(Paragraph(_lead(label, chinese) + shown, body))
+
+    box = Table([[parts]], colWidths=["100%"])
+    box.setStyle(TableStyle([
+        ("BOX", (0, 0), (-1, -1), 0.8, styles["GRID"]),
+        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]))
+    return [Spacer(1, 2), box, Spacer(1, 10)]
+
+
+def notice_story(note: str, styles: dict) -> list:
+    """The draft notice, above the text as the page has it: nobody should read
+    a paragraph of a draft as the assessment before learning what it is."""
+    from reportlab.lib import colors
+    from reportlab.lib.styles import ParagraphStyle
+    from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
+
+    body = ParagraphStyle("Notice", parent=styles["Body"], fontSize=9.5, leading=14, spaceAfter=0)
+    box = Table([[Paragraph(_text(note), body)]], colWidths=["100%"])
+    box.setStyle(TableStyle([
+        ("BOX", (0, 0), (-1, -1), 0.8, colors.HexColor("#a16207")),
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#fefce8")),
+        ("LEFTPADDING", (0, 0), (-1, -1), 10),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+        ("TOPPADDING", (0, 0), (-1, -1), 8),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+    ]))
+    return [Spacer(1, 4), box, Spacer(1, 6)]
+
+
+def _fit(text: str, font_name: str, size: float, width: float) -> str:
+    """`text`, cut with an ellipsis to fit `width`."""
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+
+    if stringWidth(text, font_name, size) <= width:
+        return text
+    while text and stringWidth(text + "…", font_name, size) > width:
+        text = text[:-1]
+    return text.rstrip() + "…"
+
+
+def _page_canvas(page: dict, font_name: str):
+    """A canvas class that draws the header and footer once the page count is known.
+
+    "Page 3 of 11" needs the eleven before page 3 is finished, so each page is
+    kept until the document is done and then drawn with its furniture: the
+    header "ACA · topic", and a footer with the run's link, the date the
+    report was made and its model, and the page number.
+    """
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import cm
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+    from reportlab.pdfgen.canvas import Canvas
+
+    width, height = A4
+    # Where the text column starts and ends: the margin and the frame's 6 pt padding.
+    left, right = 2 * cm + 6, width - 2 * cm - 6
+    grey, rule, blue = colors.HexColor("#475569"), colors.HexColor("#d1d5db"), colors.HexColor("#1d4ed8")
+
+    class PageCanvas(Canvas):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._kept: list[dict] = []
+
+        def showPage(self):  # noqa: N802 - reportlab's name
+            self._kept.append(dict(self.__dict__))
+            self._startPage()
+
+        def save(self):
+            total = len(self._kept)
+            # Annotations are named by a running count, which restoring a
+            # kept page would wind back: the footer's link on page 2 would
+            # take the name of a link in the text of page 3.
+            count = self._annotationCount
+            for state in self._kept:
+                self.__dict__.update(state)
+                self._annotationCount = count
+                self._furniture(total)
+                count = self._annotationCount
+                super().showPage()
+            super().save()
+
+        def _furniture(self, total: int) -> None:
+            self.saveState()
+            self.setStrokeColor(rule)
+            self.setLineWidth(0.5)
+            self.setFillColor(grey)
+            self.setFont(font_name, 8)
+            self.drawString(left, height - 1.25 * cm, _fit(page["header"], font_name, 8, right - left))
+            self.line(left, height - 1.45 * cm, right, height - 1.45 * cm)
+            self.line(left, 1.55 * cm, right, 1.55 * cm)
+            number = page["page"].format(page=self._pageNumber, pages=total)
+            self.setFont(font_name, 7.5)
+            self.drawRightString(right, 1.15 * cm, number)
+            room = right - left - stringWidth(number, font_name, 7.5) - 12
+            shown = _fit(page["link_text"], font_name, 7.5, room)
+            if page.get("link"):
+                self.setFillColor(blue)
+                self.drawString(left, 1.15 * cm, shown)
+                self.linkURL(page["link"], (left, 1.05 * cm, left + stringWidth(shown, font_name, 7.5), 1.45 * cm),
+                             relative=0, thickness=0)
+                self.setFillColor(grey)
+            else:
+                self.drawString(left, 1.15 * cm, shown)
+            if page.get("footer"):
+                self.drawString(left, 0.78 * cm, _fit(page["footer"], font_name, 7.5, right - left))
+            self.restoreState()
+
+    return PageCanvas
+
+
 def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English", *,
-                  decision_card: dict | None = None, card_at: int = 0) -> Path:
+                  decision_card: dict | None = None, card_at: int = 0,
+                  summary: dict | None = None, notice: str | None = None, page: dict | None = None,
+                  file_name: str = "commercialization_report.pdf") -> Path:
     """Convert a markdown report to PDF. Raises if generation fails.
 
-    With `decision_card` (decision_verdict.card_text) the card is drawn after
-    the first `card_at` characters of the report, which the caller sets to
-    the end of the scope paragraph, and the document information carries
-    DECISION_CARD_MARK. It always carries DISPLAY_MARK.
-
+    The first page carries, after the first `card_at` characters of the
+    report (the caller sets that to the end of the scope paragraph, or of
+    the title where there is none), in this order: the decision-conclusion
+    card (`decision_card`, decision_verdict.card_text), a draft's notice
+    (`notice`) and the summary (`summary`, report_summary.summary). `page`
+    (report_summary.page_text) is the header, footer and document
+    information; without it the pages have neither, as before. The document
+    information's Keywords always carry DISPLAY_MARK, and DECISION_CARD_MARK
+    when the card is drawn.
 
     Failures used to be swallowed and returned as None, on the reasoning that
     the report was already saved and shown, so a PDF problem should not take
@@ -496,15 +818,25 @@ def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English
     from reportlab.platypus import SimpleDocTemplate
 
     font_name = _resolve_font(output_language)
-    styles = _build_styles(font_name)
-    if decision_card is None:
-        story = markdown_to_story(report_md, styles)
+    styles = _build_styles(font_name, cjk_wrap=output_language in _CJK_WRAP)
+    inserted: list = []
+    if decision_card is not None:
+        inserted += decision_card_story(decision_card, styles)
+    if notice:
+        inserted += notice_story(notice, styles)
+    if summary is not None:
+        inserted += summary_story(summary, styles, chinese=output_language == "Simplified Chinese")
+    if inserted:
+        story = markdown_to_story(report_md[:card_at], styles) + inserted + markdown_to_story(report_md[card_at:], styles)
     else:
-        story = (markdown_to_story(report_md[:card_at], styles)
-                 + decision_card_story(decision_card, styles)
-                 + markdown_to_story(report_md[card_at:], styles))
+        story = markdown_to_story(report_md, styles)
 
-    pdf_path = run_dir / "commercialization_report.pdf"
+    marks = DISPLAY_MARK if decision_card is None else f"{DISPLAY_MARK} {DECISION_CARD_MARK}"
+    info = {"keywords": marks, "creator": "ACA"}
+    if page is not None:
+        info.update(title=page["title"], author=page["author"], subject=page["subject"])
+
+    pdf_path = run_dir / file_name
     # Rendering can write bytes before raising. Publishing directly to the
     # cache let the NEXT download return those partial bytes as a 200. Build a
     # uniquely owned sibling, close it (Windows), then replace only on success.
@@ -516,9 +848,12 @@ def _generate_pdf(report_md: str, run_dir: Path, output_language: str = "English
             str(temporary), pagesize=A4,
             rightMargin=2 * cm, leftMargin=2 * cm,
             topMargin=2 * cm,   bottomMargin=2 * cm,
-            subject=DISPLAY_MARK if decision_card is None else f"{DISPLAY_MARK} {DECISION_CARD_MARK}",
+            **info,
         )
-        doc.build(story)
+        if page is None:
+            doc.build(story)
+        else:
+            doc.build(story, canvasmaker=_page_canvas(page, font_name))
         temporary.replace(pdf_path)
     finally:
         temporary.unlink(missing_ok=True)
