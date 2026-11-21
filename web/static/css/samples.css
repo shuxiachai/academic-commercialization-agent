@@ -110,27 +110,43 @@
 .sample-card__verdict[data-tone="warning"] { color: var(--warning); }
 .sample-card__verdict[data-tone="muted"]   { color: var(--text-tertiary); }
 
-/* On a phone the stacked cards (six, then) were a screen of titles: the report began
- * 849px down a 375 by 812 window. One row that scrolls sideways puts its
- * opening on the first screen. Each card is narrower than the row, so the
- * edge of the next one shows that there are more; samples.js brings the open
- * sample's card into the row. From 768px the grid above is unchanged. */
+/* Placeholders where the cards will be, until the list arrives. */
+.sample-card--placeholder {
+  min-height: 96px;
+  border-color: var(--border-subtle);
+  box-shadow: none;
+  background: linear-gradient(90deg, var(--bg-raised) 25%, var(--bg-hover) 50%, var(--bg-raised) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+/* Under 768 px the cards were one row that scrolled sideways (from
+ * 2026-11-08, so that the report began on a phone's first screen): at 717 px
+ * two and a half showed, and the one sample with a decision conclusion, the
+ * seventh, was out of sight (2026-11-21). Every card is on the page now, in
+ * a grid of smaller cards: two columns at 375 px, four at 717. The decision
+ * sample is the first (api/samples.py). */
 @media (max-width: 767px) {
   .samples__head { margin-bottom: var(--space-6); }
   .samples__intro p { margin-bottom: var(--space-5); }
   .samples__list {
-    display: flex;
-    overflow-x: auto;
-    scroll-snap-type: x proximity;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: var(--space-2);
     margin-bottom: var(--space-6);
-    padding-bottom: var(--space-2);
   }
   .sample-card {
-    flex: 0 0 min(78%, 264px);
-    scroll-snap-align: start;
+    gap: var(--space-1);
+    padding: var(--space-3);
   }
+  .sample-card__title { font-size: var(--text-sm); }
+  .sample-card--placeholder { min-height: 76px; }
 }
 
+/* The pipeline's commit, under the notice's sentence. */
+.samples__notice-text { margin: 0; }
+.samples__tech { margin-top: var(--space-1); font-size: var(--text-xs); }
+.samples__tech > summary { color: var(--text-tertiary); cursor: pointer; }
+.samples__tech > p { margin: var(--space-1) 0 0; }
 .samples__notice {
   margin-bottom: var(--space-6);
   padding: var(--space-3) var(--space-4);

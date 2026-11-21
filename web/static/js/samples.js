@@ -67,12 +67,29 @@ function note(key) {
   reader.replaceChildren(el("p", "empty-note", t(key)));
 }
 
+/** Where the cards will be, until the list arrives, as the served markup
+ * has them: until 2026-11-21 the reader said "Choose a report above." while
+ * nothing was above it yet. */
+const PLACEHOLDERS = 4;
+function placeholders() {
+  listNode.setAttribute("aria-busy", "true");
+  listNode.replaceChildren(...Array.from({ length: PLACEHOLDERS }, () => {
+    const card = el("span", "sample-card sample-card--placeholder");
+    card.setAttribute("aria-hidden", "true");
+    return card;
+  }));
+  reader.replaceChildren(el("div", "skeleton", ""));
+}
+
+/* Every card is on the page at every width (samples.css): until 2026-11-21 a
+ * screen under 768 px wide showed them as one row that scrolled sideways, and
+ * at 717 px two and a half showed. */
 function paintList() {
-  let active = null;
+  listNode.removeAttribute("aria-busy");
   listNode.replaceChildren(...samples.map((sample) => {
     const card = el("a", "sample-card");
     card.href = `/samples/${encodeURIComponent(sample.slug)}`;
-    if (sample.slug === current) { card.setAttribute("aria-current", "page"); active = card; }
+    if (sample.slug === current) card.setAttribute("aria-current", "page");
     // The verdict, the readiness level and the report's language, where the
     // list carried them. The samples run from 48.6 to 74.9; before
     // 2026-11-13 a visitor had to open each one to learn that.
@@ -99,12 +116,6 @@ function paintList() {
     });
     return card;
   }));
-  // On a phone the cards are one row that scrolls sideways (samples.css), so
-  // the open sample's card has to be brought into it; where the cards wrap,
-  // the row has nowhere to scroll and this changes nothing.
-  if (active && Number.isFinite(active.offsetLeft) && Number.isFinite(listNode.offsetLeft)) {
-    listNode.scrollLeft = Math.max(0, active.offsetLeft - listNode.offsetLeft);
-  }
 }
 
 /** Name the tab after the open sample, so tabs, bookmarks and history entries
@@ -156,12 +167,19 @@ function downloadLink(sample) {
   return link;
 }
 
+/** When and with which model the sample was made, and what it is not. The
+ * pipeline's commit is a term to a reader ("on pipeline 9bd948c", until
+ * 2026-11-21): it is under "Technical details", one press away. */
 function historicalNotice(sample) {
   const text = t("samples_historical")
-    .replace("{date}", sample.committed)
-    .replace("{commit}", sample.commit)
-    .replace("{model}", sample.model);
-  return el("p", "samples__notice", text);
+    .replace("{date}", () => sample.committed)
+    .replace("{model}", () => sample.model);
+  const notice = el("div", "samples__notice");
+  const tech = el("details", "samples__tech");
+  tech.append(el("summary", null, t("samples_tech")),
+    el("p", null, t("samples_revision").replace("{commit}", () => sample.commit)));
+  notice.append(el("p", "samples__notice-text", text), tech);
+  return notice;
 }
 
 /** The decision context a sample's run was given, as the list carries it:
@@ -175,15 +193,14 @@ function decisionOf(sample) {
 }
 
 /** What the run was asked, in the reader's language around the words as they
- * were entered. The conclusion card under it names the owner and the decision
- * again; the asset and the application appear nowhere else on the page, and
- * without them "License the technology" does not say which technology. */
+ * were entered: the asset and the application, which appear nowhere else on
+ * the page; without them "License the technology" does not say which
+ * technology. The owner and the decision are the conclusion card's, under
+ * it; until 2026-11-21 this sentence said them too, and the page twice. */
 function decisionContext(given) {
   const text = t("samples_decision_context")
     .replace("{asset}", () => given.asset_description.trim())
-    .replace("{application}", () => given.target_application.trim())
-    .replace("{owner}", () => given.decision_owner.trim())
-    .replace("{decision}", () => given.decision_type.trim());
+    .replace("{application}", () => given.target_application.trim());
   return el("p", "samples__context", text);
 }
 
@@ -356,7 +373,7 @@ function route() {
   // rather than an empty reader the visitor has to work out how to fill.
   const slug = slugFromLocation() ?? samples[0]?.slug ?? null;
   if (slug) open(slug);
-  else { showTitle(null); note("samples_choose"); }
+  else { paintList(); showTitle(null); note("samples_choose"); }
 }
 
 const langSelect = $("#ui-lang");
@@ -377,11 +394,17 @@ window.addEventListener("popstate", () => {
 
 i18n.apply();
 applySamples();
+placeholders();
 try {
   const response = await fetch("/api/samples");
   if (!response.ok) throw new Error(String(response.status));
   samples = await response.json();
+  if (!Array.isArray(samples)) throw new Error("not a list");
   route();
 } catch {
+  // No placeholder is left standing for a list that will not come.
+  samples = [];
+  listNode.removeAttribute("aria-busy");
+  listNode.replaceChildren();
   note("samples_list_failed");
 }

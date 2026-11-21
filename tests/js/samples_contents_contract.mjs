@@ -16,8 +16,6 @@ class Element {
     const classes = new Set();
     this.classList = { add: (name) => classes.add(name), remove: (name) => classes.delete(name), contains: (name) => classes.has(name) };
   }
-  // No layout unless a scenario gives one: where a node sits in its row.
-  get offsetLeft() { return layout ? layout(this) : undefined; }
   set textContent(value) { this._text = String(value); this.children = []; }
   get textContent() { return this._text + this.children.map((c) => c.textContent).join(""); }
   // The stub renderer emits only <h2> elements; parse them back, as a browser would.
@@ -32,6 +30,7 @@ class Element {
   append(...nodes) { this.children.push(...nodes); }
   replaceChildren(...nodes) { this._text = ""; this.html = ""; this.children = nodes; }
   setAttribute(name, value) { this.attributes[name] = String(value); }
+  removeAttribute(name) { delete this.attributes[name]; }
   addEventListener(name, callback) { (this.listeners[name] ??= []).push(callback); }
   querySelectorAll(selector) {
     // The contents read the article's h2 headings; the conclusion card's link
@@ -79,7 +78,9 @@ globalThis.window = {
 globalThis.localStorage = { getItem: (k) => stored.get(k) ?? null, setItem: (k, v) => stored.set(k, String(v)) };
 
 let list = samples, failReads = false;
-let layout = null;
+// A promise the list waits for before it is answered: the page before the
+// list arrives (scenario "skeleton").
+let listHold = null;
 // The deployment's public facts (/api/site), of which the reader wants
 // whether it has accounts and takes new ones. "refused" fails the request
 // itself, a string is served as that body.
@@ -108,6 +109,8 @@ globalThis.fetch = async (url, options) => {
       { status: access.status, headers: { "Content-Type": "application/json" } });
   }
   if (url === "/api/samples") {
+    if (listHold) await listHold;
+    if (list === "refused") throw new TypeError("network");
     return new Response(JSON.stringify(list), { status: 200, headers: { "Content-Type": "application/json" } });
   }
   const scores = url.match(/^\/api\/samples\/([^/]+)\/scores$/);
@@ -234,13 +237,17 @@ function expectContents(sample, label = "Contents", order = orderFor(sample)) {
   return details;
 }
 
-const [first, second] = samples;
+// The page opens the first sample listed, which since 2026-11-21 is the one run
+// with a decision context; the scenarios about every sample's reader use the
+// first two without one, and say so where they rely on the order.
+const opened = samples[0];
+const [first, second] = samples.filter((sample) => !decidedOf(sample));
 const chinese = samples.find((sample) => /[一-鿿]/.test(headingsOf(sample).join("")));
 
 if (scenario === "each_sample") {
   assert(chinese, "One committed sample has Chinese headings");
   await start("/samples");
-  expectContents(first);
+  expectContents(opened);
   for (const sample of samples) {
     await click(sample);
     expectContents(sample);
@@ -265,12 +272,12 @@ if (scenario === "each_sample") {
   assert.equal(article(), shown, "and does not re-render it");
   await go(pathOf(second));
   assert.deepEqual(reads, [second.slug], "Back to the top of the same sample neither");
-  await go(pathOf(first));
-  assert.deepEqual(reads, [second.slug, first.slug], "Back to another sample still opens it");
-  expectContents(first);
+  await go(pathOf(opened));
+  assert.deepEqual(reads, [second.slug, opened.slug], "Back to another sample still opens it");
+  expectContents(opened);
   // The bare list URL shows the first sample, so its fragments are the first sample's too.
   await go("/samples", "#section-2");
-  assert.deepEqual(reads, [second.slug, first.slug], "A fragment of /samples while it shows the first sample");
+  assert.deepEqual(reads, [second.slug, opened.slug], "A fragment of /samples while it shows the first sample");
   checks++;
 } else if (scenario === "failed_read") {
   failReads = true;
@@ -342,7 +349,7 @@ if (scenario === "each_sample") {
 } else if (scenario === "scorecard_missing") {
   // The report is the sample. Whatever happens to the scorecard's read, the
   // report is shown as it was before scorecards existed.
-  const [third, fourth, fifth] = samples.slice(2);
+  const [third, fourth, fifth] = samples.filter((sample) => !decidedOf(sample)).slice(2);
   assert(fifth, "This scenario needs five committed samples");
   scorecards[second.slug] = { overall_score: 61 };
   scorecards[third.slug] = "refused";
@@ -390,7 +397,7 @@ if (scenario === "each_sample") {
   assert(chinese && chinese.language === "Simplified Chinese", "The Chinese sample is listed as Chinese");
   assert.equal(samples.filter(decidedOf).length, 1, "One committed sample was run with a decision context");
   assert.equal(samples.filter((sample) => sample.language === "English").length, samples.length - 1);
-  assert.deepEqual(scoreReads, [first.slug], "The cards cost no request of their own: only the open sample's scorecard is read");
+  assert.deepEqual(scoreReads, [opened.slug], "The cards cost no request of their own: only the open sample's scorecard is read");
   await switchLanguage("Simplified Chinese");
   assert.match(partsOf(cardOf(first))["sample-card__meta"].textContent, / · 收录于 /, "The cards follow the language");
 } else if (scenario === "cards_without_scores") {
@@ -413,24 +420,6 @@ if (scenario === "each_sample") {
   expectContents(first);
   await click(second);
   expectContents(second);
-} else if (scenario === "phone_row") {
-  // On a phone the cards are one row that scrolls sideways (samples.css).
-  // The open sample's card is brought into it; nothing else is scrolled.
-  layout = (node) => (node === el("sample-list") ? 20 : cards().includes(node) ? 20 + 212 * cards().indexOf(node) : undefined);
-  await start(pathOf(samples[3]));
-  assert.equal(el("sample-list").scrollLeft, 3 * 212, "A deep link to the fourth sample shows the fourth card");
-  await click(first);
-  assert.equal(el("sample-list").scrollLeft, 0);
-  await click(samples.at(-1));
-  assert.equal(el("sample-list").scrollLeft, (samples.length - 1) * 212);
-  await go("/samples/not-a-sample");
-  assert.equal(el("sample-list").scrollLeft, (samples.length - 1) * 212, "No open sample leaves the row where it was");
-  // Where the page has no layout to measure, nothing is set at all.
-  layout = null;
-  el("sample-list").scrollLeft = 7;
-  await go(pathOf(second));
-  assert.equal(el("sample-list").scrollLeft, 7);
-  checks++;
 } else if (scenario === "evidence") {
   // The brief is handed the reference list the page parsed for its citation
   // cards, so it can name the best-rated source; and nothing but that.
@@ -475,6 +464,73 @@ if (scenario === "each_sample") {
   await go("/samples/not-a-sample");
   assert.deepEqual(shape(), ["empty-note"], "No report, no next step after it");
   assert.equal(accessReads.length, 1, "Asked once for the page, not once for each report");
+} else if (scenario === "skeleton") {
+  // Until 2026-11-21 the reader said "Choose a report above." while the list
+  // above it was still on its way and nothing was there to choose. Now the
+  // list holds placeholders, marked busy, and the reader a placeholder too.
+  let release;
+  listHold = new Promise((resolve) => { release = resolve; });
+  // The module's own top-level await is the held request: it is not waited for here.
+  Object.assign(location, { pathname: "/samples", hash: "" });
+  const loading = import(pathToFileURL(path.join(dir, "samples.js")).href);
+  await settle();
+  const holders = el("sample-list").children;
+  assert(holders.length >= 3, "Placeholders where the cards will be");
+  assert(holders.every((c) => c.className === "sample-card sample-card--placeholder" && c.attributes["aria-hidden"] === "true"));
+  assert.equal(el("sample-list").attributes["aria-busy"], "true");
+  assert.deepEqual(shape(), ["skeleton"], "The reader waits too");
+  assert(!reader().textContent.includes("Choose a report above."));
+  release();
+  await loading;
+  await settle();
+  assert.equal(el("sample-list").attributes["aria-busy"], undefined, "No longer busy");
+  assert.equal(cards().length, samples.length);
+  assert(cards().every((c) => c.className === "sample-card"));
+  assert.notDeepEqual(shape(), ["skeleton"]);
+  checks++;
+} else if (scenario === "skeleton_empty") {
+  // An empty list is the one time there is nothing to choose: then it says so.
+  list = [];
+  await start("/samples");
+  assert.equal(el("sample-list").attributes["aria-busy"], undefined);
+  assert.equal(cards().length, 0);
+  assert.deepEqual(reader().children.map((c) => c.textContent), ["Choose a report above."]);
+  checks++;
+} else if (scenario === "skeleton_failed") {
+  list = "refused";
+  await start("/samples");
+  assert.equal(el("sample-list").attributes["aria-busy"], undefined);
+  assert.equal(cards().length, 0, "No placeholder is left standing for a list that will not come");
+  assert.deepEqual(reader().children.map((c) => c.textContent), ["The sample list could not be loaded."]);
+  checks++;
+} else if (scenario === "notice") {
+  // The dated notice names the day and the model in words a reader has; the
+  // pipeline's commit, which is a term, is one press away under "Technical details".
+  await start(pathOf(second));
+  const notice = reader().children.find((c) => c.className === "samples__notice");
+  assert.equal(notice.tag, "div");
+  const [text, tech] = notice.children;
+  assert.equal(text.textContent, `A run of ${second.committed} with ${second.model}, kept as it was written. `
+    + "One report shows the format, not a measure of accuracy or an up-to-date market assessment, and its citations have not been re-verified.");
+  assert(!text.textContent.includes(second.commit) && !/pipeline/i.test(text.textContent));
+  assert.equal(tech.tag, "details");
+  assert.deepEqual(tech.children.map((c) => [c.tag, c.textContent]),
+    [["summary", "Technical details"], ["p", `Pipeline revision: ${second.commit}`]]);
+  await switchLanguage("Simplified Chinese");
+  const zh = reader().children.find((c) => c.className === "samples__notice");
+  assert.equal(zh.children[0].textContent, `${second.committed} 用 ${second.model} 跑出的一次运行，保持原样。`
+    + "单份报告展示的是格式，不代表准确率或最新市场判断，其中引用也未重新核验。");
+  assert.deepEqual(zh.children[1].children.map((c) => c.textContent), ["技术细节", `流水线版本：${second.commit}`]);
+  checks++;
+} else if (scenario === "first_card_is_the_decision") {
+  // The one sample with a decision conclusion stood seventh, out of sight on a
+  // screen 717 px wide. It is the first card and the report the page opens.
+  await start("/samples");
+  assert(decidedOf(cards().length ? samples[0] : {}), "The served list puts it first");
+  assert.equal(cards()[0].href, pathOf(samples.find(decidedOf)));
+  assert.equal(cards()[0].attributes["aria-current"], "page", "...and it is the one opened");
+  assert.deepEqual(decisionReads, [samples.find(decidedOf).slug]);
+  checks++;
 } else if (scenario.startsWith("decision")) {
   const decided = samples.find(decidedOf);
   assert(decided, "One committed sample was run with a decision context");
@@ -492,18 +548,21 @@ if (scenario === "each_sample") {
     assert.deepEqual(decisionReads, [decided.slug], "One read of the conclusion, beside the report's");
     const { asset_description, target_application, decision_owner, decision_type } = decided.decision;
     assert.equal(context().tag, "p");
+    // The asset and the application only: the conclusion card under it names
+    // the owner and the decision, and the page said both twice until 2026-11-21.
     assert.equal(context().textContent,
-      "This run was given a decision context, so its report states a conclusion for that decision-maker. "
-      + `Asset: “${asset_description}”. Target application: “${target_application}”. `
-      + `Decision owner: “${decision_owner}”. Decision to make: “${decision_type}”.`);
+      "This run was given a decision context, so its report states a conclusion for the decision below. "
+      + `Asset: “${asset_description}”. Target application: “${target_application}”.`);
+    assert(!context().textContent.includes(decision_owner) && !context().textContent.includes(decision_type));
     // The served answer, as the server read it from the committed report.
     assert.deepEqual([card().dataset.state, card().dataset.verdict, card().dataset.opens], ["stated", "defer", "function"]);
     assert.deepEqual(cited.filter((name) => name === "verdict-card"), ["verdict-card"],
       "Citations in the card open the same cards as the report's");
     await switchLanguage("Simplified Chinese");
     expectContents(decided, "目录");
-    assert.match(context().textContent, /^这次运行填写了决策场景，所以报告针对该决策者给出了结论。资产或科研成果：“Lab-scale /);
-    assert.match(context().textContent, /待作决策：“License the technology”。$/);
+    assert.match(context().textContent, /^这次运行填写了决策场景，所以报告针对下面的决策给出了结论。资产或科研成果：“Lab-scale /);
+    assert.match(context().textContent, /目标应用：“Utility-scale photovoltaic modules”。$/);
+    assert(!context().textContent.includes("决策负责人"));
     await switchLanguage("English");
     // Following a contents link reads nothing again, the conclusion included.
     const before = decisionReads.length;
