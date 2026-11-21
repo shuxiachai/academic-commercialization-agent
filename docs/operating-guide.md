@@ -712,8 +712,31 @@ ones. A resumed run asks for its headings again only when the earlier run
 committed no agent output, because the headings are part of every agent's
 checkpoint identity. Where a report is still shown under English headings (a
 language the table lacks), the report tab says so in one line. The page and the
-PDF also write the report's "GO/NO_GO" as "GO / NO-GO"; a PDF exported before
-either rule is rebuilt once on its next download.
+PDF also write the report's "GO/NO_GO" as "GO / NO-GO", a mode code the
+report repeats ("Assessment mode: decision_support") as words ("decision
+support", 决策支持), each reference entry's source type as a phrase ("Type:
+Market report", 类型：市场报告) and a patent's title without Google Patents'
+" - Google Patents"; a PDF exported before any of these rules is rebuilt once
+on its next download (`ui/pdf_export.DISPLAY_MARK`, now `report-display:v3`).
+
+The PDF is what a reader passes on, so since 2026-11-21 it carries what the
+page shows beside the report (`academic_agent/report_summary.py`). Its first
+page has, after the decision card or the scope paragraph, a summary: the
+overall score and its grade (the thresholds of result.js `band()`), the five
+dimensions with the readiness label, the source counts, the decision context,
+and the brief's three lines (the report's own summary sentence, the biggest
+risk, the first recommended step), found by the page's own rules ported to
+`academic_agent/report_brief.py` and held to them in Node. A run with no score
+gets one line saying why instead. Every page has a header ("ACA · topic") and a
+footer with the run's link on the deployment's public address (the og:url of
+`web/index.html`), the day the report was made (UTC), the model and "Page X of
+Y". Reference addresses are links on a line of their own, broken only after
+"/", "-" or "?". The document's Title is "ACA assessment: topic", its Subject a
+sentence, and the cache marks are in Keywords. The download is named
+`ACA-<topic>-<date>.pdf`, with the topic's own letters in an RFC 5987
+`filename*` and an ASCII `filename` beside it. A run that stopped with a draft
+(see the draft tab) is exported the same way as `ACA-<topic>-<date>-draft.pdf`,
+the page's draft notice first; the run page offers no button for it.
 
 The checks write their reasons into the artifacts as English sentences, and
 artifacts are never rewritten. The page says each recognised sentence again in
@@ -774,7 +797,8 @@ assessment.
 | `academic_evidence.json`, `patent_evidence.json`, `market_evidence.json` | Source-linked findings, claim types, confidence and limitations |
 | `commercialization_report.md` | Delivered report |
 | `commercialization_scores.json` | Scorecard after deterministic validation |
-| `commercialization_report.pdf` | PDF export when generated; CJK-aware embedded font. For a decision-support run it opens with the decision-conclusion card, in the report's language, and its document information carries `decision-card:v1`; an export cached without that mark is rendered once more |
+| `commercialization_report.pdf` | PDF export when generated; CJK-aware embedded font. The first page has the summary, every page a header and footer. For a decision-support run it opens with the decision-conclusion card, in the report's language, and its document information's Keywords carry `decision-card:v1`; an export cached without that mark, or without the current `report-display` mark, is rendered once more |
+| `commercialization_draft.pdf` | PDF export of a stopped run's draft, when one was asked for |
 | `reviewer_notes.md` | Review changes separate from the main report |
 | `status.json`, `steps.jsonl`, `meta.json` | Progress, events and run metadata |
 | `terminal.json` | Write-once terminal truth for API runs |
