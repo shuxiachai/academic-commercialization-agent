@@ -2421,17 +2421,33 @@ async function showLanding() {
  * A scorecard that cannot be read leaves one quiet line and nothing else;
  * the sample list under it does not depend on this request. */
 const LANDING_PREVIEW_SAMPLE = "continuous-glucose-monitoring";
+// The scores as read, kept so a change of language draws the card again
+// without asking again (drawLandingPreview): undefined while they are on
+// their way, null when they could not be read.
+let landingScores;
 
 async function paintLandingPreview() {
+  try {
+    landingScores = await api.sampleScores(LANDING_PREVIEW_SAMPLE);
+  } catch {
+    landingScores = null;  // unread, the note drawn below says so; never an error on the page
+  }
+  // The landing may have been put away while the scores were on their way.
+  if ($("#landing").hidden) return;
+  drawLandingPreview();
+}
+
+/* The card's words are the interface's ("Strong", "Technology readiness"...),
+ * so it is drawn again when the language changes. Until 2026-11-21 it was
+ * drawn once, and a visitor who switched the landing to Chinese read it in
+ * English until a reload. */
+function drawLandingPreview() {
   const frame = $("#landing-preview");
   const note = $("#landing-preview-note");
   let card = null;
   try {
-    const scores = await api.sampleScores(LANDING_PREVIEW_SAMPLE);
-    // The landing may have been put away while the scores were on their way.
-    if ($("#landing").hidden) return;
-    card = result.renderScoreSummary(scores);
-  } catch { /* unread or undrawable, the note below says so; never an error on the page */ }
+    if (landingScores) card = result.renderScoreSummary(landingScores);
+  } catch { /* undrawable, the note below says so */ }
   frame.innerHTML = "";
   if (card) frame.append(card);
   // "loading" in the markup keeps the frame's height; "missing" gives it up.
@@ -2452,6 +2468,17 @@ async function paintLandingSamples() {
   if (!Array.isArray(samples)) return;
   landingSamples = samples;
   drawLandingSamples();
+}
+
+/* What the landing draws itself rather than i18n.apply(), drawn again in the
+ * language just chosen from what was already read: nothing is asked for
+ * again. A scorecard still on its way is drawn when it arrives, and a
+ * landing that was put away is not drawn into. */
+function drawLandingInLanguage() {
+  drawLandingSamples();
+  if ($("#landing").hidden) return;
+  if (landingScores !== undefined) drawLandingPreview();
+  drawLandingRetention();
 }
 
 /* The names and the facts beside them are in the reader's language, so they
@@ -2489,18 +2516,27 @@ function drawLandingSamples() {
  * sign up. The key form said the same until 2026-11-18. Silent on failure:
  * /health is unauthenticated, and an unreachable server must not leave a
  * claim on screen that nothing has confirmed. No line beats a wrong one. */
+let landingRetention;   // the reading's retention_days, kept for a change of language; undefined until read
 async function paintLandingRetention() {
-  const node = $("#landing-retention");
   try {
     const reading = await api.health();
     noteHealthFacts(reading);
-    const { retention_days } = reading;
-    node.textContent = retention_days
-      ? t("byok_retention").replace("{days}", retention_days)
-      : t("byok_retention_forever");
+    landingRetention = reading.retention_days ?? null;
   } catch {
-    node.textContent = "";
+    landingRetention = undefined;
   }
+  drawLandingRetention();
+}
+
+/* Drawn again on a change of language, as the scorecard is: until 2026-11-21
+ * the first answer under "How long is my data kept?" stayed in the language
+ * the page had loaded in. */
+function drawLandingRetention() {
+  const node = $("#landing-retention");
+  if (landingRetention === undefined) node.textContent = "";
+  else node.textContent = landingRetention
+    ? t("byok_retention").replace("{days}", landingRetention)
+    : t("byok_retention_forever");
 }
 
 /* Whether this visit could end on the landing: at its address, with nothing
@@ -3567,7 +3603,7 @@ langSelect.addEventListener("change", () => {
   paintAccountIdentity();
   paintRunTimes();
   paintActiveRun();
-  drawLandingSamples();
+  drawLandingInLanguage();
   // The capture of the interface is in the interface's language too.
   if (landingShotShown) paintLandingShot();
   paintTrialNote();

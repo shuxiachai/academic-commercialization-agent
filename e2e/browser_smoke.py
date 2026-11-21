@@ -27,6 +27,7 @@ from academic_agent.run_output import save_scores, save_source_collection
 from api import samples
 from e2e.request_wait import wait_for_count
 from e2e.scroll_wait import COMES_TO_REST
+from e2e.browser_language import SMOKE_LOCALE
 from e2e.smoke_report import capture_failure
 from e2e.isolated_app import (
     ACCESS_CODE,
@@ -856,7 +857,7 @@ def _exercise_browser(
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
-        context = browser.new_context()
+        context = browser.new_context(locale=SMOKE_LOCALE)
 
         def guard_route(route: Route) -> None:
             nonlocal source_requests

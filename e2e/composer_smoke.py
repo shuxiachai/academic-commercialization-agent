@@ -18,6 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from playwright.sync_api import Page, Route, expect, sync_playwright
 
+from e2e.browser_language import SMOKE_LOCALE
 from e2e.browser_smoke import PROJECT_ROOT, _serve
 from e2e.landing_reads import answer_landing_read
 from e2e.smoke_report import capture_failure
@@ -38,7 +39,7 @@ def _json(route: Route, value: dict, *, status: int = 200, code: str | None = No
 
 def _history_generation_journey(browser, base: str) -> int:
     """Late successful history replies cannot cross login or view generations."""
-    context = browser.new_context()
+    context = browser.new_context(locale=SMOKE_LOCALE)
     held, unexpected, errors = [], [], []
     hold = False
     page = context.new_page()
@@ -118,7 +119,7 @@ def _history_generation_journey(browser, base: str) -> int:
 
 def _access_identity_journey(browser, base: str) -> int:
     """A real second tab cannot relabel a PDF/run/resume or erase a newer login."""
-    context = browser.new_context()
+    context = browser.new_context(locale=SMOKE_LOCALE)
     posts, held_reads, unexpected, errors = [], [], [], []
     hold_history = False
     run_id = "20260908T000000Z-cccccccccccccccccccccccccccccccc"
@@ -245,7 +246,7 @@ def _paid_refresh_journey(browser, base: str) -> int:
 
 def _paid_refresh_case(browser, base: str, operation: str) -> int:
     """Forced reload loses JS locks, not the warning; all POSTs are intercepted."""
-    context = browser.new_context()
+    context = browser.new_context(locale=SMOKE_LOCALE)
     posts: list[Route] = []
     faults: list[str] = []
     run_id = "20260908T000000Z-cccccccccccccccccccccccccccccccc"
@@ -344,7 +345,7 @@ def _plan_preview_journey(browser, base: str) -> int:
     The run POST carries exactly the confirmed plan; an unresolved topic
     never reaches it; a refused preview falls back to a plain run.
     """
-    context = browser.new_context()
+    context = browser.new_context(locale=SMOKE_LOCALE)
     previews, posts, unexpected, errors = [], [], [], []
     page = context.new_page()
     page.on("pageerror", lambda error: errors.append(str(error)))
@@ -445,7 +446,7 @@ def _plan_preview_journey(browser, base: str) -> int:
 def _decision_context_journey(browser, base: str) -> int:
     """Picks fill the starred fields, the line says when a GO/NO_GO is possible,
     and the folded details still reach the run request."""
-    context = browser.new_context()
+    context = browser.new_context(locale=SMOKE_LOCALE)
     posts, unexpected, errors = [], [], []
     page = context.new_page()
     page.on("pageerror", lambda error: errors.append(str(error)))
@@ -538,7 +539,7 @@ window.Notification = FakeNotification;
 
 def _waiting_journey(browser, base: str) -> int:
     """Runs left today, time left, and a finish notice for a background tab."""
-    context = browser.new_context()
+    context = browser.new_context(locale=SMOKE_LOCALE)
     context.add_init_script(_FAKE_NOTIFICATIONS)
     posts, unexpected, errors = [], [], []
     quota = {"limit": 3, "used": 1, "remaining": 2, "resets_at": "2026-10-22T00:00:00+00:00"}
@@ -657,7 +658,7 @@ def main() -> None:
 
     with _serve(app) as base, sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
-        context = browser.new_context()
+        context = browser.new_context(locale=SMOKE_LOCALE)
         code_checks = []
 
         def route_request(route: Route) -> None:

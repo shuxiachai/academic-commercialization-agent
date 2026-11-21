@@ -70,6 +70,8 @@ SCENARIOS = (
     "the_card_in_sign_in_mode_says_only_what_signing_in_needs",
     # The run header's fold for the model, the revision and a plain completion.
     "a_change_of_language_renames_the_tab_and_redraws_the_landing_samples",
+    # The two parts of the landing the page draws itself follow a change of language too.
+    "a_change_of_language_redraws_the_scorecard_and_the_retention_line",
     # The screenshot of a finished assessment further down the landing.
     "the_screenshot_is_asked_for_once_the_landing_stays_in_the_theme_and_language_in_use",
     "a_run_that_did_not_finish_offers_what_fits_its_cause",
@@ -139,6 +141,33 @@ def _landing_strings(language: str) -> dict[str, str]:
 # What a report is not, in the words the three places used.
 _CAUTION = re.compile(r"not a measure|historical|not current|not replace|makes no model"
                       r"|不代表|历史运行|不是当前|不代替|不会发起")
+
+
+def test_the_chinese_title_breaks_only_between_its_phrases():
+    """At 1280 px the Chinese title broke as "输入一篇论文，得到一份带 /
+    引用的商业化初筛报告。" (measured 2026-11-21): a Chinese line may break
+    between any two characters, and text-wrap: balance picked the most even
+    split, which fell inside "带引用的". A phone's width happened to break it
+    at its phrases.
+
+    The string now says where a line may end, with a zero-width space between
+    its phrases, and in a Chinese interface the stylesheet keeps a phrase's
+    characters together (word-break: keep-all), with overflow-wrap: anywhere
+    as the last resort for a phrase wider than the screen. The English title
+    has no such marks and is styled as before. e2e/language_smoke.py measures
+    the lines in Chromium at desktop and phone widths."""
+    # As i18n.js spells it: the escape, so the marks can be seen in the source.
+    chinese = _landing_strings("Simplified Chinese")["landing_title"]
+    assert chinese.split("\\u200b") == ["输入一篇论文，", "得到一份", "带引用的", "商业化初筛报告。"]
+    english = _landing_strings("English")["landing_title"]
+    assert "\\u" not in english and "\u200b" not in english
+    css = (_WEB / "static/css/landing.css").read_text(encoding="utf-8")
+    rule = re.search(r":lang\(zh\) \.landing__pitch h1 \{([^}]*)\}", css)
+    assert rule, "A rule for the Chinese title only"
+    assert re.search(r"word-break:\s*keep-all;", rule.group(1))
+    assert re.search(r"overflow-wrap:\s*anywhere;", rule.group(1))
+    plain = re.search(r"\n\.landing__pitch h1 \{([^}]*)\}", css).group(1)
+    assert "word-break" not in plain and "overflow-wrap" not in plain, "English keeps its own breaking"
 
 
 def test_the_landing_says_what_a_report_is_not_once():

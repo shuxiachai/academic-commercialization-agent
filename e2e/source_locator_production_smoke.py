@@ -21,6 +21,7 @@ from urllib.parse import urlsplit
 import httpx
 from playwright.sync_api import expect, sync_playwright
 
+from e2e.browser_language import SMOKE_LOCALE
 from e2e.saved_source_receipt_smoke import BrowserFixture, CODE, QUESTION, _fixture
 from e2e.saved_source_smoke import EXACT_TEXT, RUN_ID, TITLE, _block_external_connections, _serve
 
@@ -187,7 +188,7 @@ def _main_spa_navigation(browser, base, faults, *, proxy=False, old_link=False):
     """Serve real SPA modules; only synthetic read data and old-defect bytes vary."""
     run_b = "20260926T121212Z-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
     origin = PUBLIC_ORIGIN if proxy else base
-    context = browser.new_context(service_workers="block")
+    context = browser.new_context(locale=SMOKE_LOCALE, service_workers="block")
     page = context.new_page()
     page.on("pageerror", lambda error: faults.append(f"main SPA: {error}"))
     assets = {"/", f"/run/{RUN_ID}", f"/run/{run_b}", "/source-locator",
