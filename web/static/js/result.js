@@ -1378,14 +1378,68 @@ function pickEvidence(ids, sources, references = null) {
 const DOMAIN_LABELS = { academic: "group_academic", patent: "group_patents", market: "group_market" };
 const BRIEF_CHANGERS_LIMIT = 4;
 
-/** What new evidence would move the verdict, read from the checks that qualify it. */
-function whatWouldChange(scores, progress) {
+/* What would change it, in the report's own words first. Until 2026-11-21
+ * every line here was built from a score or a check, and the first was most
+ * often "Market figures that measure the same thing: the ones collected may
+ * not, so they cannot be compared directly." The user read it, word for
+ * word, in all three reports they opened, and took it for boilerplate. The
+ * report's "Evidence Limitations" section names this report's gaps: of the
+ * 377 saved runs with a scorecard on the maintainer's machine, 239 have the
+ * section, most of them as a list, some under labels or sub-headings per
+ * domain ("**Academic sources.**", "### Patent Source Limitations"), some as
+ * paragraphs. The first sentence of the first entry of each group is quoted,
+ * then the second of each, up to three, as written (citations aside). A
+ * paragraph is not an entry, a label is not one, and a list anywhere else in
+ * the report is not the section's: a section with no entry of its own gives
+ * none, and the brief keeps the lines it had. */
+const LIMITS_HEADING = /^##\s+(?:\d+(?:\.\d+)*[.)]?\s+)?(?:evidence limitations|证据局限)/iu;
+const LIMITS_ENTRY = /^\s*(?:[-*+]|\d+[.)])\s+(.+)$/;
+const LABEL_ALONE = /^\*\*[^*]+\*\*\s*[:：.。]?$/;
+const REPORT_GAPS_LIMIT = 3;
+
+function reportGaps(markdown) {
+  const groups = [];
+  let group = null;
+  let inside = false;
+  const open = () => { group = []; groups.push(group); };
+  for (const line of markdown.split(/\r?\n/)) {  // saved reports carry either line ending
+    if (/^#{1,2}\s/.test(line)) { inside = LIMITS_HEADING.test(line); group = null; continue; }
+    const text = line.trim();
+    if (!inside || !text) continue;
+    if (/^#{3,}\s/.test(text)) { open(); continue; }
+    const entry = line.match(LIMITS_ENTRY);
+    const body = (entry ? entry[1] : text).trim();
+    const plain = body.replace(/\*+/g, "").trim();
+    // A label heads the entries under it: a bold phrase alone, or a short line ending with a colon.
+    if (LABEL_ALONE.test(body) || (plain.length <= LABEL_LIMIT && /[:：]$/.test(plain))) { open(); continue; }
+    if (!entry) continue;
+    const first = sentencesOf(body)[0];
+    if (!first) continue;
+    if (!group) open();
+    group.push(quoted(first));
+  }
   const out = [];
+  for (let round = 0; out.length < REPORT_GAPS_LIMIT; round++) {
+    const picks = groups.map(entries => entries[round]).filter(Boolean);
+    if (!picks.length) break;
+    out.push(...picks);
+  }
+  return out.slice(0, REPORT_GAPS_LIMIT);
+}
+
+/** What would move the verdict: the gaps the report names, then what the
+ * checks that qualify it say. */
+function whatWouldChange(scores, progress, markdown = "") {
+  const gaps = reportGaps(markdown).map(text => ({ key: "brief_change_report", text }));
+  const out = [...gaps];
   const grounding = detailRecord(progress?.claim_grounding) ? progress.claim_grounding : null;
   if (scoreNumber(scores.evidence_confidence, 5) && scores.evidence_confidence < 3) {
     out.push({ key: "brief_change_evidence", value: scores.evidence_confidence });
   }
-  if ((scoreNumber(scores.market_accessibility, 5) && scores.market_accessibility <= 2.5) || scores.market_uncertainty) {
+  // Built from a score and the same in every report it appears in: said only
+  // where the report names no gap of its own.
+  if (!gaps.length
+      && ((scoreNumber(scores.market_accessibility, 5) && scores.market_accessibility <= 2.5) || scores.market_uncertainty)) {
     out.push({ key: "brief_change_market" });
   }
   if (grounding && detailCount(grounding.ungrounded) && grounding.ungrounded > 0) {
@@ -1499,7 +1553,9 @@ export function decisionBrief({ scores, markdown = "", sources = null, progress 
     // way to read on (2026-11-18).
     next: step ? quoted(step) : opportunity,
     nextWhole: step && step.length > BRIEF_SENTENCE_LIMIT ? step : null,
-    changers: whatWouldChange(scores, progress),
+    changers: whatWouldChange(scores, progress, text),
+    // A run asked for a conclusion has a verdict to change; any other has an assessment.
+    decided: progress?.decision_gate?.mode === "decision_support",
   };
 }
 
@@ -1611,13 +1667,18 @@ export function renderDecisionBrief(data, { note = t("brief_note") } = {}) {
   wrap.append(cards);
 
   const changers = el("div", "brief__changers");
-  changers.append(el("span", "brief__label", t("brief_changers")));
+  changers.append(el("span", "brief__label", t(data.decided ? "brief_changers" : "brief_changers_assessment")));
+  if (data.changers.some(item => item.key === "brief_change_report")) {
+    changers.append(el("p", "brief__changers-from", t("brief_changers_from")));
+  }
   const list = el("ul", "brief__changer-list");
   const items = data.changers.length ? data.changers : [{ key: "brief_change_none" }];
   for (const item of items) {
-    const li = el("li", "brief__changer", fillText(item.key, {
+    // The report's own words, quoted; every other line is the page's.
+    const li = item.key === "brief_change_report" ? el("li", "brief__changer") : el("li", "brief__changer", fillText(item.key, {
       value: item.value, n: item.n, domain: item.domain ? t(DOMAIN_LABELS[item.domain]) : "",
     }));
+    if (item.key === "brief_change_report") li.append(el("q", null, item.text));
     li.dataset.reason = item.key.replace("brief_change_", "");
     list.append(li);
   }

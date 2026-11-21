@@ -159,7 +159,10 @@ if (input.brief) {
         button.onclick?.();
         return { ...before, after: nodes.find(n => n.tagName === "Q")?.textContent, gone: button.hidden === true };
       })(),
-      changers: nodes.filter(n => n.className === "brief__changer").map(n => [n.dataset.reason, n.textContent]),
+      changers: nodes.filter(n => n.className === "brief__changer").map(n => [n.dataset.reason, text(n)]),
+      changers_title: nodes.find(n => n.className === "brief__changers")?.children[0].textContent,
+      changers_from: nodes.find(n => n.className === "brief__changers-from")?.textContent ?? null,
+      changer_quotes: nodes.filter(n => n.className === "brief__changer").map(n => n.children.some(c => c.tagName === "Q")),
       note: nodes.find(n => n.className === "brief__note")?.textContent,
       next_expand: (() => {
         const card = nodes.find(n => n.className === "brief__card" && n.dataset.card === "next");
@@ -1390,6 +1393,77 @@ class DecisionBriefTests(unittest.TestCase):
         shown = self._brief()["brief_view"]["changers"]
         self.assertEqual([reason for reason, _ in shown], ["evidence", "market", "grounding", "context"])
         self.assertEqual(shown[0][1], "More high-credibility sources: evidence confidence is 2 / 5.")
+
+    _LIMITS = ("\n## Evidence Limitations\n\n"
+               "- **Academic sources.**\n"
+               "  - Only 8 sources, assessed from abstracts only.\n"
+               "  - No author or affiliation data.\n"
+               "- **Patent sources.**\n"
+               "  - Eight Google Patents search snippets only [P1, P2].\n"
+               "  - Legal status, claim scope and ownership are unverified.\n"
+               "- **Market sources.**\n"
+               "  - All are medium credibility at best. There are no primary filings.\n"
+               "\n## References\n\n[A1] A paper.\n")
+
+    def test_what_would_change_quotes_the_reports_own_evidence_limitations_first(self):
+        """The first line under "What would change this verdict" read "Market
+        figures that measure the same thing: the ones collected may not…" in
+        every one of three reports the user opened on 2026-11-21: a sentence
+        built from a score, the same everywhere, read as boilerplate. The
+        report's own "Evidence Limitations" names the gaps of this report;
+        the first of each group is quoted, up to three, ahead of the lines
+        the checks give, and the generic market line is left out when the
+        report names its own."""
+        report = _REPORT.replace("\n## Evidence Limitations\n\nSources are sparse.", "") + self._LIMITS
+        data = self._brief(markdown=report)
+        self.assertEqual(data["brief"]["changers"], [
+            {"key": "brief_change_report", "text": "Only 8 sources, assessed from abstracts only."},
+            {"key": "brief_change_report", "text": "Eight Google Patents search snippets only."},
+            {"key": "brief_change_report", "text": "All are medium credibility at best."},
+            {"key": "brief_change_evidence", "value": 2.0},
+        ])
+        view = data["brief_view"]
+        self.assertEqual(view["changers"][:3], [["report", "Only 8 sources, assessed from abstracts only."],
+                                                ["report", "Eight Google Patents search snippets only."],
+                                                ["report", "All are medium credibility at best."]])
+        self.assertEqual(view["changer_quotes"], [True, True, True, False], "the report's words are quoted")
+        self.assertEqual(view["changers_from"], "The report's own evidence limitations:")
+        # No group heads: the first three entries, labels passed over.
+        flat = self._brief(markdown=_REPORT + "\n- **Note:**\n- One gap [A1].\n- Two.\n- Three.\n- Four.\n")
+        self.assertEqual([c.get("text") for c in flat["brief"]["changers"][:3]], ["One gap.", "Two.", "Three."])
+        # Sub-headings as groups, and a bold paragraph label as one.
+        headed = self._brief(markdown=_REPORT.replace("Sources are sparse.",
+            "### Academic\n- A first [A1].\n- A second.\n\n**Market Sources:**\n- M first.\n- M second."))
+        self.assertEqual([c.get("text") for c in headed["brief"]["changers"][:3]], ["A first.", "M first.", "A second."])
+
+    def test_without_entries_of_its_own_the_brief_keeps_the_lines_the_checks_give(self):
+        # The section is a paragraph (as _REPORT's), missing, or under another heading.
+        for report in (_REPORT, _REPORT.replace("## Evidence Limitations", "## Notes")):
+            with self.subTest(report=report[-60:]):
+                data = self._brief(markdown=report)
+                self.assertEqual([c["key"] for c in data["brief"]["changers"]],
+                                 ["brief_change_evidence", "brief_change_market", "brief_change_grounding",
+                                  "brief_change_context"])
+                self.assertIsNone(data["brief_view"]["changers_from"])
+        # A list elsewhere in the report is not the section's.
+        elsewhere = self._brief(markdown=_REPORT.replace("## 1. Technology Overview & Maturity\n",
+                                                         "## 1. Technology Overview & Maturity\n\n- A list item.\n"))
+        self.assertNotIn("brief_change_report", [c["key"] for c in elsewhere["brief"]["changers"]])
+
+    def test_the_chinese_section_is_read_too_and_the_heading_fits_the_brief(self):
+        chinese = ("# 评估\n\n## 执行摘要\n\n该技术处于试点阶段 [A1]。\n\n## 证据局限性\n\n"
+                   "1. **学术证据局限性**：\n   - 仅含六篇论文，更广泛的文献可能提供不同的视角。\n   - 部分来源为综述。\n"
+                   "2. **专利证据局限性**：\n   - 专利权利要求未经审核 [P1]。\n")
+        data = self._run(language="Simplified Chinese", brief={"scores": _SCORES, "markdown": chinese,
+                                                               "progress": _PROGRESS})
+        self.assertEqual([c.get("text") for c in data["brief"]["changers"][:2]],
+                         ["仅含六篇论文，更广泛的文献可能提供不同的视角。", "专利权利要求未经审核。"])
+        self.assertEqual(data["brief_view"]["changers_from"], "报告自己写出的证据局限：")
+        self.assertEqual(data["brief_view"]["changers_title"], "什么会改变这个判断")
+        # A brief with no conclusion is an assessment, not a verdict, in English.
+        self.assertEqual(self._brief()["brief_view"]["changers_title"], "What would change this assessment")
+        asked = {**_PROGRESS, "decision_gate": {"mode": "decision_support"}}
+        self.assertEqual(self._brief(progress=asked)["brief_view"]["changers_title"], "What would change this verdict")
 
     def test_a_clean_run_with_a_decision_context_says_nothing_qualifies_the_score(self):
         scores = {**_SCORES, "evidence_confidence": 4.0, "market_accessibility": 4.0}

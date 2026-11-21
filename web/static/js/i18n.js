@@ -220,6 +220,9 @@ const STRINGS = {
     brief_next: "First recommended step",
     brief_next_none: "The report gives no numbered recommendation.",
     brief_changers: "What would change this verdict",
+    // The same list in a brief with no conclusion to change (orientation mode).
+    brief_changers_assessment: "What would change this assessment",
+    brief_changers_from: "The report's own evidence limitations:",
     brief_change_evidence: "More high-credibility sources: evidence confidence is {value} / 5.",
     brief_change_market: "Market figures that measure the same thing: the ones collected may not, so they cannot be compared directly.",
     brief_change_grounding: "Sources whose text can be checked: {n} numeric claims could not be verified.",
@@ -1088,6 +1091,8 @@ const STRINGS = {
     brief_next: "建议的第一步",
     brief_next_none: "报告没有给出编号的建议。",
     brief_changers: "什么会改变这个判断",
+    brief_changers_assessment: "什么会改变这个判断",
+    brief_changers_from: "报告自己写出的证据局限：",
     brief_change_evidence: "更多高可信度来源：证据可信度目前 {value} / 5。",
     brief_change_market: "同一口径的市场规模数据：现有数字口径可能不一，无法直接比较。",
     brief_change_grounding: "可核对正文的来源：{n} 条数值声明无法核对。",

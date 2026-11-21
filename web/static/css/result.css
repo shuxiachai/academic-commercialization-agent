@@ -1004,6 +1004,8 @@
 .brief__changers { margin-top: var(--space-3); }
 .brief__changer-list { margin: 0; padding-left: 1.2em; font-size: var(--text-sm); color: var(--text-primary); }
 .brief__changer { margin: 0 0 var(--space-1); }
+/* Where the quoted lines under it come from: the report's own section. */
+.brief__changers-from { margin: var(--space-1) 0; font-size: var(--text-xs); color: var(--text-tertiary); }
 .brief__note { margin: var(--space-3) 0 0; font-size: var(--text-xs); color: var(--text-tertiary); }
 
 .reliability__head {
