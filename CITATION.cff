@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Academic Commercialization Assessment Agent"
+type: software
+authors:
+  - family-names: "Chai"
+    given-names: "Jason"
+url: "https://github.com/shuxiachai/academic-commercialization-agent"
+license: MIT
+version: "2.1.0"
+date-released: 2026-10-17
