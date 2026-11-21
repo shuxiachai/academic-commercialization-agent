@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="English">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex, nofollow">
+<title>Page not found · Academic Commercialization Assessment</title>
+<link rel="icon" type="image/svg+xml" href="/static/brand/aca-mark.svg">
+<link rel="stylesheet" href="/static/css/tokens.css">
+<link rel="stylesheet" href="/static/css/base.css">
+<link rel="stylesheet" href="/static/css/samples.css">
+</head>
+<body>
+
+<!-- Sent with status 404 to a browser that asked for a page at an address
+     no route answers (api/main.py _missing_page). Both languages are in the
+     markup, so the page reads without scripts; not_found.js shows the
+     reader's one, chosen as on every other page (i18n.js). It asks the
+     server for nothing: an address that was wrong once is not followed by
+     more requests. -->
+<div class="samples not-found">
+  <header class="samples__head">
+    <a class="brand" href="/" aria-label="Academic Commercialization Assessment" data-i18n-aria-label="brand_full">
+      <img class="brand__mark" src="/static/brand/aca-mark.svg" alt="">
+      <span class="brand__name"><span class="brand__full" data-i18n="brand_full">Academic Commercialization Assessment</span><span class="brand__short" data-i18n="brand">ACA</span></span>
+    </a>
+    <div class="samples__nav">
+      <select class="bare-select" id="ui-lang" aria-label="Interface language" data-i18n-aria-label="aria_ui_language">
+        <option value="English">EN</option>
+        <option value="Simplified Chinese">中文</option>
+      </select>
+    </div>
+  </header>
+
+  <main class="not-found__main">
+  <section class="not-found__body" lang="en" data-lang-block="en">
+    <p class="not-found__code">404</p>
+    <h1>Page not found</h1>
+    <p>There is no page at this address. It may have been typed or copied wrongly, or the page it led to no longer exists.</p>
+    <div class="not-found__actions">
+      <a class="not-found__link not-found__link--primary" href="/">Go to the home page</a>
+      <a class="not-found__link" href="/samples">Read a sample report</a>
+    </div>
+  </section>
+
+  <section class="not-found__body" lang="zh-CN" data-lang-block="zh">
+    <p class="not-found__code">404</p>
+    <h1>找不到这个页面</h1>
+    <p>这个网址上没有页面。可能是网址输错或复制得不完整，也可能它指向的页面已经不在了。</p>
+    <div class="not-found__actions">
+      <a class="not-found__link not-found__link--primary" href="/">回到首页</a>
+      <a class="not-found__link" href="/samples">看一份示例报告</a>
+    </div>
+  </section>
+  </main>
+</div>
+
+<script type="module" src="/static/js/not_found.js"></script>
+<script type="module" src="/static/js/theme.js"></script>
+</body>
+</html>

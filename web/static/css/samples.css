@@ -373,3 +373,47 @@
   color: var(--text-secondary);
   font-size: var(--text-sm);
 }
+
+/* ── A page that is not there (web/not_found.html) ───────────────────── */
+.not-found__body {
+  max-width: 40rem;
+  margin: var(--space-12) auto var(--space-8);
+}
+.not-found__body[hidden] { display: none; }
+.not-found__code {
+  margin: 0 0 var(--space-2);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  letter-spacing: 0.08em;
+}
+.not-found__body h1 {
+  font-size: var(--text-3xl);
+  letter-spacing: -0.02em;
+  margin-bottom: var(--space-3);
+}
+.not-found__body p { color: var(--text-secondary); }
+.not-found__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+}
+.not-found__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-5);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.not-found__link:hover { border-color: var(--border-strong); }
+.not-found__link--primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.not-found__link--primary:hover { background: var(--accent-hover); color: var(--on-accent); }

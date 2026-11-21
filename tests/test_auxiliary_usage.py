@@ -712,7 +712,9 @@ def test_actual_run_header_keeps_auxiliary_scope_separate_and_clears_stale_dom(p
                              "in_flight_request_may_have_spent": True},
     }), encoding="utf-8")
 
-    current = client.get(f"/api/runs/{run_id}")
+    # Read as its owner: what a run used and cost is drawn for whoever may
+    # modify it, and a reader of a shared link is shown none of it.
+    current = client.get(f"/api/runs/{run_id}", headers=headers())
     assert current.status_code == 200, current.text
     known = current.json()
     assert known["auxiliary_usage"]["observed_tokens"] == 12
@@ -726,14 +728,14 @@ def test_actual_run_header_keeps_auxiliary_scope_separate_and_clears_stale_dom(p
     assert known["usage_accounting"]["state"] == "unavailable"
 
     (directory / aux.FILE_NAME).unlink()
-    progress = client.get(f"/api/runs/{run_id}/progress")
+    progress = client.get(f"/api/runs/{run_id}/progress", headers=headers())
     assert progress.status_code == 200, progress.text
     missing = progress.json()
     assert missing["auxiliary_usage"]["record_state"] == "not_recorded"
 
     broken_bytes = b'{"schema_version":'
     (directory / aux.FILE_NAME).write_bytes(broken_bytes)
-    corrupt = client.get(f"/api/runs/{run_id}")
+    corrupt = client.get(f"/api/runs/{run_id}", headers=headers())
     assert corrupt.status_code == 200, corrupt.text
     unreadable = corrupt.json()
     assert unreadable["auxiliary_usage"]["record_state"] == "unreadable"

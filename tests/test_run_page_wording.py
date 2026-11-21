@@ -148,7 +148,8 @@ def test_where_nothing_was_counted_the_fold_keeps_its_plain_heading(headline):
 
 
 def test_the_header_uses_the_headline_and_keeps_the_full_accounting_inside():
-    assert 'const headline = runView.usageHeadline(usage, usage_accounting, funded_by);' in _APP
+    # The owner's; a reader of someone else's run is not told what it used or cost.
+    assert 'const headline = reader ? "" : runView.usageHeadline(usage, usage_accounting, funded_by);' in _APP
     # The headline heads the fold; the plain name is only the fallback.
     assert '$("#run-usage-label").textContent = `· ${headline || runView.headerLabel("usage_details")}`;' in _APP
     # The accounting text and the helper ledger are still written into the fold, unchanged.

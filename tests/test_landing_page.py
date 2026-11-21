@@ -81,6 +81,10 @@ SCENARIOS = (
     "the_owners_actions_keep_the_rare_ones_behind_more",
     "a_signed_in_reader_of_someone_elses_run_is_told_so_and_offered_no_owner_action",
     "what_the_server_says_decides_and_a_run_with_no_owner_is_this_tabs_or_not",
+    # What a reader of a shared link is shown: a header for them, and a page
+    # that says so when the run is gone (tests/test_shared_link_pages.py).
+    "a_reader_of_a_shared_run_is_shown_a_header_written_for_them",
+    "a_link_to_a_run_that_is_gone_says_so_and_offers_a_way_on",
     # "Get both keys in 3 steps" where the first assessment is free.
     "the_key_guide_under_the_keys_form_knows_a_free_run_is_left",
 )
