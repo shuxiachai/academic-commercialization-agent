@@ -83,6 +83,16 @@
   letter-spacing: -0.02em;
   text-wrap: balance;
 }
+/* A Chinese line may end between any two characters, and balance picks the
+   most even split: at 1280 px that fell inside "带引用的" (2026-11-21). The
+   Chinese title marks the ends of its phrases with zero-width spaces
+   (i18n.js landing_title); keep-all keeps the characters between them
+   together. A phrase wider than the column may still break, rather than
+   spill over the card beside it. English is left as it was. */
+:lang(zh) .landing__pitch h1 {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
 .landing__lede {
   max-width: 36em;
   margin-top: var(--space-5);

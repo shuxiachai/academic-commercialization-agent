@@ -170,6 +170,7 @@ uv run --group e2e playwright install chromium
 uv run --group e2e python -m e2e.browser_smoke
 uv run --group e2e python -m e2e.composer_smoke
 uv run --group e2e python -m e2e.keyboard_smoke
+uv run --group e2e python -m e2e.language_smoke
 ```
 
 This uses real Chromium and the real loopback application with fixture runs.
@@ -191,6 +192,18 @@ and every focused control must show a ring that changes at 3:1 contrast. When
 you add a control to these screens, run it: a ring that is too faint, or a
 control the closed menu still lets Tab reach, fails it with the control's name.
 `tests/test_keyboard_smoke.py` rejects a click, `fill()` or scripted focus in it.
+
+The language journey opens the landing, the workbench, the sample reader and
+the privacy page from a fresh browser in each of zh-CN, zh-TW, en-US and
+fr-FR, and checks that each opens in the language i18n.js chooses for it, that
+a stored choice wins over the browser, that switching the landing's language
+redraws its scorecard and retention line without a reload, and that the
+Chinese title ends its lines only between phrases at widths from 320 to
+1440 px. The words it expects are read from the page's own modules. Chromium
+under Playwright takes the system's language unless a context names one, so
+every smoke that opens the main pages passes `locale=SMOKE_LOCALE`
+(`e2e/browser_language.py`); `tests/test_interface_language.py` fails a
+context that does not.
 
 ### Local UI demo
 
