@@ -279,7 +279,9 @@ def test_a_resume_recorded_since_the_fix_reads_as_it_was_recorded(page):
 
 
 def test_the_timing_fold_is_given_the_runs_recovery_record():
-    assert "timingEl.textContent = runView.timingSummary(stage_timings, recovery);" in APP_JS
+    # Its owner's fold; a reader of someone else's run is not shown stage times
+    # (tests/test_shared_link_pages.py, a_reader_of_a_shared_run_is_shown_a_header_written_for_them).
+    assert 'timingEl.textContent = reader ? "" : runView.timingSummary(stage_timings, recovery);' in APP_JS
 
 
 # ── The run a resume continued ─────────────────────────────────────────────
@@ -428,7 +430,8 @@ def test_the_line_sits_under_the_header_and_links_the_earlier_run():
     lineage, outcome = INDEX.index('id="run-lineage"'), INDEX.index('id="run-outcome"')
     assert INDEX.index('id="run-recovery"') < lineage < outcome, "Directly under the header's line, before the outcome"
     assert 'id="run-lineage" hidden' in INDEX
-    assert "paintLineage({ state, recovery, lineage, elapsed_seconds, usage, usage_accounting });" in APP_JS
+    # Said to the run's owner; a reader has the total in the header line instead.
+    assert "paintLineage(reader ? {} : { state, recovery, lineage, elapsed_seconds, usage, usage_accounting });" in APP_JS
     assert 'link.addEventListener("click", () => openRun(view.earlier));' in APP_JS
     # The count of checkpoints is gone from the page and from both languages.
     assert "recovery_reused_short" not in APP_JS and "recovery_reused_short" not in STRINGS

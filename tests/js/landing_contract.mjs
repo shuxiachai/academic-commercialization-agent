@@ -971,6 +971,150 @@ const scenarios = {
     assert.equal(tech.hidden, true);
     assert.equal(f.get("#run-identity").textContent, "");
   },
+  // ── The header a reader of a shared link is shown ────────────────────
+  // A shared link is how a report travels: a technology transfer office or
+  // an investor forwards it to a colleague. Until 2026-11-21 that colleague
+  // read the header written for whoever ran it: "COMPLETED · 3:57", the
+  // source counts, "About 31.8k tokens · no cost shown, as no unit price is
+  // on record yet for qwen3.8-2.4t-a95b; see your provider's console for the
+  // exact amount", two folds and a paragraph about resuming, some 430 px
+  // before the report (production run 20261120T131247Z). They have no
+  // console, the 3:57 was the resume's part of a 29-minute assessment, and
+  // nothing said when the evidence was gathered.
+  async a_reader_of_a_shared_run_is_shown_a_header_written_for_them() {
+    const f = fixture({ access: { status: 200, body: { ok: true } } });
+    await settle();
+    for (const id of ["run-assessed", "run-model"]) assert.ok(hiddenAtStart.includes(id), `#${id} starts hidden in the markup`);
+    const MODEL = "qwen3.8-2.4t-a95b";
+    const PARENT = "20261120T125001Z-" + "b".repeat(32);
+    // The two reads of that run, in the shape the API gives them.
+    const resumed = {
+      run_id: "20261120T131247Z-55c74e5736d56d0f54ba79d24f1bbae7", topic: "Solid oxide fuel cells",
+      state: "completed", elapsed_seconds: 237, funded_by: "own_keys", llm_model: MODEL,
+      daily_charge: "not_charged", source_counts: { academic: 12, patent: 8, market: 9 },
+      usage: { total_tokens: 31_800, cost_usd: null, cost_complete: false, unpriced_models: [MODEL],
+        accounting_scope: "crew_nodes", agents: [{ role: "Scorer", model: MODEL, total_tokens: 31_800 }] },
+      usage_accounting: { state: "complete" },
+      auxiliary_usage: { record_state: "recorded", call_count: 1, observed_tokens: 12, observed_cost_usd: 0.0001 },
+      stage_timings: [{ stage: "Agent 6 — Commercialization Scoring", started_at: "2026-11-20T13:12:50+00:00", duration_seconds: 230 }],
+      pipeline_revision: "git:49ad312" + "0".repeat(33),
+      terminal: { record_state: "committed", reason_code: "worker_completed" },
+      recovery: { state: "reused", source_run_id: PARENT, next_node: "scorer",
+        reused_nodes: ["retrieval", "academic", "patent", "market", "writer", "reviewer"] },
+      lineage: {
+        earlier: [{ run_id: PARENT, record: "available", state: "failed", elapsed_seconds: 1531, total_tokens: 124_600,
+          usage_state: "lower_bound", cost_usd: null, cost_complete: false }],
+        combined: { runs: 2, elapsed_seconds: 1768, elapsed_complete: true, total_tokens: 156_400,
+          usage_state: "lower_bound", cost_usd: null, cost_complete: false },
+      },
+    };
+    const paint = (body) => f.run(`paintHeader(${JSON.stringify(body)})`);
+    const shown = (id) => (f.get(id).hidden ? null : f.get(id).textContent);
+    const line = () => ["#run-assessed", "#run-model", "#run-elapsed", "#run-eta", "#run-sources"].map(shown);
+    const folds = () => ["#run-usage-details", "#run-timing-details", "#run-tech-details", "#run-lineage"]
+      .map((id) => !f.get(id).hidden);
+
+    // Its owner: the header as it was, every word of it.
+    paint({ ...resumed, viewer_can_modify: true });
+    assert.deepEqual(line(), [null, null, "3:57", "", "· 29 sources · 12 academic · 8 patent · 9 market"]);
+    assert.deepEqual(folds(), [true, true, true, true]);
+    assert.match(f.get("#run-usage-label").textContent, /see your provider's console for the exact amount$/);
+    assert.match(f.get("#run-lineage").children.join(""), /In all: 29:28 \(3:57 here \+ 25:31 before\)/);
+
+    // Anyone else: when, on what, how long in all; nothing about tokens, money, stages or resuming.
+    for (const reader of [{ viewer_can_modify: false }, { viewer_can_modify: null }]) {
+      paint({ ...resumed, ...reader });
+      assert.deepEqual(line(), ["Assessed 20 Nov 2026", `· Model: ${MODEL}`, "· took 29:28 in all", "", ""], JSON.stringify(reader));
+      assert.deepEqual(folds(), [false, false, false, false], "No token count, no cost, no stage times, no resume paragraph");
+      assert.equal(f.get("#run-assessed").title, "Dates are in UTC.");
+      // Not hidden with the words still in them: a hidden fold is still in the page's text.
+      assert.deepEqual(["#run-usage", "#run-timing", "#run-identity"].map((id) => f.get(id).textContent), ["", "", ""]);
+      assert.equal(f.get("#run-usage").title, "");
+      assert.equal(f.get("#run-usage-label").textContent, "· Usage & cost");
+    }
+    // An anonymous reader is one whatever the read says.
+    f.run("viewerMode = true");
+    paint({ ...resumed, viewer_can_modify: true });
+    assert.equal(shown("#run-assessed"), "Assessed 20 Nov 2026");
+    assert.deepEqual(folds(), [false, false, false, false]);
+    f.run("viewerMode = false");
+
+    // The owner again: nothing of the reader's header is left behind.
+    paint({ ...resumed, viewer_can_modify: true });
+    assert.deepEqual(line(), [null, null, "3:57", "", "· 29 sources · 12 academic · 8 patent · 9 market"]);
+
+    const reader = (body) => { paint({ ...resumed, viewer_can_modify: false, ...body }); return line().slice(0, 3); };
+    // A run that is not a resume: its own time, said as what it took.
+    assert.deepEqual(reader({ recovery: null, lineage: null, run_id: "20261120T131247Z-" + "c".repeat(32) }),
+      ["Assessed 20 Nov 2026", `· Model: ${MODEL}`, "· took 3:57"]);
+    // A total the server cannot vouch for (an earlier run's time is not known) is not written.
+    assert.deepEqual(reader({ lineage: { ...resumed.lineage, combined: { ...resumed.lineage.combined, elapsed_complete: false } } }),
+      ["Assessed 20 Nov 2026", `· Model: ${MODEL}`, ""]);
+    // The evidence was gathered when the first run began: a chain over two days says both.
+    const older = "20261118T231500Z-" + "d".repeat(32);
+    assert.deepEqual(reader({ lineage: { ...resumed.lineage, earlier: [...resumed.lineage.earlier, { run_id: older, record: "missing" }] } })[0],
+      "Assessed 18 Nov 2026 – 20 Nov 2026");
+    // A resume that could reuse nothing gathered its own evidence.
+    assert.equal(reader({ run_id: "20261121T010000Z-" + "e".repeat(32), recovery: { state: "cold_start", source_run_id: PARENT } })[0],
+      "Assessed 21 Nov 2026");
+    // Still going: the time so far, and a run that did not finish says it ran.
+    assert.deepEqual(reader({ state: "running", recovery: null, lineage: null, elapsed_seconds: 120,
+      eta: { low_seconds: 300, high_seconds: 900, basis_runs: 5, same_model: true, model: MODEL } }).slice(2), ["· running for 2:00"]);
+    assert.equal(shown("#run-eta"), "", "How long recent runs took is for whoever is waiting on their own");
+    assert.deepEqual(reader({ state: "running", elapsed_seconds: 120,
+      lineage: { ...resumed.lineage, combined: { ...resumed.lineage.combined, elapsed_seconds: 1651 } } }).slice(2),
+      ["· running for 27:31 in all"]);
+    assert.deepEqual(reader({ state: "failed", recovery: null, lineage: null, run_id: "20261120T131247Z-" + "f".repeat(32) }),
+      ["Started 20 Nov 2026", `· Model: ${MODEL}`, "· ran for 3:57"]);
+    // Nothing to go by: nothing said. The model falls back to the usage record's.
+    assert.deepEqual(reader({ run_id: "legacy-id", stage_timings: [], llm_model: null, recovery: null, lineage: null, elapsed_seconds: null }),
+      [null, `Model: ${MODEL}`, ""]);
+    assert.deepEqual(reader({ run_id: "legacy-id", stage_timings: [], llm_model: null, usage: null, recovery: null, lineage: null }),
+      [null, null, "took 3:57"]);
+    // An id that does not say when the run began: its first stage does.
+    assert.equal(reader({ run_id: "legacy-id", recovery: null, lineage: null,
+      stage_timings: [{ stage: "Source Collection & Validation", started_at: "2026-11-19T10:00:00+00:00" }] })[0], "Assessed 19 Nov 2026");
+    // A failure's reason stays; whether it spent the owner's daily run is the owner's business.
+    paint({ ...resumed, state: "failed", error: "The run stopped.", error_code: null, daily_charge: "charged",
+      recovery: null, lineage: null, viewer_can_modify: false });
+    assert.equal(shown("#run-outcome"), "The run stopped.");
+    paint({ ...resumed, state: "failed", error: "The run stopped.", error_code: null, daily_charge: "charged",
+      recovery: null, lineage: null, viewer_can_modify: true });
+    assert.equal(shown("#run-outcome"), "The run stopped. This run counted toward today's quota.");
+  },
+  // ── A link to a run that is not there ────────────────────────────────
+  // Deleted by its owner, past the deployment's retention, or cut short when
+  // it was copied: until 2026-11-21 such a link opened a header reading "…",
+  // "UNKNOWN" and "— · Usage & cost" over one small line, "The server could
+  // not find this run. Automatic polling has stopped.", and a blank page.
+  // Every shared link turns into this once its run reaches the retention age.
+  async a_link_to_a_run_that_is_gone_says_so_and_offers_a_way_on() {
+    for (const id of ["run-gone", "run-gone-retention"]) assert.ok(hiddenAtStart.includes(id), `#${id} starts hidden in the markup`);
+    assert.ok(!hiddenAtStart.includes("run-head"), "The run's header is shown until a read says the run is gone");
+    const gone = { status: 404, body: { detail: "No run with id 20260926T121212Z-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } };
+    const f = fixture({ pathname: DEEP_LINK, access: refused(ACCOUNTS), replies: { [`${RUN_API}/progress?since=0`]: gone } });
+    await settle();
+    assert.equal(f.get("#viewer-bar").hidden, false, "A reader, as for any shared link");
+    assert.deepEqual([f.get("#run-gone").hidden, f.get("#run-head").hidden, f.get("#run-body").hidden], [false, true, true],
+      "The page says the assessment cannot be opened, in place of an empty run");
+    assert.equal(f.get("#run-gone-retention").hidden, false);
+    assert.equal(f.get("#run-gone-retention").textContent, "gone_retention_days",
+      "The retention period is the deployment's own, read from /health (tests/test_shared_link_pages.py words it)");
+    assert.equal(f.get("#run-connection").textContent, "", "No word about polling");
+    assert.deepEqual(f.get("#toasts").children.map((node) => node.textContent), [], "...and no toast saying it again");
+    assert.equal(f.requests.filter((r) => r.url.startsWith(`${RUN_API}/progress`)).length, 1, "Asked once: nothing left to follow");
+
+    // A deployment that keeps assessments until they are deleted: no such reason to give.
+    const forever = fixture({ pathname: DEEP_LINK, access: refused(ACCOUNTS),
+      replies: { [`${RUN_API}/progress?since=0`]: gone, "/health": { retention_days: 0, active_runs: 0, max_concurrent: 5 } } });
+    await settle();
+    assert.equal(forever.get("#run-gone").hidden, false);
+    assert.equal(forever.get("#run-gone-retention").hidden, true);
+
+    // Another run opened from here gets its header back.
+    f.run('openRun("20260926T131313Z-" + "c".repeat(32))');
+    assert.deepEqual([f.get("#run-gone").hidden, f.get("#run-head").hidden, f.get("#run-body").hidden], [true, false, false]);
+  },
   // ── Whose run it is ──────────────────────────────────────────────────
   // A run's link opens for whoever holds it. Until 2026-11-15 a signed-in
   // reader of someone else's run was offered Delete, and Cancel while it

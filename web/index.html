@@ -692,12 +692,18 @@
 
     <!-- ── Run: progress and result share one pane ─────────────── -->
     <section class="pane" id="pane-run" hidden>
-      <header class="pane__head">
+      <header class="pane__head" id="run-head">
         <div class="pane__heading">
           <h1 class="pane__title" id="run-title">—</h1>
           <div class="pane__meta">
             <span class="pill" id="run-pill"></span>
             <span class="dot-sep"></span>
+            <!-- For a reader of someone else's run, in place of what its
+                 owner is shown: when it was assessed and on which model,
+                 then #run-elapsed says how long it took in all (run.js
+                 readerHeader). Empty and hidden for the owner. -->
+            <span id="run-assessed" hidden></span>
+            <span id="run-model" hidden></span>
             <span class="tabular" id="run-elapsed">0:00</span>
             <span id="run-eta"></span>
             <button type="button" class="run-notify" id="run-notify" hidden>· Notify me when done</button>
@@ -775,6 +781,24 @@
         <span data-i18n="shared_note">This assessment was shared with you. You can read it and keep a copy; only its owner can change it.</span>
         <button type="button" class="run-shared__new" id="run-shared-new" data-i18n="shared_new">Assess a topic of your own</button>
       </p>
+
+      <!-- A link to a run that is not there: deleted by its owner, past the
+           deployment's retention, or cut short when it was copied (app.js
+           showGone). In place of the header and the body, which would show
+           "UNKNOWN" over an empty page. -->
+      <div class="run-gone" id="run-gone" hidden>
+        <h1 class="run-gone__title" data-i18n="gone_title">This assessment can no longer be opened</h1>
+        <p class="run-gone__lede" data-i18n="gone_lede">Nothing is kept at this link any more. The likely reasons:</p>
+        <ul class="run-gone__reasons">
+          <li data-i18n="gone_deleted">Its owner deleted it.</li>
+          <li id="run-gone-retention" hidden></li>
+          <li data-i18n="gone_link">The link is incomplete: part of it may have been cut off when it was copied or forwarded. Compare it with the one you were sent.</li>
+        </ul>
+        <div class="run-gone__actions">
+          <a class="btn btn--primary" id="run-gone-samples" href="/samples" data-i18n="gone_samples">See a sample report</a>
+          <a class="btn btn--secondary" id="run-gone-own" href="/" data-i18n="gone_own">Assess your own topic</a>
+        </div>
+      </div>
 
       <div class="pane__body" id="run-body"></div>
     </section>
