@@ -101,12 +101,20 @@ _EDGE_REPORTS = [
     _report("Efficiency rose to 33.9% in the U.S. and e.g. Japan. Next sentence here [A1]."),
     _report("A. Pilot lines exist in Europe. They are small [A1]."),
     _report("Costs fell, i.e. modules are cheaper. etc. and more. The end [A1]."),
+    # A lower-case word after a full stop goes on with the sentence (LOWERCASE_WORD).
+    _report("Prices fell to 3 c. per watt in 2025 across Europe [A1]. A second sentence."),
     # A bold title heads its first sentence (TITLE_LIMIT).
     _report("**Maturity is uneven.** Robotic systems are established in urology [A1]."),
     _report("- **Key finding:** The market is nascent [A1]."),
     # Too long for the brief: cut at a clause, or at a word (quotedAtClause, quoted).
     _report(_LONG),
     _report(_LONG_NO_CLAUSE),
+    # A clause that ends too early to leave much is not where it is cut (CLAUSE_MIN).
+    _report("In short, " + "the technology moves from laboratory records toward pilot lines " * 4 + "now [A1]."),
+    # A comma inside brackets is not a clause's end (the open/closed check).
+    _report("The cells reached record efficiencies in several independent laboratories across three continents, "
+            "while manufacturers (including long-established crystalline module makers and new entrants alike, "
+            "by their own account) announced pilot capacity across Europe and Asia within the same year [A1]."),
     # A length counted in UTF-16 units: an astral character counts twice.
     _report("𝐂" * 125 + " ends here."),
     # The first recommended step: the labelled route wins (ROUTE_LEAD).

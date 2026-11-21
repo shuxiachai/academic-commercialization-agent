@@ -156,6 +156,14 @@ def test_chinese_prose_says_the_mode_in_chinese(saved, shown):
     assert text_for_display(saved, "Simplified Chinese") == shown
 
 
+def test_a_chinese_report_says_its_mode_in_chinese_on_the_page():
+    """Through report_for_display, as the page and the PDF read it, not only text_for_display."""
+    report = _report(_entry("A1", "某论文", "某期刊", "academic_paper"),
+                     legend=report_display._LEGENDS["Simplified Chinese"])
+    report = report.replace("The evidence is thin [A1].", "本报告为 decision_support 模式，证据有限 [A1]。")
+    assert "本报告为决策支持模式，证据有限 [A1]。" in report_for_display(report)
+
+
 def test_the_reference_list_keeps_a_code_in_a_title():
     """A source's title is the source's: a code in it is not respelt."""
     entry = _entry("A1", "On decision_support systems", "A journal", "academic_paper")

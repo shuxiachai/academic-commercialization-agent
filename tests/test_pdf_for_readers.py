@@ -271,6 +271,8 @@ def test_a_cached_export_from_before_the_summary_is_drawn_again(root):
     "https://patents.google.com/patent/US20250248296A1/en?oq=18%2F833670",
     "https://www.example.com/energy/articles/perovskite-solar-cell-market-reach-181100005-and-a-long-tail.html",
     "https://doi.org/10.1038/s41586-025-09312-x",
+    # Full stops inside pieces that fit: never a place to break.
+    "https://example.test/alpha.beta.gamma.delta/epsilon.zeta.eta.theta/iota",
 ])
 def test_an_address_is_broken_only_after_a_slash_a_hyphen_or_a_question_mark(url):
     lines = wrap_url(url, "Helvetica", 10, 160)
@@ -278,6 +280,92 @@ def test_an_address_is_broken_only_after_a_slash_a_hyphen_or_a_question_mark(url
     assert len(lines) > 1
     for line in lines[:-1]:
         assert line[-1] in "/-?", lines
+
+
+def test_a_reference_s_address_starts_its_own_line_and_is_a_link():
+    from ui.pdf_export import _build_styles, markdown_to_story
+
+    url = "https://patents.google.com/patent/US20250248296A1/en?oq=perovskite-silicon-tandem-solar-cells-made-at-scale"
+    story = markdown_to_story(f"[P1] A title. A publisher. Published: 2024-01-02. {url}\n\n"
+                              "Read https://example.test/a, then go on.\n", _build_styles("Helvetica"))
+    entry, prose = (paragraph.text for paragraph in story)
+    before, link = entry.split("<br/>", 1)
+    assert before == "[P1] A title. A publisher. Published: 2024-01-02."
+    assert link.startswith(f'<a href="{url}"') and link.endswith("</a>")
+    shown = re.sub(r"<[^>]+>", "\n", link).split()
+    assert "".join(shown) == url and len(shown) > 1 and all(line[-1] in "/-?" for line in shown[:-1])
+    # Inside a sentence an address is a link where it stands, its comma outside it.
+    assert prose == 'Read <a href="https://example.test/a" color="#1d4ed8">https://example.test/a</a>, then go on.'
+
+
+def test_chinese_lines_run_to_the_margin():
+    """Chinese is set without spaces; broken only at spaces, a line stopped
+    at the last one and left the rest of the width empty."""
+    from ui.pdf_export import _build_styles, _resolve_font, markdown_to_story
+
+    text = ("特高压直流（UHVDC）输电技术在中国已达到系统级部署的成熟阶段。截至2018年的综述显示，中国已建成11项直流特高压工程，"
+            "另有3项在建，并正在发展±1100 kV技术 [A8]。技术前沿正在向三个方向演进：一是混合换相换流器（Hybrid Commutated "
+            "Converter），其在120 kV/360 MW原型上完成实验验证 [A4]；二是单端故障诊断方法。")
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+
+    font = _resolve_font("Simplified Chinese")
+    width = 470
+
+    def widths(cjk_wrap: bool) -> list[float]:
+        paragraph = markdown_to_story(text, _build_styles(font, cjk_wrap=cjk_wrap))[0]
+        paragraph.wrap(width, 1000)
+        shown = []
+        for line in paragraph.blPara.lines[:-1]:
+            words = line.words if hasattr(line, "words") else None
+            text_of = "".join(getattr(f, "text", "") for f in words) if words is not None else " ".join(line[1])
+            shown.append(stringWidth(text_of, font, 10))
+        return shown
+
+    # The premise: broken at spaces, one line stops well short of the margin.
+    assert min(widths(False)) < 0.8 * width
+    assert len(widths(True)) >= 2 and min(widths(True)) > 0.9 * width
+
+
+def test_a_chinese_pdf_is_set_with_chinese_line_breaking(root):
+    from ui import pdf_export
+
+    _chinese(root)
+    seen = []
+    real = pdf_export._build_styles
+
+    def spy(font_name, cjk_wrap=False):
+        seen.append(cjk_wrap)
+        return real(font_name, cjk_wrap)
+
+    with patch.object(pdf_export, "_build_styles", spy):
+        _get(_ZH_RUN)
+    assert seen == [True]
+
+
+def test_a_long_topic_is_cut_to_the_header_line():
+    from reportlab.pdfbase.pdfmetrics import stringWidth
+
+    from ui.pdf_export import _fit
+
+    header = _fit("ACA · " + "perovskite silicon tandem " * 20, "Helvetica", 8, 300)
+    assert header.endswith("…") and header.startswith("ACA · perovskite")
+    assert stringWidth(header, "Helvetica", 8) <= 300
+    assert _fit("ACA · short", "Helvetica", 8, 300) == "ACA · short"
+
+
+def test_the_pdf_carries_a_long_brief_line_whole(root):
+    """The page cuts a long line at 240 characters and offers the rest on a
+    press; a PDF has no button, so it carries the sentence whole."""
+    run_dir = _english(root)
+    long = ("Perovskite-silicon tandem cells have moved from laboratory records to pilot lines on three "
+            "continents, with certified efficiencies above thirty-three percent, stability tests in the thousands "
+            "of hours, and two manufacturers reporting first commercial deliveries to utility customers [A1].")
+    report = (run_dir / "commercialization_report.md").read_text(encoding="utf-8")
+    (run_dir / "commercialization_report.md").write_text(
+        report.replace("## Executive Summary\n\n", f"## Executive Summary\n\n{long}\n\n", 1), encoding="utf-8")
+    pages, _info = _read(_get(_EN_RUN).content)
+    assert len(long) > 240
+    assert f"The report's own summary: “{_flat(long.removesuffix(' [A1].'))}.”" in _flat(pages[0])
 
 
 def test_a_piece_with_no_such_place_is_cut_only_where_nothing_else_fits():
