@@ -8,6 +8,7 @@ from urllib.parse import urlsplit
 
 from playwright.sync_api import expect
 
+from e2e.browser_language import SMOKE_LOCALE
 from e2e.browser_smoke import PROJECT_ROOT
 from academic_agent.auxiliary_usage import Call, Ledger, Tokens, project
 
@@ -20,7 +21,7 @@ AUXILIARY_FIXTURE = project(Ledger(operation_complete=True, calls=[Call(
 
 
 def receipt_journey(browser, base, operation, fulfill):
-    context = browser.new_context()
+    context = browser.new_context(locale=SMOKE_LOCALE)
     context.add_init_script("localStorage.setItem('access-code','receipt-fixture-code')")
     page = context.new_page()
     faults, posts, lookups = [], [], []

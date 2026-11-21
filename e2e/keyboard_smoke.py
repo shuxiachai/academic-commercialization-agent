@@ -38,6 +38,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from playwright.sync_api import Page, Route, expect, sync_playwright
 
+from e2e.browser_language import SMOKE_LOCALE
 from e2e.browser_smoke import PROJECT_ROOT, _serve
 from e2e.landing_reads import answer_landing_read
 from e2e.smoke_report import capture_failure
@@ -216,7 +217,7 @@ class Audit:
 
 
 def _context(browser, base: str, scheme: str, viewport: dict, log: dict):
-    context = browser.new_context(color_scheme=scheme, viewport=viewport)
+    context = browser.new_context(locale=SMOKE_LOCALE, color_scheme=scheme, viewport=viewport)
 
     def intercept(route: Route) -> None:
         request = route.request
@@ -450,7 +451,7 @@ def main() -> None:
     results = {}
     with _serve(app) as base, sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
-        scratch_context = browser.new_context()
+        scratch_context = browser.new_context(locale=SMOKE_LOCALE)
         scratch = scratch_context.new_page()
         try:
             for scheme in ("light", "dark"):

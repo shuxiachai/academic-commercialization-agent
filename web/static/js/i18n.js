@@ -1651,7 +1651,11 @@ const STRINGS = {
     landing_sign_in: "登录",
     landing_create: "创建账号",
     landing_eyebrow: "面向技术转移办公室、创业者和投资人",
-    landing_title: "输入一篇论文，得到一份带引用的商业化初筛报告。",
+    // A zero-width space (\u200b) between the phrases marks the only places a
+    // line may end: landing.css keeps the characters of a phrase together in
+    // a Chinese interface. Without them a line could end anywhere, and at
+    // 1280 px it ended inside "带引用的" (2026-11-21).
+    landing_title: "输入一篇论文，\u200b得到一份\u200b带引用的\u200b商业化初筛报告。",
     landing_lede: "给它一个研究主题或一篇论文。六个 AI 智能体评估这项技术离市场还有多远，写出一份就技术成熟度、制造、专利和市场打分的报告，每条结论都有引用，风险逐条说明。",
     landing_read_sample: "先读一份完整报告，无需账号",
     landing_trial: "首次评估免费，无需 API Key。",
@@ -1714,10 +1718,42 @@ const STRINGS = {
 
 const STORAGE_KEY = "ui-language";
 
-let current = "English";
-try { current = localStorage.getItem(STORAGE_KEY) ?? "English"; }
-catch { /* Preferences cannot prevent module initialization in a restricted browser. */ }
-if (!STRINGS[current]) current = "English";
+/* Which language a page opens in. One rule, here, for every page that loads
+ * this module: the landing, the workbench, the sample reader, the privacy
+ * page and the operator's console.
+ *
+ * A language the reader chose (setLanguage, from a language select) is kept
+ * and wins. Without one, the browser's first preferred language decides:
+ * Simplified Chinese for any "zh" tag, English for everything else. Until
+ * 2026-11-21 a page opened in English unless a choice was stored, and a
+ * visitor whose browser said "zh-CN" had to find the small "EN" select first.
+ * The guess is never stored, so that only a choice is remembered and a
+ * browser set to another language later is followed.
+ *
+ * The browser's language is the window's navigator's. Node has had a
+ * navigator of its own since version 21, which reports the machine's locale;
+ * read from the global object, every test that imports this module would read
+ * Chinese strings on a machine set to Chinese and English ones on CI. */
+function chosenLanguage() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return Object.hasOwn(STRINGS, stored ?? "") ? stored : null;
+  } catch {
+    return null;  // Preferences cannot prevent module initialization in a restricted browser.
+  }
+}
+
+function browserLanguage() {
+  try {
+    const navigator = globalThis.window?.navigator;
+    const first = navigator?.languages?.[0] ?? navigator?.language;
+    return typeof first === "string" && /^zh(-|$)/i.test(first) ? "Simplified Chinese" : "English";
+  } catch {
+    return "English";
+  }
+}
+
+let current = chosenLanguage() ?? browserLanguage();
 
 /** Translate a key, falling back to English and then to the key itself. */
 export function t(key) {

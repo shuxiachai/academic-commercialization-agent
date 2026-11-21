@@ -104,6 +104,10 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
   const system = { dark, heard: [] };
   // Where app.js writes how far its boot got (markBoot), for whoever reads a failed smoke.
   const documentElement = { dataset: {} };
+  // What the strings say: each key as itself, after a prefix a scenario may
+  // set to stand for another language, so a line drawn again in it can be
+  // told from one left as it was. app.js keeps i18n.t from its first line.
+  const speech = { prefix: "" };
   const reply = (body, status = 200, headers = {}) => Promise.resolve(new Response(JSON.stringify(body), {
     status, headers: { "Content-Type": "application/json", ...headers } }));
   let answer = () => {};
@@ -147,7 +151,7 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
       return typeof scores?.overall_score === "number" ? { className: "scorecard scorecard--summary", scores } : null;
     } },
     needsScopeWarning: () => false, modelKind,
-    i18n: { t: (key) => key, language: () => "English", locale: () => "en-GB", apply: () => {}, setLanguage: () => {},
+    i18n: { t: (key) => speech.prefix + key, language: () => "English", locale: () => "en-GB", apply: () => {}, setLanguage: () => {},
             pageTitle: (name = "") => (name ? `${name} · brand_full` : "brand_full") },
     document: { querySelector: get, querySelectorAll: () => [], createElement: () => new Element(),
       addEventListener: () => {}, hidden: false, documentElement },
@@ -160,7 +164,7 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
     confirm: () => true,
   });
   vm.runInContext(source, context);
-  return { get, requests, navigations, reloads, sidebarRefreshes, replaced, summaries, system, answer: () => answer(),
+  return { get, requests, navigations, reloads, sidebarRefreshes, replaced, summaries, system, speech, answer: () => answer(),
     deliver: () => deliver(), boot: () => documentElement.dataset.boot,
     run: (text) => vm.runInContext(text, context) };
 }
@@ -678,6 +682,86 @@ const scenarios = {
     assert.notEqual(list.children[0], drawn[0], "The list is drawn again, in the words of the new language");
     assert.deepEqual(list.children.map((item) => item.children[0].href), drawn.map((item) => item.children[0].href));
     assert.equal(f.requests.filter((r) => r.url === "/api/samples").length, 1, "...from the list it had already read");
+  },
+  // The scorecard beside the pitch and the retention line under "How long is
+  // my data kept?" are drawn by the page, not marked for i18n.apply(). Until
+  // 2026-11-21 both were drawn once: a visitor who switched the landing to
+  // Chinese went on reading "Strong", "COMMERCIALIZATION READINESS" and
+  // "...stored on this server for 90 days..." until a reload, and one who
+  // switched back to English read them in Chinese.
+  async a_change_of_language_redraws_the_scorecard_and_the_retention_line() {
+    const f = fixture({ access: refused(ACCOUNTS) });
+    await settle();
+    const frame = f.get("#landing-preview");
+    const drawn = frame.children[0];
+    assert.deepEqual(f.summaries, [SCORES]);
+    assert.equal(f.get("#landing-retention").textContent, "byok_retention");
+    for (const [prefix, round] of [["zh:", 2], ["en:", 3]]) {
+      f.speech.prefix = prefix;
+      f.get("#ui-lang").listeners.change();
+      await settle();
+      assert.deepEqual(f.summaries, Array(round).fill(SCORES),
+        `The scorecard is drawn again (${prefix}), from the scores already read`);
+      assert.equal(frame.children.length, 1, "...in place of the one drawn before");
+      assert.notEqual(frame.children[0], drawn);
+      assert.equal(frame.dataset.state, "shown");
+      assert.equal(f.get("#landing-preview-note").hidden, true);
+      assert.equal(f.get("#landing-retention").textContent, `${prefix}byok_retention`,
+        "The retention line is said in the new language");
+    }
+    assert.equal(f.requests.filter((r) => r.url === PREVIEW_SCORES).length, 1, "Nothing is asked for again");
+    assert.equal(f.requests.filter((r) => r.url === "/health").length, 1);
+
+    // A scorecard that could not be read stays the quiet line in every
+    // language, and a retention period the server did not give stays unsaid.
+    const missing = fixture({ access: refused(ACCOUNTS), replies: { [PREVIEW_SCORES]: { status: 404, body: {} },
+      "/health": "unreachable" } });
+    await settle();
+    missing.speech.prefix = "zh:";
+    missing.get("#ui-lang").listeners.change();
+    await settle();
+    assert.equal(missing.get("#landing-preview").children.length, 0);
+    assert.equal(missing.get("#landing-preview").dataset.state, "missing");
+    assert.equal(missing.get("#landing-preview-note").hidden, false);
+    assert.equal(missing.get("#landing-retention").textContent, "");
+    assert.equal(missing.requests.filter((r) => r.url === PREVIEW_SCORES).length, 1);
+
+    // A change of language while the scores are still on their way leaves the
+    // frame waiting, not "missing": the card is drawn once, when they arrive,
+    // in the language then in use.
+    const late = fixture({ access: refused(ACCOUNTS), replies: { [PREVIEW_SCORES]: "late" } });
+    await settle();
+    late.speech.prefix = "zh:";
+    late.get("#ui-lang").listeners.change();
+    await settle();
+    assert.deepEqual(late.summaries, []);
+    assert.equal(late.get("#landing-preview").dataset.state, undefined, "Untouched: the markup's \"loading\" stands");
+    assert.equal(late.get("#landing-preview-note").hidden, true, "No word of a failure that has not happened");
+    late.deliver();
+    await settle();
+    assert.deepEqual(late.summaries, [SCORES]);
+    assert.equal(late.get("#landing-preview").dataset.state, "shown");
+
+    // A deployment that keeps what it is given until it is deleted says so in
+    // the new language too, as /health puts it: with no retention period.
+    const kept = fixture({ access: refused(ACCOUNTS), replies: { "/health": { active_runs: 0, max_concurrent: 5 } } });
+    await settle();
+    assert.equal(kept.get("#landing-retention").textContent, "byok_retention_forever");
+    kept.speech.prefix = "zh:";
+    kept.get("#ui-lang").listeners.change();
+    await settle();
+    assert.equal(kept.get("#landing-retention").textContent, "zh:byok_retention_forever");
+
+    // A deployment that put the landing away draws neither on a change of language.
+    const open = fixture({ access: { status: 200, body: { ok: true } } });
+    await settle();
+    assert.equal(shown(open).landing, false);
+    const before = open.summaries.length;
+    open.speech.prefix = "zh:";
+    open.get("#ui-lang").listeners.change();
+    await settle();
+    assert.equal(open.summaries.length, before, "No scorecard is drawn for a landing nobody sees");
+    assert.equal(open.get("#landing-preview").children.length, 0);
   },
   // The screenshot of a finished assessment, further down the landing: one
   // file for each theme, width and language, named by the page.

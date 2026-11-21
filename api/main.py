@@ -50,6 +50,7 @@ from academic_agent.checkpoint_runtime import pipeline_revision  # noqa: E402
 # report can read it without importing the API.
 from academic_agent import report_feedback as feedback  # noqa: E402
 from academic_agent.decision_verdict import card_text, find_verdict  # noqa: E402
+from academic_agent import report_summary  # noqa: E402
 from academic_agent.report_display import (  # noqa: E402
     conclusion_for_display, display_parts, report_for_display,
 )
@@ -1854,6 +1855,20 @@ def preview_plan(request: PlanRequest, http_request: Request) -> PlanPreview:
 
 _WEB_ROOT = Path(__file__).resolve().parents[1] / "web"
 
+
+def _public_origin() -> str | None:
+    """The address the home page's own og:url names; None when it names none.
+
+    The one public address of this deployment (api/crawlers.py says why it
+    is read from the page): the sitemap and robots.txt name it, and a run's
+    PDF links back to the run on it.
+    """
+    try:
+        return crawlers.origin_of((_WEB_ROOT / "index.html").read_text(encoding="utf-8"))
+    except OSError:
+        return None
+
+
 # Mounted before the API routes are declared below only in source order; the
 # router matches /api/* first regardless, because StaticFiles is mounted at a
 # sub-path rather than at "/". The SPA entry point is served explicitly.
@@ -1956,13 +1971,6 @@ if _WEB_ROOT.is_dir():
         if origin is None:
             raise HTTPException(status_code=404, detail="This deployment's pages name no public address.")
         return Response(crawlers.sitemap_xml(origin), media_type="application/xml")
-
-    def _public_origin() -> str | None:
-        """The address the home page's own og:url names; None when it names none."""
-        try:
-            return crawlers.origin_of((_WEB_ROOT / "index.html").read_text(encoding="utf-8"))
-        except OSError:
-            return None
 
     @app.api_route("/privacy", methods=_DOCUMENT_METHODS, include_in_schema=False)
     def _privacy_page() -> FileResponse:
@@ -3339,7 +3347,7 @@ async def _uploaded_paper_result(paper_id, pdf_path, *, owner, byok, llm_provide
     tags=["artifacts"],
     responses={
         200: {"content": {"application/pdf": {}}},
-        409: {"description": "Run has not produced a report yet"},
+        409: {"description": "Run has produced neither a report nor a draft"},
     },
 )
 def get_report_pdf(run_id: str) -> FileResponse:
@@ -3349,6 +3357,11 @@ def get_report_pdf(run_id: str) -> FileResponse:
     second or two, and most runs are never exported. The embedded font matters
     here — a reader without a CJK typeface installed would otherwise see blank
     boxes, which is why the image build verifies one resolves.
+
+    A run that stopped without a report but with a draft (runs.draft_report)
+    is exported too, as the page shows it: the draft's notice first, then the
+    line saying there is no score, then the text; cached under its own name.
+    The file is named for its topic and date (report_summary.download_names).
     """
     try:
         state = runs.get_state(run_id)
@@ -3356,49 +3369,62 @@ def get_report_pdf(run_id: str) -> FileResponse:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     markdown_path = runs.artifact_path(run_id, "report")
-    if markdown_path is None:
+    draft = runs.draft_report(run_id, state["state"]) if markdown_path is None else None
+    if markdown_path is None and draft is None:
         raise HTTPException(
             status_code=409,
             detail=f"No report available; run state is '{state['state']}'.",
         )
 
-    pdf_path = markdown_path.parent / "commercialization_report.pdf"
+    # The report's own directory, as before; a draft has no file to take it from.
+    run_dir = markdown_path.parent if markdown_path is not None else runs.run_dir_for(run_id)
+    pdf_path = run_dir / ("commercialization_report.pdf" if draft is None else "commercialization_draft.pdf")
     from ui.pdf_export import (
         _generate_pdf, pdf_cache_complete, pdf_cache_lock, pdf_carries_decision_card, pdf_carries_display,
     )
 
+    language = state.get("output_language", "English")
+    topic = state.get("topic") or ""
+    terminal = state.get("terminal")
+    date = report_summary.report_date(run_id, terminal.get("ended_at") if isinstance(terminal, dict) else None)
     try:
-        language = state.get("output_language", "English")
         # The card the page shows above the brief, for the runs that have one.
-        decision = _run_decision(run_id, state, markdown_path)
+        decision = (_run_decision(run_id, state, markdown_path) if markdown_path is not None
+                    else RunDecision(run_id=run_id, asked=False))
         # Check inside the lock. Atomic publication prevents torn reads, but
         # alone still lets simultaneous first downloads build the same report.
-        with pdf_cache_lock(markdown_path.parent):
+        with pdf_cache_lock(run_dir):
             # An export is cached for good. One drawn by earlier display
-            # rules (English headings over a Chinese report, "GO/NO_GO") is
-            # complete and stale: it is rendered once more, and then its mark holds.
+            # rules (English headings over a Chinese report, "GO/NO_GO", no
+            # summary or page numbers) is complete and stale: it is rendered
+            # once more, and then its mark holds. The same for an export
+            # cached before the decision card existed.
             current = pdf_cache_complete(pdf_path) and pdf_carries_display(pdf_path)
-            if not decision.asked:
-                if not current:
-                    # The PDF is read like the page, not like the audit file.
-                    _generate_pdf(
-                        report_for_display(markdown_path.read_text(encoding="utf-8"), language),
-                        markdown_path.parent,
-                        output_language=language,
-                    )
-            # The same for an export cached before the card existed.
-            elif not (current and pdf_carries_decision_card(pdf_path)):
-                head, rest = display_parts(markdown_path.read_text(encoding="utf-8"), language)
+            if decision.asked:
+                current = current and pdf_carries_decision_card(pdf_path)
+            if not current:
+                # The PDF is read like the page, not like the audit file.
+                text = markdown_path.read_text(encoding="utf-8") if draft is None else draft.text
+                head, rest = display_parts(text, language)
+                shown = head + rest
+                origin = _public_origin()
                 _generate_pdf(
-                    head + rest,
-                    markdown_path.parent,
+                    shown,
+                    run_dir,
                     output_language=language,
                     decision_card=card_text(
                         decision.question.model_dump() if decision.question else None,
                         decision.conclusion.model_dump(),
                         language,
-                    ),
+                    ) if decision.asked else None,
                     card_at=len(head),
+                    notice=report_summary.draft_note(draft.stage, language) if draft is not None else None,
+                    summary=_pdf_summary(run_id, run_dir, state, shown, language),
+                    page=report_summary.page_text(
+                        topic=topic, run_id=run_id, run_link=f"{origin}/run/{run_id}" if origin else None,
+                        date=date, model=state.get("llm_model"), language=language, draft=draft is not None,
+                    ),
+                    file_name=pdf_path.name,
                 )
     except Exception as exc:  # noqa: BLE001 - renderer/filesystem backends vary; sanitize HTTP detail
         _LOGGER.exception("Report PDF rendering failed for run %s", run_id)
@@ -3413,8 +3439,39 @@ def get_report_pdf(run_id: str) -> FileResponse:
     if not pdf_path.exists():
         raise HTTPException(status_code=500, detail="PDF rendering produced no file.")
 
-    return FileResponse(
-        pdf_path, media_type="application/pdf", filename=f"{run_id}.pdf"
+    # Not FileResponse's `filename`: for a name that is not ASCII it sends
+    # filename* alone, and a client that reads only filename gets nothing.
+    return FileResponse(pdf_path, media_type="application/pdf", headers={
+        "Content-Disposition": report_summary.content_disposition(topic, date, draft=draft is not None),
+    })
+
+
+def _pdf_summary(run_id: str, run_dir: Path, state: dict, shown: str, language: str) -> dict:
+    """The first page's summary, from the files /scores and /sources serve and
+    the run's record (report_summary.summary). A file that is missing or
+    cannot be read is None there, and costs the summary what it holds."""
+
+    def read(name: str) -> object:
+        path = runs.artifact_path(run_id, name)
+        if path is None:
+            return None
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):   # a JSON error is a ValueError
+            return None
+
+    question = None
+    try:
+        context = runs.RunSpec.load(run_dir).decision_context
+    except (OSError, ValueError):
+        context = None
+    if context is not None:
+        question = {"decision_owner": context.decision_owner, "decision_type": context.decision_type}
+    gate = state.get("decision_gate")
+    return report_summary.summary(
+        state=state.get("state", ""), scores=read("scores"), sources=read("sources"),
+        mode=gate.get("mode") if isinstance(gate, dict) else None, question=question,
+        markdown=shown, language=language,
     )
 
 
