@@ -27,7 +27,9 @@ globalThis.sessionStorage = {
 // scorecard that holds none is listed.
 const SAMPLES = [
   { slug: "hyperloop", title: "Hyperloop", topic: "hyperloop", committed: "2026-10-21", commit: "a8cc424",
-    language: "English", overall_score: 48.6, trl_score: 5 },
+    language: "English", overall_score: 48.6, trl_score: 5,
+    decision: { asset_description: "A pod", target_application: "Freight", decision_owner: "An investor",
+                decision_type: "Invest" } },
   { slug: "solid-state-batteries-ev-zh", title: "电动汽车用固态电池", topic: "电动汽车用固态电池",
     committed: "2026-10-21", commit: "a8cc424", language: "Simplified Chinese", overall_score: 74.9, trl_score: null },
   { slug: "../etc/passwd", title: "Not a sample", topic: "", committed: "", commit: "" },
@@ -104,6 +106,10 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
   const system = { dark, heard: [] };
   // Where app.js writes how far its boot got (markBoot), for whoever reads a failed smoke.
   const documentElement = { dataset: {} };
+  // What the strings say: each key as itself, after a prefix a scenario may
+  // set to stand for another language, so a line drawn again in it can be
+  // told from one left as it was. app.js keeps i18n.t from its first line.
+  const speech = { prefix: "" };
   const reply = (body, status = 200, headers = {}) => Promise.resolve(new Response(JSON.stringify(body), {
     status, headers: { "Content-Type": "application/json", ...headers } }));
   let answer = () => {};
@@ -147,7 +153,7 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
       return typeof scores?.overall_score === "number" ? { className: "scorecard scorecard--summary", scores } : null;
     } },
     needsScopeWarning: () => false, modelKind,
-    i18n: { t: (key) => key, language: () => "English", apply: () => {}, setLanguage: () => {},
+    i18n: { t: (key) => speech.prefix + key, language: () => "English", locale: () => "en-GB", apply: () => {}, setLanguage: () => {},
             pageTitle: (name = "") => (name ? `${name} · brand_full` : "brand_full") },
     document: { querySelector: get, querySelectorAll: () => [], createElement: () => new Element(),
       addEventListener: () => {}, hidden: false, documentElement },
@@ -160,7 +166,7 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
     confirm: () => true,
   });
   vm.runInContext(source, context);
-  return { get, requests, navigations, reloads, sidebarRefreshes, replaced, summaries, system, answer: () => answer(),
+  return { get, requests, navigations, reloads, sidebarRefreshes, replaced, summaries, system, speech, answer: () => answer(),
     deliver: () => deliver(), boot: () => documentElement.dataset.boot,
     run: (text) => vm.runInContext(text, context) };
 }
@@ -191,8 +197,10 @@ const scenarios = {
     assert.deepEqual(links.map((a) => a.textContent), ["Hyperloop", "电动汽车用固态电池"]);
     // Under each title, what the reader's cards say: the verdict in the
     // scorecard's words, the readiness level where there is one, the language.
+    // A sample whose run was given a decision context says so, as its card on /samples does.
     assert.deepEqual(links.map((a) => a.children.map((c) => [c.className, c.textContent, c.dataset.tone])), [
-      [["landing__sample-facts", "48.6 / 100 · Early · TRL 5 · Report in English", "warning"]],
+      [["landing__sample-facts", "48.6 / 100 · Early · TRL 5 (score 5 / 9) · Report in English", "warning"],
+       ["landing__sample-decision", "With a decision conclusion", undefined]],
       [["landing__sample-facts", "74.9 / 100 · Strong · Report in Chinese", "success"]],
     ]);
     assert.deepEqual(f.replaced, [], "A plain visit to / changes no address");
@@ -679,13 +687,93 @@ const scenarios = {
     assert.deepEqual(list.children.map((item) => item.children[0].href), drawn.map((item) => item.children[0].href));
     assert.equal(f.requests.filter((r) => r.url === "/api/samples").length, 1, "...from the list it had already read");
   },
+  // The scorecard beside the pitch and the retention line under "How long is
+  // my data kept?" are drawn by the page, not marked for i18n.apply(). Until
+  // 2026-11-21 both were drawn once: a visitor who switched the landing to
+  // Chinese went on reading "Strong", "COMMERCIALIZATION READINESS" and
+  // "...stored on this server for 90 days..." until a reload, and one who
+  // switched back to English read them in Chinese.
+  async a_change_of_language_redraws_the_scorecard_and_the_retention_line() {
+    const f = fixture({ access: refused(ACCOUNTS) });
+    await settle();
+    const frame = f.get("#landing-preview");
+    const drawn = frame.children[0];
+    assert.deepEqual(f.summaries, [SCORES]);
+    assert.equal(f.get("#landing-retention").textContent, "byok_retention");
+    for (const [prefix, round] of [["zh:", 2], ["en:", 3]]) {
+      f.speech.prefix = prefix;
+      f.get("#ui-lang").listeners.change();
+      await settle();
+      assert.deepEqual(f.summaries, Array(round).fill(SCORES),
+        `The scorecard is drawn again (${prefix}), from the scores already read`);
+      assert.equal(frame.children.length, 1, "...in place of the one drawn before");
+      assert.notEqual(frame.children[0], drawn);
+      assert.equal(frame.dataset.state, "shown");
+      assert.equal(f.get("#landing-preview-note").hidden, true);
+      assert.equal(f.get("#landing-retention").textContent, `${prefix}byok_retention`,
+        "The retention line is said in the new language");
+    }
+    assert.equal(f.requests.filter((r) => r.url === PREVIEW_SCORES).length, 1, "Nothing is asked for again");
+    assert.equal(f.requests.filter((r) => r.url === "/health").length, 1);
+
+    // A scorecard that could not be read stays the quiet line in every
+    // language, and a retention period the server did not give stays unsaid.
+    const missing = fixture({ access: refused(ACCOUNTS), replies: { [PREVIEW_SCORES]: { status: 404, body: {} },
+      "/health": "unreachable" } });
+    await settle();
+    missing.speech.prefix = "zh:";
+    missing.get("#ui-lang").listeners.change();
+    await settle();
+    assert.equal(missing.get("#landing-preview").children.length, 0);
+    assert.equal(missing.get("#landing-preview").dataset.state, "missing");
+    assert.equal(missing.get("#landing-preview-note").hidden, false);
+    assert.equal(missing.get("#landing-retention").textContent, "");
+    assert.equal(missing.requests.filter((r) => r.url === PREVIEW_SCORES).length, 1);
+
+    // A change of language while the scores are still on their way leaves the
+    // frame waiting, not "missing": the card is drawn once, when they arrive,
+    // in the language then in use.
+    const late = fixture({ access: refused(ACCOUNTS), replies: { [PREVIEW_SCORES]: "late" } });
+    await settle();
+    late.speech.prefix = "zh:";
+    late.get("#ui-lang").listeners.change();
+    await settle();
+    assert.deepEqual(late.summaries, []);
+    assert.equal(late.get("#landing-preview").dataset.state, undefined, "Untouched: the markup's \"loading\" stands");
+    assert.equal(late.get("#landing-preview-note").hidden, true, "No word of a failure that has not happened");
+    late.deliver();
+    await settle();
+    assert.deepEqual(late.summaries, [SCORES]);
+    assert.equal(late.get("#landing-preview").dataset.state, "shown");
+
+    // A deployment that keeps what it is given until it is deleted says so in
+    // the new language too, as /health puts it: with no retention period.
+    const kept = fixture({ access: refused(ACCOUNTS), replies: { "/health": { active_runs: 0, max_concurrent: 5 } } });
+    await settle();
+    assert.equal(kept.get("#landing-retention").textContent, "byok_retention_forever");
+    kept.speech.prefix = "zh:";
+    kept.get("#ui-lang").listeners.change();
+    await settle();
+    assert.equal(kept.get("#landing-retention").textContent, "zh:byok_retention_forever");
+
+    // A deployment that put the landing away draws neither on a change of language.
+    const open = fixture({ access: { status: 200, body: { ok: true } } });
+    await settle();
+    assert.equal(shown(open).landing, false);
+    const before = open.summaries.length;
+    open.speech.prefix = "zh:";
+    open.get("#ui-lang").listeners.change();
+    await settle();
+    assert.equal(open.summaries.length, before, "No scorecard is drawn for a landing nobody sees");
+    assert.equal(open.get("#landing-preview").children.length, 0);
+  },
   // The screenshot of a finished assessment, further down the landing: one
   // file for each theme, width and language, named by the page.
   async the_screenshot_is_asked_for_once_the_landing_stays_in_the_theme_and_language_in_use() {
     const shot = (f) => ({ desk: f.get("#landing-shot").src, phone: f.get("#landing-shot-phone").srcset });
     const sizes = (f) => [f.get("#landing-shot").width, f.get("#landing-shot").height,
       f.get("#landing-shot-phone").width, f.get("#landing-shot-phone").height];
-    const file = (size, theme, language) => `/static/landing/brief-scorecard-${size}-${theme}-${language}.png`;
+    const file = (size, theme, language) => `/static/landing/decision-conclusion-${size}-${theme}-${language}.png`;
     const f = fixture({ access: refused(ACCOUNTS), hold: true });
     await settle();
     assert.deepEqual(shown(f), { landing: true, workbench: false, gate: false });
@@ -694,14 +782,14 @@ const scenarios = {
     f.answer();
     await settle();
     assert.deepEqual(shot(f), { desk: file("desktop", "light", "en"), phone: file("phone", "light", "en") });
-    assert.deepEqual(sizes(f), [1744, 1912, 734, 3020], "Each file's own size, so the page does not move when it loads");
+    assert.deepEqual(sizes(f), [1744, 836, 764, 1416], "Each file's own size, so the page does not move when it loads");
     assert.equal(f.get("#landing-shot").alt, "landing_shot_alt", "Described in the reader's language");
     // The interface language changes: the capture of the interface changes with it.
     f.run('i18n.language = () => "Simplified Chinese"');
     f.get("#ui-lang").listeners.change();
     await settle();
     assert.deepEqual(shot(f), { desk: file("desktop", "light", "zh"), phone: file("phone", "light", "zh") });
-    assert.deepEqual(sizes(f), [1744, 1912, 734, 2794]);
+    assert.deepEqual(sizes(f), [1744, 836, 764, 1336]);
     // The system goes dark while the page is open, and the page is told.
     assert.equal(f.system.heard.length, 1, "The page listens for the system's theme once");
     f.system.dark = true;
@@ -970,6 +1058,150 @@ const scenarios = {
     f.run('paintHeader({ topic: "t", state: "running" })');
     assert.equal(tech.hidden, true);
     assert.equal(f.get("#run-identity").textContent, "");
+  },
+  // ── The header a reader of a shared link is shown ────────────────────
+  // A shared link is how a report travels: a technology transfer office or
+  // an investor forwards it to a colleague. Until 2026-11-21 that colleague
+  // read the header written for whoever ran it: "COMPLETED · 3:57", the
+  // source counts, "About 31.8k tokens · no cost shown, as no unit price is
+  // on record yet for qwen3.8-2.4t-a95b; see your provider's console for the
+  // exact amount", two folds and a paragraph about resuming, some 430 px
+  // before the report (production run 20261120T131247Z). They have no
+  // console, the 3:57 was the resume's part of a 29-minute assessment, and
+  // nothing said when the evidence was gathered.
+  async a_reader_of_a_shared_run_is_shown_a_header_written_for_them() {
+    const f = fixture({ access: { status: 200, body: { ok: true } } });
+    await settle();
+    for (const id of ["run-assessed", "run-model"]) assert.ok(hiddenAtStart.includes(id), `#${id} starts hidden in the markup`);
+    const MODEL = "qwen3.8-2.4t-a95b";
+    const PARENT = "20261120T125001Z-" + "b".repeat(32);
+    // The two reads of that run, in the shape the API gives them.
+    const resumed = {
+      run_id: "20261120T131247Z-55c74e5736d56d0f54ba79d24f1bbae7", topic: "Solid oxide fuel cells",
+      state: "completed", elapsed_seconds: 237, funded_by: "own_keys", llm_model: MODEL,
+      daily_charge: "not_charged", source_counts: { academic: 12, patent: 8, market: 9 },
+      usage: { total_tokens: 31_800, cost_usd: null, cost_complete: false, unpriced_models: [MODEL],
+        accounting_scope: "crew_nodes", agents: [{ role: "Scorer", model: MODEL, total_tokens: 31_800 }] },
+      usage_accounting: { state: "complete" },
+      auxiliary_usage: { record_state: "recorded", call_count: 1, observed_tokens: 12, observed_cost_usd: 0.0001 },
+      stage_timings: [{ stage: "Agent 6 — Commercialization Scoring", started_at: "2026-11-20T13:12:50+00:00", duration_seconds: 230 }],
+      pipeline_revision: "git:49ad312" + "0".repeat(33),
+      terminal: { record_state: "committed", reason_code: "worker_completed" },
+      recovery: { state: "reused", source_run_id: PARENT, next_node: "scorer",
+        reused_nodes: ["retrieval", "academic", "patent", "market", "writer", "reviewer"] },
+      lineage: {
+        earlier: [{ run_id: PARENT, record: "available", state: "failed", elapsed_seconds: 1531, total_tokens: 124_600,
+          usage_state: "lower_bound", cost_usd: null, cost_complete: false }],
+        combined: { runs: 2, elapsed_seconds: 1768, elapsed_complete: true, total_tokens: 156_400,
+          usage_state: "lower_bound", cost_usd: null, cost_complete: false },
+      },
+    };
+    const paint = (body) => f.run(`paintHeader(${JSON.stringify(body)})`);
+    const shown = (id) => (f.get(id).hidden ? null : f.get(id).textContent);
+    const line = () => ["#run-assessed", "#run-model", "#run-elapsed", "#run-eta", "#run-sources"].map(shown);
+    const folds = () => ["#run-usage-details", "#run-timing-details", "#run-tech-details", "#run-lineage"]
+      .map((id) => !f.get(id).hidden);
+
+    // Its owner: the header as it was, every word of it.
+    paint({ ...resumed, viewer_can_modify: true });
+    assert.deepEqual(line(), [null, null, "3:57", "", "· 29 sources · 12 academic · 8 patent · 9 market"]);
+    assert.deepEqual(folds(), [true, true, true, true]);
+    assert.match(f.get("#run-usage-label").textContent, /see your provider's console for the exact amount$/);
+    assert.match(f.get("#run-lineage").children.join(""), /In all: 29:28 \(3:57 here \+ 25:31 before\)/);
+
+    // Anyone else: when, on what, how long in all; nothing about tokens, money, stages or resuming.
+    for (const reader of [{ viewer_can_modify: false }, { viewer_can_modify: null }]) {
+      paint({ ...resumed, ...reader });
+      assert.deepEqual(line(), ["Assessed 20 Nov 2026", `· Model: ${MODEL}`, "· took 29:28 in all", "", ""], JSON.stringify(reader));
+      assert.deepEqual(folds(), [false, false, false, false], "No token count, no cost, no stage times, no resume paragraph");
+      assert.equal(f.get("#run-assessed").title, "Dates are in UTC.");
+      // Not hidden with the words still in them: a hidden fold is still in the page's text.
+      assert.deepEqual(["#run-usage", "#run-timing", "#run-identity"].map((id) => f.get(id).textContent), ["", "", ""]);
+      assert.equal(f.get("#run-usage").title, "");
+      assert.equal(f.get("#run-usage-label").textContent, "· Usage & cost");
+    }
+    // An anonymous reader is one whatever the read says.
+    f.run("viewerMode = true");
+    paint({ ...resumed, viewer_can_modify: true });
+    assert.equal(shown("#run-assessed"), "Assessed 20 Nov 2026");
+    assert.deepEqual(folds(), [false, false, false, false]);
+    f.run("viewerMode = false");
+
+    // The owner again: nothing of the reader's header is left behind.
+    paint({ ...resumed, viewer_can_modify: true });
+    assert.deepEqual(line(), [null, null, "3:57", "", "· 29 sources · 12 academic · 8 patent · 9 market"]);
+
+    const reader = (body) => { paint({ ...resumed, viewer_can_modify: false, ...body }); return line().slice(0, 3); };
+    // A run that is not a resume: its own time, said as what it took.
+    assert.deepEqual(reader({ recovery: null, lineage: null, run_id: "20261120T131247Z-" + "c".repeat(32) }),
+      ["Assessed 20 Nov 2026", `· Model: ${MODEL}`, "· took 3:57"]);
+    // A total the server cannot vouch for (an earlier run's time is not known) is not written.
+    assert.deepEqual(reader({ lineage: { ...resumed.lineage, combined: { ...resumed.lineage.combined, elapsed_complete: false } } }),
+      ["Assessed 20 Nov 2026", `· Model: ${MODEL}`, ""]);
+    // The evidence was gathered when the first run began: a chain over two days says both.
+    const older = "20261118T231500Z-" + "d".repeat(32);
+    assert.deepEqual(reader({ lineage: { ...resumed.lineage, earlier: [...resumed.lineage.earlier, { run_id: older, record: "missing" }] } })[0],
+      "Assessed 18 Nov 2026 – 20 Nov 2026");
+    // A resume that could reuse nothing gathered its own evidence.
+    assert.equal(reader({ run_id: "20261121T010000Z-" + "e".repeat(32), recovery: { state: "cold_start", source_run_id: PARENT } })[0],
+      "Assessed 21 Nov 2026");
+    // Still going: the time so far, and a run that did not finish says it ran.
+    assert.deepEqual(reader({ state: "running", recovery: null, lineage: null, elapsed_seconds: 120,
+      eta: { low_seconds: 300, high_seconds: 900, basis_runs: 5, same_model: true, model: MODEL } }).slice(2), ["· running for 2:00"]);
+    assert.equal(shown("#run-eta"), "", "How long recent runs took is for whoever is waiting on their own");
+    assert.deepEqual(reader({ state: "running", elapsed_seconds: 120,
+      lineage: { ...resumed.lineage, combined: { ...resumed.lineage.combined, elapsed_seconds: 1651 } } }).slice(2),
+      ["· running for 27:31 in all"]);
+    assert.deepEqual(reader({ state: "failed", recovery: null, lineage: null, run_id: "20261120T131247Z-" + "f".repeat(32) }),
+      ["Started 20 Nov 2026", `· Model: ${MODEL}`, "· ran for 3:57"]);
+    // Nothing to go by: nothing said. The model falls back to the usage record's.
+    assert.deepEqual(reader({ run_id: "legacy-id", stage_timings: [], llm_model: null, recovery: null, lineage: null, elapsed_seconds: null }),
+      [null, `Model: ${MODEL}`, ""]);
+    assert.deepEqual(reader({ run_id: "legacy-id", stage_timings: [], llm_model: null, usage: null, recovery: null, lineage: null }),
+      [null, null, "took 3:57"]);
+    // An id that does not say when the run began: its first stage does.
+    assert.equal(reader({ run_id: "legacy-id", recovery: null, lineage: null,
+      stage_timings: [{ stage: "Source Collection & Validation", started_at: "2026-11-19T10:00:00+00:00" }] })[0], "Assessed 19 Nov 2026");
+    // A failure's reason stays; whether it spent the owner's daily run is the owner's business.
+    paint({ ...resumed, state: "failed", error: "The run stopped.", error_code: null, daily_charge: "charged",
+      recovery: null, lineage: null, viewer_can_modify: false });
+    assert.equal(shown("#run-outcome"), "The run stopped.");
+    paint({ ...resumed, state: "failed", error: "The run stopped.", error_code: null, daily_charge: "charged",
+      recovery: null, lineage: null, viewer_can_modify: true });
+    assert.equal(shown("#run-outcome"), "The run stopped. This run counted toward today's quota.");
+  },
+  // ── A link to a run that is not there ────────────────────────────────
+  // Deleted by its owner, past the deployment's retention, or cut short when
+  // it was copied: until 2026-11-21 such a link opened a header reading "…",
+  // "UNKNOWN" and "— · Usage & cost" over one small line, "The server could
+  // not find this run. Automatic polling has stopped.", and a blank page.
+  // Every shared link turns into this once its run reaches the retention age.
+  async a_link_to_a_run_that_is_gone_says_so_and_offers_a_way_on() {
+    for (const id of ["run-gone", "run-gone-retention"]) assert.ok(hiddenAtStart.includes(id), `#${id} starts hidden in the markup`);
+    assert.ok(!hiddenAtStart.includes("run-head"), "The run's header is shown until a read says the run is gone");
+    const gone = { status: 404, body: { detail: "No run with id 20260926T121212Z-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" } };
+    const f = fixture({ pathname: DEEP_LINK, access: refused(ACCOUNTS), replies: { [`${RUN_API}/progress?since=0`]: gone } });
+    await settle();
+    assert.equal(f.get("#viewer-bar").hidden, false, "A reader, as for any shared link");
+    assert.deepEqual([f.get("#run-gone").hidden, f.get("#run-head").hidden, f.get("#run-body").hidden], [false, true, true],
+      "The page says the assessment cannot be opened, in place of an empty run");
+    assert.equal(f.get("#run-gone-retention").hidden, false);
+    assert.equal(f.get("#run-gone-retention").textContent, "gone_retention_days",
+      "The retention period is the deployment's own, read from /health (tests/test_shared_link_pages.py words it)");
+    assert.equal(f.get("#run-connection").textContent, "", "No word about polling");
+    assert.deepEqual(f.get("#toasts").children.map((node) => node.textContent), [], "...and no toast saying it again");
+    assert.equal(f.requests.filter((r) => r.url.startsWith(`${RUN_API}/progress`)).length, 1, "Asked once: nothing left to follow");
+
+    // A deployment that keeps assessments until they are deleted: no such reason to give.
+    const forever = fixture({ pathname: DEEP_LINK, access: refused(ACCOUNTS),
+      replies: { [`${RUN_API}/progress?since=0`]: gone, "/health": { retention_days: 0, active_runs: 0, max_concurrent: 5 } } });
+    await settle();
+    assert.equal(forever.get("#run-gone").hidden, false);
+    assert.equal(forever.get("#run-gone-retention").hidden, true);
+
+    // Another run opened from here gets its header back.
+    f.run('openRun("20260926T131313Z-" + "c".repeat(32))');
+    assert.deepEqual([f.get("#run-gone").hidden, f.get("#run-head").hidden, f.get("#run-body").hidden], [true, false, false]);
   },
   // ── Whose run it is ──────────────────────────────────────────────────
   // A run's link opens for whoever holds it. Until 2026-11-15 a signed-in

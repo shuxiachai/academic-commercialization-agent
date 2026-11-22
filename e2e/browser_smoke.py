@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import date
+from datetime import UTC, date, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import urlsplit
@@ -27,12 +27,14 @@ from academic_agent.run_output import save_scores, save_source_collection
 from api import samples
 from e2e.request_wait import wait_for_count
 from e2e.scroll_wait import COMES_TO_REST
+from e2e.browser_language import SMOKE_LOCALE
 from e2e.smoke_report import capture_failure
 from e2e.isolated_app import (
     ACCESS_CODE,
     DECISION_OWNER,
     DECISION_STATEMENT,
     DECISION_TYPE,
+    DRAFT_REVIEWED_SENTINEL,
     DRAFT_SENTINEL,
     FIXTURE_TOPIC,
     OPERATOR_CONTACT,
@@ -47,6 +49,8 @@ from e2e.isolated_app import (
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+# The model of the production resume of 2026-11-20 (131247Z), which has no price on record.
+UNPRICED_MODEL = "qwen3.8-2.4t-a95b"
 HEADER_UNBROKEN_METADATA = "METADATA_UNBROKEN_TOKEN_" + "x" * 160
 
 
@@ -411,6 +415,10 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
     assert listed.status == 200, "The sample catalog did not answer."
     expected = [item["slug"] for item in listed.json()]
     assert expected, "The sample catalog is empty."
+    # The samples whose run was given a decision context: their page carries
+    # what was asked and the report's conclusion above the brief.
+    with_decision = {item["slug"] for item in listed.json() if item.get("decision")}
+    assert with_decision, "No committed sample was run with a decision context."
     cards = page.locator(".samples__list .sample-card")
     expect(cards).to_have_count(len(expected))
     slugs = []
@@ -424,6 +432,7 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
     folded_notes = 0
     card_checked = False
     download_checked = False
+    verdicts_checked = 0
     for slug in slugs:
         response = page.goto(f"{base_url}/samples/{slug}", wait_until="domcontentloaded")
         assert response is not None and response.ok, f"Sample {slug} did not load."
@@ -432,6 +441,37 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
         expect(notice).to_be_visible()
         expect(report).to_be_visible()
         page.evaluate("() => document.fonts.ready")
+
+        # The conclusion card, where the run was asked for one: the run page's
+        # card on a committed report, read by the server from that report. Its
+        # link marks the quoted paragraph in the report under it.
+        verdict = page.locator("#sample-reader > .verdict-card")
+        if slug in with_decision:
+            verdicts_checked += 1
+            # What was asked: the asset and the application; the owner and the
+            # decision are the card's, under it (said twice until 2026-11-21).
+            context = page.locator("#sample-reader > .samples__context")
+            expect(context).to_contain_text("Utility-scale photovoltaic modules")
+            expect(context).not_to_contain_text("Technology transfer office")
+            expect(verdict).to_be_visible()
+            # The four conditions the quoted passage introduces, under it.
+            expect(verdict.locator(".verdict-card__items > li")).to_have_count(4)
+            expect(verdict.locator(".verdict-card__verdict")).to_have_text("DEFER")
+            expect(verdict.locator(".verdict-card__asked")).to_have_text(
+                "Decision owner: Technology transfer office · Decision to make: License the technology")
+            assert page.evaluate("""() => {
+                const top = (selector) => document.querySelector(selector).getBoundingClientRect().top;
+                return top(".samples__context") < top(".verdict-card") && top(".verdict-card") < top("#sample-reader > .brief");
+            }"""), (slug, "The conclusion sits between what was asked and the brief.")
+            verdict.locator(".verdict-card__open").click()
+            found = page.locator("#sample-reader article.prose .prose__found")
+            expect(found).to_have_count(1)
+            expect(found).to_have_text("Decision applicability and conclusion: DEFER.")
+            expect(found).to_be_focused()
+            expect(found).to_be_in_viewport()
+            page.evaluate("() => { document.querySelector('.prose__found')?.classList.remove('prose__found'); window.scrollTo(0, 0); }")
+        else:
+            expect(verdict).to_have_count(0)
 
         # One real download in Chromium, on the first sample only: the whole
         # smoke shares one rate-limit bucket. The saved file must be the
@@ -503,6 +543,7 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
         # carries the report as the pipeline wrote it, as it did before them.
         for selector in (".samples__head", ".samples__intro", ".samples__list",
                          ".samples__reader > .empty-note", ".samples__toc", ".samples__download",
+                         ".samples__context", ".samples__reader > .verdict-card",
                          ".samples__reader > .brief", ".samples__scorecard", ".samples__next"):
             expect(page.locator(selector)).to_be_hidden()
         expect(notice).to_be_visible()
@@ -551,8 +592,11 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
         # The download link and contents are screen navigation; print hides them like the list.
         # Every committed sample has its run's scorecard, so every one has both blocks.
         # After the report, the way to one's own: screen navigation too, and not on paper.
+        # A sample run with a decision context has two blocks more above the
+        # brief, both hidden on paper above.
+        decided = ["samples__context", "verdict-card"] if slug in with_decision else []
         assert printed["readerChildren"] == [
-            "samples__notice", "samples__download", "brief", "samples__scorecard", "samples__toc", "prose",
+            "samples__notice", "samples__download", *decided, "brief", "samples__scorecard", "samples__toc", "prose",
             "samples__next",
         ], (slug, printed)
         assert not printed["badColors"], (slug, printed["badColors"][:5])
@@ -594,6 +638,7 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
     assert table_rows > 0, "No committed sample exercised table-row pagination."
     assert folded_notes > 0, "No committed sample has reviewer's notes to fold."
     assert card_checked, "No committed sample exposed a citation chip to print."
+    assert verdicts_checked == len(with_decision), "Not every decision-support sample showed its conclusion."
     page.emulate_media(media="screen", color_scheme="light")
     return len(slugs)
 
@@ -719,8 +764,11 @@ def _exercise_sample_contents(page: Page, base_url: str) -> int:
             # scroll sideways at phone width without contents, so only here.)
             assert wide["scrollWidth"] <= wide["clientWidth"], (slug, "horizontal scroll", wide)
             # Keyboard only: Tab from the language menu into the contents, then Enter.
+            # Up to 80 presses: the decision sample's card quotes the four
+            # conditions its passage introduces, each with its citation buttons,
+            # and every card of the list and the notice's fold come first.
             page.focus("#ui-lang")
-            assert focus_in_contents(40) == "SUMMARY", slug
+            assert focus_in_contents(80) == "SUMMARY", slug
             for target in ("#section-1", "#section-2", "#section-3"):
                 assert focus_in_contents() == target, (slug, target)
             before = len(reads)
@@ -743,33 +791,42 @@ def _exercise_sample_contents(page: Page, base_url: str) -> int:
         show(0)
         narrow = state(slugs[0])
         assert not narrow["open"], "The contents start closed above a narrow report."
-        # On a phone the cards are one row that scrolls sideways inside itself,
-        # so the report opens on the first screen: stacked, they pushed it 849px
-        # down a 375 by 812 window. Each card says its verdict under its title.
-        row = page.evaluate("""() => {
+        # Every card on the first screen, none past the edge and nothing that
+        # scrolls sideways: until 2026-11-21 the cards were one sideways row
+        # here, and at 717 px two and a half showed, the decision sample
+        # seventh. The report still begins on the first screen. Each card
+        # says its verdict under its title.
+        cards_on_screen = """() => {
             const list = document.querySelector(".samples__list");
             const cards = [...list.querySelectorAll(".sample-card")];
             return {
-                tops: [...new Set(cards.map((card) => Math.round(card.getBoundingClientRect().top)))].length,
-                scrolls: list.scrollWidth > list.clientWidth,
-                inside: list.getBoundingClientRect().right <= document.documentElement.clientWidth,
+                scrolls: list.scrollWidth > list.clientWidth || document.documentElement.scrollWidth > document.documentElement.clientWidth,
+                inside: cards.every((card) => card.getBoundingClientRect().right <= document.documentElement.clientWidth),
+                lastBottom: Math.round(Math.max(...cards.map((card) => card.getBoundingClientRect().bottom + window.scrollY))),
                 readerTop: Math.round(document.querySelector("#sample-reader").getBoundingClientRect().top + window.scrollY),
                 screen: window.innerHeight,
                 verdicts: cards.filter((card) => card.querySelector(".sample-card__verdict")?.textContent.includes(" / 100 · ")).length,
                 cards: cards.length,
+                firstDecided: Boolean(cards[0]?.querySelector(".sample-card__decision")),
                 next: document.querySelector("#sample-reader > .samples__next a")?.getAttribute("href") ?? null,
             };
-        }""")
-        assert row["tops"] == 1 and row["scrolls"] and row["inside"], row
-        assert row["readerTop"] < row["screen"], row
+        }"""
+        row = page.evaluate(cards_on_screen)
+        assert not row["scrolls"] and row["inside"], row
+        assert row["lastBottom"] <= row["screen"] and row["readerTop"] < row["screen"], row
         assert row["verdicts"] == row["cards"] == len(slugs), row
+        assert row["firstDecided"], "The sample with a decision conclusion is the first card"
+        page.set_viewport_size({"width": 717, "height": 800})
+        wide_row = page.evaluate(cards_on_screen)
+        assert not wide_row["scrolls"] and wide_row["inside"] and wide_row["lastBottom"] <= wide_row["screen"], wide_row
+        page.set_viewport_size({"width": 390, "height": 844})
         # The isolated app has no accounts, so the way on is the app itself.
         assert row["next"] == "/", row
         assert narrow["toc"]["bottom"] <= narrow["article"]["y"], (narrow["toc"], narrow["article"])
         assert abs(narrow["toc"]["x"] - narrow["article"]["x"]) < 1, (narrow["toc"], narrow["article"])
         expect(page.locator(".samples__toc a").first).to_be_hidden()
         page.focus("#ui-lang")
-        assert focus_in_contents(40) == "SUMMARY"
+        assert focus_in_contents(80) == "SUMMARY"
         page.keyboard.press("Enter")
         expect(page.locator(".samples__toc a").first).to_be_visible()
         assert focus_in_contents() == "#section-1"
@@ -779,12 +836,12 @@ def _exercise_sample_contents(page: Page, base_url: str) -> int:
         # Widening moves the contents beside the report, open; narrowing again closes them.
         page.set_viewport_size({"width": 1280, "height": 720})
         expect(page.locator(".samples__toc details")).to_have_attribute("open", "")
-        # ...and the cards wrap again, as they always did at this width.
+        # ...and the cards are the same wrapping grid at this width.
         assert page.evaluate("""() => {
             const list = document.querySelector(".samples__list");
             const tops = new Set([...list.querySelectorAll(".sample-card")].map((card) => Math.round(card.getBoundingClientRect().top)));
             return tops.size > 1 && list.scrollWidth <= list.clientWidth;
-        }"""), "The cards are a wrapping grid from 768px."
+        }"""), "The cards are a wrapping grid at every width."
         page.set_viewport_size({"width": 390, "height": 844})
         expect(page.locator(".samples__toc details")).not_to_have_attribute("open", "")
 
@@ -802,10 +859,142 @@ def _exercise_sample_contents(page: Page, base_url: str) -> int:
     return len(slugs)
 
 
+def _day(run_id: str) -> str:
+    started = datetime.strptime(run_id[:16], "%Y%m%dT%H%M%SZ").replace(tzinfo=UTC)
+    return f"{started.day} {started:%b} {started.year}"
+
+
+def _assessed(first_id: str, own_id: str) -> str:
+    """The reader's date, as run.js readerHeader writes it in English: in UTC,
+    from the day the chain's first run began to the day this one did."""
+    first, own = _day(first_id), _day(own_id)
+    return f"Assessed {own}" if first == own else f"Assessed {first} – {own}"
+
+
+# A run id of the right shape that no run has.
+GONE_RUN = "20260101T000000Z-" + "0" * 32
+
+
+def _exercise_shared_link_reader(browser, base_url: str, owned_pair: tuple[str, str],
+                                 account_pair: tuple[str, str]) -> dict[str, int]:
+    """What someone with no code is shown at a shared link, and where a link leads nowhere.
+
+    A context of its own: no stored code, no session, as the colleague a
+    report was forwarded to. Only GET and HEAD to the loopback server; any
+    other request is aborted and fails the journey.
+    """
+    refused: list[str] = []
+    errors: list[str] = []
+    context = browser.new_context(locale=SMOKE_LOCALE)
+
+    def guard(route: Route) -> None:
+        request = route.request
+        if urlsplit(request.url).hostname not in {"127.0.0.1", "localhost"} or request.method not in {"GET", "HEAD"}:
+            refused.append(f"{request.method} {request.url}")
+            route.abort("blockedbyclient")
+            return
+        route.continue_()
+
+    context.route("**/*", guard)
+    page = context.new_page()
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    pages = 0
+    try:
+        # The code holder's resume read above with its owner's header, as the
+        # reader of its link sees it (production run 20261120T131247Z had
+        # "3:57", the tokens and "see your provider's console" over the report).
+        stopped, resumed = owned_pair
+        page.goto(f"{base_url}/run/{resumed}", wait_until="domcontentloaded")
+        expect(page.locator("#viewer-bar")).to_be_visible()
+        expect(page.locator("#run-pill")).to_have_text("completed")
+        head = page.locator("#run-head")
+        expect(page.locator("#run-assessed")).to_have_text(_assessed(stopped, resumed))
+        expect(page.locator("#run-model")).to_have_text(f"· Model: {UNPRICED_MODEL}")
+        expect(page.locator("#run-elapsed")).to_have_text("· took 29:19 in all")
+        for fold in ("#run-usage-details", "#run-timing-details", "#run-tech-details", "#run-lineage"):
+            expect(page.locator(fold)).to_be_hidden()
+        expect(page.locator("#run-sources")).to_have_text("")
+        for said in ("token", "3:48", "continues an earlier run", "git:"):
+            expect(head).not_to_contain_text(said)
+        page.locator('button.tab[data-view="report"]').click()
+        expect(page.locator("article.prose")).to_contain_text(REPORT_SENTINEL)
+        pages += 1
+
+        # A run on an account's own keys, on a model with no price: its owner
+        # is sent to their provider's console for the amount, a reader is not.
+        account_stopped, account_resumed = account_pair
+        page.goto(f"{base_url}/run/{account_resumed}", wait_until="domcontentloaded")
+        expect(page.locator("#run-pill")).to_have_text("completed")
+        expect(page.locator("#run-assessed")).to_have_text(_assessed(account_stopped, account_resumed))
+        expect(page.locator("#run-elapsed")).to_have_text("· took 29:19 in all")
+        expect(head).not_to_contain_text("provider's console")
+        expect(head).not_to_contain_text("token")
+        pages += 1
+
+        # A link to a run that is not there, and this run's own link cut
+        # short as a chat app may cut it: a page that says so, two ways on,
+        # and none of "UNKNOWN", "Usage & cost" or "polling".
+        # Age is a reason only where the deployment deletes runs at an age, and is said in its own number.
+        kept = page.request.get(f"{base_url}/health").json().get("retention_days")
+        for gone in (GONE_RUN, resumed[:26]):
+            page.goto(f"{base_url}/run/{gone}", wait_until="domcontentloaded")
+            notice = page.locator("#run-gone")
+            expect(notice).to_be_visible()
+            expect(notice.get_by_role("heading", level=1)).to_have_text("This assessment can no longer be opened")
+            if kept:
+                expect(page.locator("#run-gone-retention")).to_contain_text(f"keeps an assessment for {kept} days")
+            else:
+                expect(page.locator("#run-gone-retention")).to_be_hidden()
+            expect(notice.get_by_role("link", name="See a sample report")).to_have_attribute("href", "/samples")
+            expect(notice.get_by_role("link", name="Assess your own topic")).to_have_attribute("href", "/")
+            expect(head).to_be_hidden()
+            shown = page.locator("body").inner_text()
+            for said in ("unknown", "polling", "usage & cost"):
+                assert said not in shown.lower(), f"A gone run's page says {said!r}: {shown!r}"
+            pages += 1
+        notice.get_by_role("link", name="See a sample report").click()
+        expect(page).to_have_url(f"{base_url}/samples")
+
+        # An address that is no page: the site's own 404 page, still a 404,
+        # in the reader's language and the other one on a switch.
+        response = page.goto(f"{base_url}/pricing", wait_until="domcontentloaded")
+        assert response is not None and response.status == 404, "A missing page must still answer 404"
+        assert response.headers.get("content-type", "").startswith("text/html")
+        assert "noindex" in response.headers.get("x-robots-tag", "")
+        expect(page).to_have_title("Page not found · Academic Commercialization Assessment")
+        english, chinese = page.locator('[data-lang-block="en"]'), page.locator('[data-lang-block="zh"]')
+        expect(english.get_by_role("heading", level=1)).to_have_text("Page not found")
+        expect(chinese).to_be_hidden()
+        expect(english.get_by_role("link", name="Go to the home page")).to_have_attribute("href", "/")
+        expect(english.get_by_role("link", name="Read a sample report")).to_have_attribute("href", "/samples")
+        page.locator("#ui-lang").select_option("Simplified Chinese")
+        expect(chinese.get_by_role("heading", level=1)).to_have_text("找不到这个页面")
+        expect(page).to_have_title("找不到这个页面 · 学术成果商业化评估")
+        expect(english).to_be_hidden()
+        page.locator("#ui-lang").select_option("English")
+        expect(english.get_by_role("heading", level=1)).to_be_visible()
+        pages += 1
+        # A script asking for the same address, or for one under /api/, is answered as data.
+        data = page.request.get(f"{base_url}/pricing", headers={"Accept": "application/json"})
+        assert data.status == 404 and data.json() == {"detail": "Not Found"}
+        gated = page.request.get(f"{base_url}/api/pricing", headers={"Accept": "text/html"})
+        assert gated.status == 401 and "detail" in gated.json(), "The gate still answers /api/ first"
+
+        assert not refused, "The reader's journey made a request it must not: " + ", ".join(refused)
+        assert not errors, "Uncaught page errors in the reader's journey: " + "; ".join(errors)
+    except Exception:  # noqa: BLE001 - keep the picture of whatever the reader was shown
+        capture_failure(page, {"refused": refused, "page_errors": errors})
+        raise
+    finally:
+        context.close()
+    return {"reader_pages": pages, "reader_refused_requests": len(refused)}
+
+
 def _exercise_browser(
     base_url: str, run_id: str, fault_ids: tuple[str, str, str],
     runtime_ids: tuple[str, str, str], cap_run_id: str, foreign_run_id: str,
     decision_run_id: str, resumed_pair: tuple[str, str],
+    owned_pair: tuple[str, str], account_pair: tuple[str, str],
 ) -> dict[str, int]:
     external_requests: list[str] = []
     mutation_attempts: list[str] = []
@@ -820,7 +1009,7 @@ def _exercise_browser(
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
-        context = browser.new_context()
+        context = browser.new_context(locale=SMOKE_LOCALE)
 
         def guard_route(route: Route) -> None:
             nonlocal source_requests
@@ -1269,21 +1458,28 @@ def _exercise_browser(
             expect(page.locator("#run-lineage")).to_be_hidden()
 
             # A run that stopped in scoring, after its writer and reviewer had
-            # answered: the page shows what the writer wrote, named for what it
-            # is before any of it is read, and says "no report" nowhere.
+            # answered: the page shows the report as the review left it, named
+            # for what it is before any of it is read, and says "no report"
+            # nowhere (production, 2026-11-20: it showed the writer's text and
+            # said it came before the review).
             stopped_id, resumed_id = resumed_pair
             page.goto(f"{base_url}/run/{stopped_id}", wait_until="domcontentloaded")
             expect(page.locator("#run-pill")).to_have_text("failed")
             draft_tab = page.locator('button.tab[data-view="draft"]')
-            expect(draft_tab).to_have_text("Draft (not reviewed or scored)")
+            expect(draft_tab).to_have_text("Draft (reviewed, not scored)")
             expect(draft_tab).to_have_attribute("aria-selected", "true")
             expect(page.locator('button.tab[data-view="report"]')).to_have_count(0)
             draft_note = page.locator(".draft-note")
-            expect(draft_note).to_contain_text("This is an unreviewed, unscored draft.")
+            expect(draft_note).to_contain_text("This is a reviewed draft with no score.")
+            expect(draft_note).not_to_contain_text("before the review")
             draft_text = page.locator("article.prose--draft")
             expect(draft_text).to_contain_text(DRAFT_SENTINEL)
+            expect(draft_text).to_contain_text(DRAFT_REVIEWED_SENTINEL)
+            expect(draft_text).not_to_contain_text("no model wrote it")
+            # The reviewer's notes fold as a report's do.
+            expect(draft_text.locator("details.reviewer-notes")).to_have_count(1)
             assert draft_note.bounding_box()["y"] < draft_text.bounding_box()["y"], "The notice is read before the draft"
-            expect(page.locator(".reliability-none")).to_contain_text("is shown below as a draft")
+            expect(page.locator(".reliability-none")).to_contain_text("The report as the review left it is shown below")
             expect(page.locator("#run-body")).not_to_contain_text("produced no report")
             expect(page.locator("#run-help-id")).to_have_text(stopped_id)
             expect(page.locator("#run-lineage")).to_be_hidden()
@@ -1295,9 +1491,21 @@ def _exercise_browser(
             # A draft is read, not exported or compared: no report download is offered for it.
             expect(page.locator(f'#run-actions a[href$="/api/runs/{stopped_id}/report.pdf"]')).to_have_count(0)
 
-            # Its resume: what was reused and what both runs took, in words
-            # under the header, with the earlier run one click away.
+            # Its resume, someone else's too: a reader's header, which says
+            # when it was assessed and the time both runs took, and nothing
+            # about what was reused, the tokens or the stage times.
             page.goto(f"{base_url}/run/{resumed_id}", wait_until="domcontentloaded")
+            expect(page.locator("#run-pill")).to_have_text("completed")
+            expect(page.locator("#run-assessed")).to_have_text(_assessed(stopped_id, resumed_id))
+            expect(page.locator("#run-elapsed")).to_have_text("· took 29:19 in all")
+            expect(page.locator("#run-lineage")).to_be_hidden()
+            expect(page.locator("#run-usage-details")).to_be_hidden()
+
+            # The same shape, the code holder's own: the owner's header, as it
+            # was. What was reused and what both runs took, in words under the
+            # header, with the earlier run one click away.
+            owned_stopped, owned_resumed = owned_pair
+            page.goto(f"{base_url}/run/{owned_resumed}", wait_until="domcontentloaded")
             expect(page.locator("#run-pill")).to_have_text("completed")
             lineage = page.locator("#run-lineage")
             expect(lineage).to_have_text(
@@ -1306,8 +1514,11 @@ def _exercise_browser(
                 "(35.0k here + at least 141.2k before).")
             expect(page.locator("#run-recovery")).to_have_text("")
             expect(page.locator("#run-elapsed")).to_have_text("3:48")
+            expect(page.locator("#run-assessed")).to_be_hidden()
+            expect(page.locator("#run-usage-label")).to_have_text(
+                f"· About 35.0k tokens · no cost shown, as no unit price is on record yet for {UNPRICED_MODEL}")
             page.locator("#run-lineage-earlier").click()
-            expect(page).to_have_url(f"{base_url}/run/{stopped_id}")
+            expect(page).to_have_url(f"{base_url}/run/{owned_stopped}")
             expect(page.locator("#run-pill")).to_have_text("failed")
             expect(page.locator("article.prose--draft")).to_contain_text(DRAFT_SENTINEL)
 
@@ -1327,8 +1538,10 @@ def _exercise_browser(
             page.goto(base_url, wait_until="domcontentloaded")
             expect(page.locator("#byok-badge")).to_be_visible()
             byok_row = page.locator(".runitem-row").filter(has=page.locator(f'[data-run-id="{run_id}"]'))
+            # Each row's delete button is named by its run, the topic cut at 60 characters (sidebar.js).
+            delete_name = f"Delete: {FIXTURE_TOPIC[:59].rstrip()}…" if len(FIXTURE_TOPIC) > 60 else f"Delete: {FIXTURE_TOPIC}"
             expect(byok_row.locator('.runitem__state[data-state="unknown"]')).to_have_count(1)
-            expect(byok_row.get_by_role("button", name="Delete", exact=True)).to_have_count(0)
+            expect(byok_row.locator(".runitem__delete")).to_have_count(0)
             expect(byok_row.locator(".runitem")).to_have_attribute("aria-label", f"{FIXTURE_TOPIC} — Run state unavailable; this does not mean it failed.")
             page.reload(wait_until="domcontentloaded")
             # The page must have booted before its history can be judged. Twice
@@ -1337,7 +1550,11 @@ def _exercise_browser(
             # from a row that fails to repaint, and is now said as such.
             expect(page.locator("html")).to_have_attribute("data-boot", "ready", timeout=10_000)
             expect(byok_row.locator('.runitem__state[data-state="completed"]')).to_have_count(1)
-            expect(byok_row.get_by_role("button", name="Delete", exact=True)).to_have_count(1)
+            expect(byok_row.get_by_role("button", name=delete_name, exact=True)).to_have_count(1)
+
+            # The same runs, and a run and an address that are not there, as
+            # someone with no code who was sent the link opens them.
+            reader_audit = _exercise_shared_link_reader(browser, base_url, owned_pair, account_pair)
 
             # A page file the server refused is a page that may never boot:
             # the first failure JSON showed two modules answered 429 by the
@@ -1406,6 +1623,7 @@ def _exercise_browser(
         "sample_contents_reports": sample_contents_reports,
         "console_errors": len(unexpected_console_errors),
         "page_errors": len(page_errors),
+        **reader_audit,
     }
 
 
@@ -1437,6 +1655,11 @@ def main() -> None:
         # Also someone else's, so the owner's history and counts stay as they were.
         decision_run_id = _write_decision_run(output_root, access.owner_id("another-visitors-code"))
         resumed_pair = _write_resumed_pair(output_root, access.owner_id("another-visitors-code"))
+        # The same shape on a model with no price on record: the code holder's
+        # own, and an account's (a run on the account's own keys), each read
+        # by its owner and by someone who was sent the link.
+        owned_pair = _write_resumed_pair(output_root, access.owner_id(ACCESS_CODE), model=UNPRICED_MODEL)
+        account_pair = _write_resumed_pair(output_root, "user:4242", model=UNPRICED_MODEL)
         cap_scores = json.loads((output_root / run_id / "commercialization_scores.json").read_text(encoding="utf-8"))
         cap_scores["market_cap_audit"] = capture_cap(5, cap_scores)
         save_scores(json.dumps(cap_scores), cap_run_id, output_root)
@@ -1503,7 +1726,7 @@ def main() -> None:
                     api_runs._write_daily_charge(output_root / runtime_id, date.today())
             terminal_path.write_text(json.dumps(record), encoding="utf-8")
         with _serve(app) as base_url:
-            audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id, damaged_audit_id), runtime_ids, cap_run_id, foreign_run_id, decision_run_id, resumed_pair)
+            audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id, damaged_audit_id), runtime_ids, cap_run_id, foreign_run_id, decision_run_id, resumed_pair, owned_pair, account_pair)
 
     print(
         json.dumps(

@@ -177,7 +177,11 @@ inferred, no score changes, and the code-owned applicability paragraph is
 left out of the reading. Runs in the other two modes, and runs that did not
 complete, have no card. Where a report says its conclusion more than once,
 the card quotes the report's own conclusion line if it has one ("Conclusion:
-DEFER."), else the first place. The rule was written against 1,797 saved
+DEFER."), else the first place. Where the quoted passage ends with a colon
+("…based on four evidence conditions:"), the list right under it in the report
+follows it on the card, numbered as the report numbers it, if it has at most
+four entries and none nested; otherwise the card says how many the report
+lists there and points to it, and it never shows part of a list. The rule was written against 1,797 saved
 reports of the other modes, where it finds no conclusion, and then checked on
 the one decision-support report that exists, read from production; it has not
 been measured on a set of them.
@@ -496,14 +500,19 @@ semantic correctness of all report prose; see the
 | GET | `/api/runs/{id}/progress` | Progress plus the same observable runtime contract, and the same `viewer_can_modify` |
 | GET | `/api/runs/{id}/report` | Final Markdown |
 | GET | `/api/runs/{id}/decision` | For a completed decision-support run: the decision owner and decision from its saved request, and the conclusion its report states (`stated`, `conflicting` or `not_stated`, with the statements as written). `asked: false` and nothing else for any other run. Read from the saved report on each request; no model call. Open to whoever can read the report |
-| GET | `/api/runs/{id}/{artifact}` | Supported source, score, check and diagnostic artifacts; and `draft`, the report writer's saved text of a run that stopped without a report (listed in `artifacts` only then) |
+| GET | `/api/runs/{id}/{artifact}` | Supported source, score, check and diagnostic artifacts; and `draft`, the saved report text of a run that stopped without a report: the reviewer's, else the writer's, as `draft_stage` says (listed in `artifacts` only then) |
 | DELETE | `/api/runs/{id}?intent=cancel` or `?intent=delete` | Only the requested operation, subject to state and ownership rules |
 | POST | `/api/runs/{id}/resume` | New immutable recovery child, not mutation of the old result |
 | GET | `/api/samples` | Committed example reports (allowlist in `api/samples.py`); no access code needed |
 | GET | `/api/samples/{slug}` | One example report as Markdown; unknown or missing samples return 404 |
+| GET | `/api/samples/{slug}/decision` | For a sample whose run was given a decision context: the owner and decision its entry records and the conclusion its report states, in the shape of `/api/runs/{id}/decision`; `asked: false` for the others. Read from the committed report on each request |
 
 The browser reader for these samples is `/samples`. It is a separate page
-from `/` so that it renders on a gated deployment without the access gate.
+from `/` so that it renders on a gated deployment without the access gate. It
+lists every sample as a card at every width, the sample with a decision
+conclusion first (the order of `api/samples.py`, which the landing's list of
+five follows too), shows placeholders until the list arrives, and opens the
+first sample when no slug is given.
 
 ### What a search engine is told
 
@@ -514,6 +523,7 @@ from `/` so that it renders on a gated deployment without the access gate.
 | `/`, `/samples`, `/samples/{listed slug}`, `/privacy` | yes | Listed in `/sitemap.xml`; no robots header or tag |
 | `/run/…`, `/compare/…` | no | `X-Robots-Tag: noindex, nofollow`, and the same tag in the page. **Not** disallowed in `/robots.txt` |
 | `/history`, `/verify`, `/reset`, an unlisted `/samples/{name}` | no | Header and tag, as above |
+| An address no route answers | no | Status 404; to a browser (`text/html` in Accept, outside `/api/`) the site's 404 page `web/not_found.html`, with the header and the tag; to anything else the JSON `{"detail":"Not Found"}` as before |
 | `/api/` (run reads under `/api/runs/` included), `/admin`, `/source-locator` | no | Header, and `Disallow` in `/robots.txt` |
 
 What may be indexed is one list (`crawlers.public_paths()`); the sitemap is
@@ -711,8 +721,32 @@ ones. A resumed run asks for its headings again only when the earlier run
 committed no agent output, because the headings are part of every agent's
 checkpoint identity. Where a report is still shown under English headings (a
 language the table lacks), the report tab says so in one line. The page and the
-PDF also write the report's "GO/NO_GO" as "GO / NO-GO"; a PDF exported before
-either rule is rebuilt once on its next download.
+PDF also write the report's "GO/NO_GO" as "GO / NO-GO", a mode code the
+report repeats ("Assessment mode: decision_support") as words ("decision
+support", 决策支持), each reference entry's source type as a phrase ("Type:
+Market report", 类型：市场报告) and a patent's title without Google Patents'
+" - Google Patents"; a PDF exported before any of these rules is rebuilt once
+on its next download (`ui/pdf_export.DISPLAY_MARK`, now `report-display:v4`).
+
+The PDF is what a reader passes on, so since 2026-11-21 it carries what the
+page shows beside the report (`academic_agent/report_summary.py`). Its first
+page has, after the decision card or the scope paragraph, a summary: the
+overall score and its grade (the thresholds of result.js `band()`), the five
+dimensions (the TRL row naming its whole level and, for a score between two
+levels, where the decimal comes from), the source counts, the decision context,
+and the brief's three lines (the report's own summary sentence, the biggest
+risk, the first recommended step), found by the page's own rules ported to
+`academic_agent/report_brief.py` and held to them in Node. A run with no score
+gets one line saying why instead. Every page has a header ("ACA · topic") and a
+footer with the run's link on the deployment's public address (the og:url of
+`web/index.html`), the day the report was made (UTC), the model and "Page X of
+Y". Reference addresses are links on a line of their own, broken only after
+"/", "-" or "?". The document's Title is "ACA assessment: topic", its Subject a
+sentence, and the cache marks are in Keywords. The download is named
+`ACA-<topic>-<date>.pdf`, with the topic's own letters in an RFC 5987
+`filename*` and an ASCII `filename` beside it. A run that stopped with a draft
+(see the draft tab) is exported the same way as `ACA-<topic>-<date>-draft.pdf`,
+the page's draft notice first; the run page offers no button for it.
 
 The checks write their reasons into the artifacts as English sentences, and
 artifacts are never rewritten. The page says each recognised sentence again in
@@ -758,7 +792,10 @@ server idempotency or a guarantee against duplicate charges. See the
 
 A progress read failing or exceeding its 15-second deadline shows either no
 confirmed observation or a stale last state, separate from the worker outcome.
-Successful polling clears the warning; 404 stops polling. Other read requests
+Successful polling clears the warning; 404 stops polling, and the page then
+says in place of the run that the assessment cannot be opened (deleted by its
+owner, past the deployment's retention, or a link cut short), with links to
+the samples and to the home page. Other read requests
 do not acquire this deadline except receipt lookup's separately bounded GET;
 browser suspension can delay timers. See the
 [combined boundary contract](results-2026-09-08-client-boundary-combinations.md).
@@ -773,7 +810,8 @@ assessment.
 | `academic_evidence.json`, `patent_evidence.json`, `market_evidence.json` | Source-linked findings, claim types, confidence and limitations |
 | `commercialization_report.md` | Delivered report |
 | `commercialization_scores.json` | Scorecard after deterministic validation |
-| `commercialization_report.pdf` | PDF export when generated; CJK-aware embedded font. For a decision-support run it opens with the decision-conclusion card, in the report's language, and its document information carries `decision-card:v1`; an export cached without that mark is rendered once more |
+| `commercialization_report.pdf` | PDF export when generated; CJK-aware embedded font. The first page has the summary, every page a header and footer. For a decision-support run it opens with the decision-conclusion card, in the report's language, and its document information's Keywords carry `decision-card:v1`; an export cached without that mark, or without the current `report-display` mark, is rendered once more |
+| `commercialization_draft.pdf` | PDF export of a stopped run's draft, when one was asked for |
 | `reviewer_notes.md` | Review changes separate from the main report |
 | `status.json`, `steps.jsonl`, `meta.json` | Progress, events and run metadata |
 | `terminal.json` | Write-once terminal truth for API runs |
@@ -970,7 +1008,14 @@ are different accounting facts; an interrupted in-flight call can have spend
 that no local counter captured. Cost uses a known price basis or stays
 unpriced, rather than showing an unknown model as free. Operators may set
 `LLM_PRICE_PER_MTOK=input:output[:cache_read]` in USD per million tokens;
-this is an estimate, not an invoice. See
+this is an estimate, not an invoice. The rate is not per model: it replaces
+the table for every model a worker prices, and a run on a visitor's own key
+inherits it too (the variable is not among those `BYOKCredentials.as_env`
+scrubs), so a visitor on another model would be priced at it. To price the
+deployment's own model, add its row to `token_usage._PRICING` with its date
+and source instead. A model with no price shows "no cost shown, as no unit
+price is on record yet for …" on the run page, and points a reader who paid
+with their own key to their provider's console. See
 [runtime terminal integrity](runtime-terminal-integrity.md).
 
 Crew usage payloads explicitly identify `accounting_scope=crew_nodes`, excluded
@@ -1048,8 +1093,13 @@ These are example policy values, not a cost/SLO guarantee.
   in the request caused it and nothing the requester does would fix it: the
   unit is given back when the exited worker is reaped, at most three times a
   UTC day for each owner, because the run still spent what its earlier stages
-  cost. The same refund applies to an account's own daily allowance. Every
-  other failure stays charged. Each run records which applied (`daily_charge`
+  cost. A run's own reads (`GET /api/runs/{id}` and its `/progress`) reap its
+  worker once it has exited and before they answer, as `/health` already
+  did, so the first read that says `failed` already says whether the unit
+  came back; until 2026-11-20 a page open through such a run read the charge
+  in the moment between the exit and the reap and kept it. The same refund
+  applies to an account's own daily allowance. Every other failure stays
+  charged. Each run records which applied (`daily_charge`
   on its status, with `daily_charge_reason` of `launch_failed` or
   `provider_unreachable` for a refund), and a failed run's page says whether
   it counted, why not when it did not, and that resuming uses another unit.
@@ -1078,8 +1128,8 @@ These are example policy values, not a cost/SLO guarantee.
   trust must be configured at the ASGI/deployment boundary.
 - Leaving all access-code variables unset disables the gate for local use.
   It is not a safe default for an operator-funded public demo.
-- `GET /api/samples` and `GET /api/samples/{slug}` stay open on a gated
-  deployment. They serve only the allowlisted files under `examples/`, read
+- `GET /api/samples`, `GET /api/samples/{slug}` and its `/scores` and
+  `/decision` reads stay open on a gated deployment. They serve only the allowlisted files under `examples/`, read
   no deployment state and spend nothing; other methods on those paths are gated.
 
 ### Privacy and terms page
@@ -1436,7 +1486,12 @@ unchanged, and so are resuming and charging on the server.
 Beside "Resume from checkpoint" the page says what resuming means: that it
 uses another of the day's runs where there is a daily allowance, which step
 it starts again at, and which model it would run on now, which for an account
-is the model saved with it at that moment and not the one the run used.
+is the model saved with it at that moment and not the one the run used. The
+steps it can name are the run page's stages (evidence, report, review,
+scoring), so it names the step the resume will say it ran first; the review
+and the scoring were one step until 2026-11-20, when a run that failed in
+scoring with its review saved was said to start again "at the review and
+scoring".
 
 A run that stopped before it wrote a report shows no count of automated
 checks, only "This run produced no report, so there are no check results",
@@ -1447,16 +1502,20 @@ odds with the state stays in the header line. While a run is going the page
 says it can be closed, and offers the finish email to an account that has
 not turned it on.
 
-A run that stopped after its report writer had answered shows what the writer
-wrote, under a tab named "Draft (not reviewed or scored)" and a notice that
-says the same before the text. The report file is written only after the
-reviewer and the scorer have both returned, so such a run has none; the text
-is the writer's checkpoint, the one a resume reuses, read through the
-artifact route as `draft` and listed in `artifacts` only for a run that
-stopped without a report (`runs.draft_report`). It opens to whoever can read
-the run, like every other artifact, through the same route; a checkpoint
-that does not match its own manifest is no draft. "This run produced no
-report" is said only where there is no draft either.
+A run that stopped after its report writer had answered shows the report as
+far as it got. The report file is written only after the reviewer and the
+scorer have both returned, so such a run has none; the text is a checkpoint
+a resume reuses, read through the artifact route as `draft` and listed in
+`artifacts` only for a run that stopped without a report
+(`runs.draft_report`), with `draft_stage` on both run reads saying which.
+When the reviewer had answered it is the reviewer's checkpoint, which is the
+report after the review (the reviewer's corrections applied, its notes at
+the end), under a tab named "Draft (reviewed, not scored)"; otherwise it is
+the writer's, under "Draft (not reviewed or scored)". A notice says the same
+before the text. It opens to whoever can read the run, like every other
+artifact, through the same route; a checkpoint that does not match its own
+manifest is passed over. "This run produced no report" is said only where
+there is no draft either.
 
 Under a failure its reader cannot fix alone the page shows the run's ID with
 a button that copies it, and the operator's contact: the cause the API could
@@ -1603,6 +1662,21 @@ count, then the folds for usage and cost, for stage timing and for
 "Technical details", which holds the model, the code revision and the plain
 "worker completed" ending; any other ending stays in the line. On a phone
 the header scrolls away with the report.
+
+That header is its owner's. Anyone else who opens the run (a visitor with
+no identity, or a signed-in reader for whom `viewer_can_modify` is not
+`true`) is shown under the title the state, the day it was assessed, the
+model and how long it took: "Assessed 20 Nov 2026 · Model: … · took 29:19 in
+all" (run.js `readerHeader`). The day is in UTC and is the day the
+assessment began: for a resume, the start of the oldest run it continues,
+since that is when its evidence was gathered, unless it could reuse nothing;
+a chain over several days is said as a span. A resume's time is the
+combined time of the chain, and is not written at all when the server does
+not know every run's time (`elapsed_complete` false). A reader is not shown
+the token count, the cost, the stage times, the technical details, the
+source count in the header line, the paragraph about what a resume reused,
+or whether a failed run spent its owner's daily run. Only what is drawn
+differs: both reads return the same fields to everyone, as before.
 
 The run's two status reads carry `viewer_can_modify`, the answer of the rule
 that guards Cancel, Delete and Resume for the caller who asked. A signed-in

@@ -559,10 +559,23 @@ function renderMarketEstimates(sources) {
   const fill = (key, values) => Object.entries(values).reduce(
     (text, [name, value]) => text.replace(`{${name}}`, () => String(value)), t(key));
   const ratio = found.sameScopeYearRatio;
-  const spread = ratio === null ? t("market_estimates_no_pair")
+  const n = found.rows.length;
+  // With one figure there is no pair to compare, and nothing to say about one.
+  const spread = n === 1 ? "" : ratio === null ? t("market_estimates_no_pair")
     : fill("market_estimates_same", { ratio: ratio >= 10 ? Math.round(ratio) : ratio.toFixed(1) });
-  wrap.append(el("p", "market-estimates__lede",
-    fill("market_estimates_headline", { n: found.rows.length, firms: found.firms, scopes: found.scopes, spread })));
+  // "8 market-size figures from 3 sources cover 1 differently defined
+  // markets" was the one sentence for every count (production, 2026-11-20).
+  // One market is "all for one market" only when every figure's title names it.
+  const headline = found.scopes >= 2 ? "market_estimates_headline"
+    : n === 1 ? "market_estimates_headline_one_figure"
+    : found.scopes === 0 ? "market_estimates_headline_unnamed"
+    : found.unscoped.length ? "market_estimates_headline_one_named" : "market_estimates_headline_one_market";
+  const values = {
+    figures: fill(n === 1 ? "market_estimates_figures_one" : "market_estimates_figures", { n }),
+    sources: fill(found.firms === 1 ? "market_estimates_sources_one" : "market_estimates_sources", { firms: found.firms }),
+    scopes: found.scopes, spread,
+  };
+  wrap.append(el("p", "market-estimates__lede", fill(headline, values).trim()));
   const sections = [...found.groups, ...(found.unscoped.length ? [{ scope: null, rows: found.unscoped }] : [])];
   for (const group of sections) {
     const section = el("div", "market-estimates__group");
@@ -645,7 +658,10 @@ export function renderScorecard(scores, sources = null, { summary = false } = {}
     const pct = valid ? (value / dim.max) * 100 : 0;
 
     const row = el("div", "dim");
-    const label = el("div", "dim__label", t(dim.label));
+    // The TRL row names the level beside the dimension ("Technology readiness
+    // · TRL 7"); the bar's figure stays the score, as every row's does.
+    const level = dim.key === "trl_score" && valid ? trlLevel(value, scores.trl_label) : null;
+    const label = el("div", "dim__label", level ? `${t(dim.label)} · TRL ${level}` : t(dim.label));
     const bar = el("div", "dim__bar");
     const fill = el("div", "dim__fill");
     fill.style.width = `${pct}%`;
@@ -661,10 +677,13 @@ export function renderScorecard(scores, sources = null, { summary = false } = {}
     // reader of a score asks first, and touch screens have no hover.
     const base = dim.key.replace(/_score$|_strength$|_accessibility$|_confidence$/, "");
     const rationale = scores[base + "_rationale"];
-    if (valid && typeof rationale === "string" && rationale) {
+    const fraction = level ? trlWhy(value, level) : null;
+    if (valid && ((typeof rationale === "string" && rationale) || fraction)) {
       const why = el("details", "dim__why");
-      why.append(el("summary", null, t("dim_why").replace("{value}", () => `${value} / ${dim.max}`)));
-      why.append(el("p", "dim__rationale", rationale));
+      const shown = level ? trlReading(value, scores.trl_label) : `${value} / ${dim.max}`;
+      why.append(el("summary", null, t("dim_why").replace("{value}", () => shown)));
+      if (typeof rationale === "string" && rationale) why.append(el("p", "dim__rationale", rationale));
+      if (fraction) why.append(el("p", "dim__level", fraction));
       const ids = scores[base + "_source_ids"];
       const cited = detailStrings(ids) ? ids.filter(id => /^[APM]\d+$/.test(id)) : [];
       if (cited.length) {
@@ -802,6 +821,10 @@ function renderDecisionApplicability(gate) {
 const VERDICT_TONES = { go: "success", conditional_go: "warning", defer: "warning", no_go: "danger" };
 // The statement and what follows it are shown together while they stay a short read.
 const VERDICT_PASSAGE_LIMIT = 480;
+// The most entries of a list the card quotes (decision_verdict._ITEMS_LIMIT).
+const VERDICT_ITEMS_LIMIT = 4;
+// How a sentence ends when it ends with a stop, citations aside (decision_verdict._SPOKEN_END).
+const SPOKEN_END = /[.!?。！？:：;；…][\s)\]"'”’」』）*]*$/u;
 
 /** Whether this run was asked for an actor-specific conclusion and finished. */
 export function decisionAsked(progress) {
@@ -826,14 +849,38 @@ export function decisionVerdict(reply) {
     .map(item => ({ verdict: item.verdict, statement: said(item.statement), section: said(item.section), needle: said(item.needle) }));
   if (conclusion.status === "stated" && verdictName(conclusion.verdict) && said(conclusion.statement)) {
     const follows = (Array.isArray(conclusion.follows) ? conclusion.follows : []).map(said).filter(Boolean);
-    // One passage: a space between sentences, none after a Chinese full stop.
-    const whole = [said(conclusion.statement), ...follows]
-      .reduce((passage, sentence) => passage + (!passage || /[。！？]$/u.test(passage) ? "" : " ") + sentence, "");
+    // One passage, joined as decision_verdict.joined joins it for the PDF: a
+    // space between sentences, none after a Chinese full stop, and a line
+    // break after a line that ends with no stop ("Conclusion: DEFER", alone in
+    // its paragraph, its reasons in the next). A full stop put in there would
+    // be this page's, not the report's.
+    const passage = (sentences) => sentences.reduce((text, sentence) => {
+      if (!text || /[。！？]$/u.test(text)) return text + sentence;
+      return text + (SPOKEN_END.test(text.replace(CITATION_RUN, "")) ? " " : "\n") + sentence;
+    }, "");
+    const statement = said(conclusion.statement);
+    const bare = conclusion.bare === true;
+    const whole = passage([statement, ...follows]);
+    // A line that says only the verdict repeats the headline above it, so when
+    // the passage is too long the first reason is shown with it, if that fits:
+    // the production report that prompted this (20261120T131247Z) had 497
+    // characters, and the card showed "Conclusion: DEFER" and a button.
+    const lead = bare && follows.length ? passage([statement, follows[0]]) : statement;
+    // Where the passage ends with a colon, the list right under it in the
+    // report (decision_verdict._list_after): its entries as written, or how
+    // many there are where the server quoted none, 0 for no list at all.
+    // Never a part of a list: more entries than the server ever sends are
+    // not shown, only counted, as a list the server did not quote is.
+    const given = (Array.isArray(conclusion.items) ? conclusion.items : []).map(said).filter(Boolean);
+    const items = given.length <= VERDICT_ITEMS_LIMIT ? given : [];
+    const counted = Number.isInteger(conclusion.listed) && conclusion.listed >= 0 ? conclusion.listed : null;
+    const listed = items.length || given.length === 0 ? counted : Math.max(counted ?? 0, given.length);
     return {
       state: "stated", asked, verdict: conclusion.verdict, tone: VERDICT_TONES[conclusion.verdict],
-      statement: said(conclusion.statement), whole,
-      // Short enough: all of it. Otherwise the statement, and one press for the rest.
-      shown: whole.length <= VERDICT_PASSAGE_LIMIT ? whole : said(conclusion.statement),
+      statement, whole, follows, bare, items, ordered: conclusion.ordered === true, listed,
+      // Short enough: all of it. Otherwise the statement (with its first reason
+      // when it is a bare line), and one press for the rest.
+      shown: whole.length <= VERDICT_PASSAGE_LIMIT ? whole : lead.length <= VERDICT_PASSAGE_LIMIT ? lead : statement,
       section: said(conclusion.section), needle: said(conclusion.needle),
     };
   }
@@ -845,10 +892,19 @@ export function decisionVerdict(reply) {
   return { state: "unread", asked, tone: "muted" };
 }
 
-/** One line for a table cell: the comparison's "Decision conclusion" row. */
+/** One line for a table cell: the comparison's "Decision conclusion" row.
+ *
+ * The conclusion and the first sentence that gives its reason. A statement
+ * that says only the verdict ("Conclusion: DEFER.", `bare`) is not quoted
+ * after the verdict it repeats: the sentence after it is, and with none the
+ * row is the verdict alone. A statement that says more ("the conclusion is
+ * DEFER because module data are missing") is that sentence. */
 export function verdictLine(view) {
   if (!view) return null;
-  if (view.state === "stated") return { text: `${verdictName(view.verdict)}: “${view.statement}”`, tone: view.tone };
+  if (view.state === "stated") {
+    const reason = view.bare ? view.follows?.[0] : view.statement;
+    return { text: reason ? `${verdictName(view.verdict)}: “${reason}”` : verdictName(view.verdict), tone: view.tone };
+  }
   if (view.state === "conflicting") {
     const names = [...new Set(view.statements.map(item => verdictName(item.verdict)))].join(" / ");
     return { text: `${t("verdict_conflicting")}: ${names}`, tone: view.tone };
@@ -884,14 +940,37 @@ export function renderDecisionVerdict(view, { onOpen = null } = {}) {
     const quote = el("q", "verdict-card__quote");
     quote.append(citedText(view.shown, "verdict-card__text"));
     says.append(el("span", "verdict-card__label", t("verdict_says") + " "), quote);
+    // What a passage ending with a colon introduces: under the passage, once
+    // the passage is shown whole, as the report has it under that sentence.
+    const rest = el("div", "verdict-card__rest");
+    const listed = () => {
+      if (view.items?.length) {
+        const list = el(view.ordered ? "ol" : "ul", "verdict-card__items");
+        for (const item of view.items) {
+          const entry = el("li", "verdict-card__item");
+          entry.append(citedText(item, "verdict-card__text"));
+          list.append(entry);
+        }
+        rest.append(list);
+      } else if (Number.isInteger(view.listed)) {
+        rest.append(el("p", "verdict-card__listed",
+          view.listed ? fillText("verdict_listed", { n: view.listed }) : t("verdict_continues")));
+      }
+    };
     if (view.shown !== view.whole) {
       const more = el("button", "brief__expand", t("verdict_expand"));
       more.type = "button";
       more.setAttribute("aria-expanded", "false");
-      more.onclick = () => { quote.replaceChildren(citedText(view.whole, "verdict-card__text")); more.hidden = true; };
+      more.onclick = () => {
+        quote.replaceChildren(citedText(view.whole, "verdict-card__text"));
+        more.hidden = true;
+        listed();
+      };
       says.append(" ", more);
+    } else {
+      listed();
     }
-    wrap.append(says);
+    wrap.append(says, rest);
     const where = el("p", "verdict-card__where");
     if (view.section) where.append(fillText("verdict_where", { section: view.section }) + " ");
     if (onOpen) where.append(open(view.needle, view.section));
@@ -1222,16 +1301,43 @@ function recommendationIn(lines, routeOnly) {
   return null;
 }
 
+/* A step taken from behind its label begins where the label ended: the
+ * public sample perovskite-silicon-tandem (2026-11-21) showed "out-license to
+ * an established crystalline-silicon module manufacturer…", which reads as
+ * cut from the middle of a sentence. Its first word is capitalised when that
+ * word is wholly in lower case; "mRNA" and "iPSC" are written so on purpose
+ * and keep their case. The rest of the sentence is as the report has it.
+ * report_brief._capitalized is the same rule. */
+const LOWERCASE_LEAD = /^\p{Ll}[\p{Ll}'’-]*(?![\p{L}'’-])/u;
+function capitalized(sentence) {
+  if (!sentence || !LOWERCASE_LEAD.test(sentence)) return sentence;
+  const [first] = sentence;  // one code point, astral ones included
+  return first.toUpperCase() + sentence.slice(first.length);
+}
+
 /** The first recommendation of the recommendations section, or null: the
  * route the section labels as primary, else its first item. The sentence is
  * returned whole; the brief cuts it to fit and offers the rest. */
 function firstRecommendation(markdown) {
   const lines = markdown.split(/\r?\n/);  // saved reports carry either line ending
-  return recommendationIn(lines, true) ?? recommendationIn(lines, false);
+  return capitalized(recommendationIn(lines, true) ?? recommendationIn(lines, false));
 }
 
 const SOURCE_LISTS = ["academic_sources", "patent_sources", "market_sources"];
 const TIER_RANK = { high: 0, medium: 1, low: 2 };
+
+// Google Patents ends the page title it serves with " - Google Patents": 2,708
+// of the 4,877 patent titles saved on the maintainer's machine (2026-11-21),
+// always in that one form, and in no academic or market title. It names the
+// site, not the patent. Shown without it on the Sources tab and in the brief;
+// the saved title keeps it, and search still reads the saved title. In a
+// reference line the publisher follows it after a full stop. The reference
+// list itself is report_display.py's.
+const PATENT_SITE_SUFFIX = /\s+-\s+Google Patents(?=\.\s|\.?$)/u;
+const withoutSiteName = (title) => {
+  const shown = title.replace(PATENT_SITE_SUFFIX, "");
+  return shown.trim() ? shown : title;
+};
 
 /** The best-rated of the cited sources: {id, title, tier, year}; {id} when
  * nothing rates them; null without ids.
@@ -1269,20 +1375,74 @@ function pickEvidence(ids, sources, references = null) {
   if (!row) return { id };
   const tier = TIER_RANK[row.credibility_tier] !== undefined ? row.credibility_tier : null;
   const year = typeof row.published_date === "string" && /^\d{4}/.test(row.published_date) ? row.published_date.slice(0, 4) : null;
-  return { id, title: typeof row.title === "string" ? row.title : null, tier, year };
+  return { id, title: typeof row.title === "string" ? withoutSiteName(row.title) : null, tier, year };
 }
 
 const DOMAIN_LABELS = { academic: "group_academic", patent: "group_patents", market: "group_market" };
 const BRIEF_CHANGERS_LIMIT = 4;
 
-/** What new evidence would move the verdict, read from the checks that qualify it. */
-function whatWouldChange(scores, progress) {
+/* What would change it, in the report's own words first. Until 2026-11-21
+ * every line here was built from a score or a check, and the first was most
+ * often "Market figures that measure the same thing: the ones collected may
+ * not, so they cannot be compared directly." The user read it, word for
+ * word, in all three reports they opened, and took it for boilerplate. The
+ * report's "Evidence Limitations" section names this report's gaps: of the
+ * 377 saved runs with a scorecard on the maintainer's machine, 239 have the
+ * section, most of them as a list, some under labels or sub-headings per
+ * domain ("**Academic sources.**", "### Patent Source Limitations"), some as
+ * paragraphs. The first sentence of the first entry of each group is quoted,
+ * then the second of each, up to three, as written (citations aside). A
+ * paragraph is not an entry, a label is not one, and a list anywhere else in
+ * the report is not the section's: a section with no entry of its own gives
+ * none, and the brief keeps the lines it had. */
+const LIMITS_HEADING = /^##\s+(?:\d+(?:\.\d+)*[.)]?\s+)?(?:evidence limitations|证据局限)/iu;
+const LIMITS_ENTRY = /^\s*(?:[-*+]|\d+[.)])\s+(.+)$/;
+const LABEL_ALONE = /^\*\*[^*]+\*\*\s*[:：.。]?$/;
+const REPORT_GAPS_LIMIT = 3;
+
+function reportGaps(markdown) {
+  const groups = [];
+  let group = null;
+  let inside = false;
+  const open = () => { group = []; groups.push(group); };
+  for (const line of markdown.split(/\r?\n/)) {  // saved reports carry either line ending
+    if (/^#{1,2}\s/.test(line)) { inside = LIMITS_HEADING.test(line); group = null; continue; }
+    const text = line.trim();
+    if (!inside || !text) continue;
+    if (/^#{3,}\s/.test(text)) { open(); continue; }
+    const entry = line.match(LIMITS_ENTRY);
+    const body = (entry ? entry[1] : text).trim();
+    const plain = body.replace(/\*+/g, "").trim();
+    // A label heads the entries under it: a bold phrase alone, or a short line ending with a colon.
+    if (LABEL_ALONE.test(body) || (plain.length <= LABEL_LIMIT && /[:：]$/.test(plain))) { open(); continue; }
+    if (!entry) continue;
+    const first = sentencesOf(body)[0];
+    if (!first) continue;
+    if (!group) open();
+    group.push(quoted(first));
+  }
   const out = [];
+  for (let round = 0; out.length < REPORT_GAPS_LIMIT; round++) {
+    const picks = groups.map(entries => entries[round]).filter(Boolean);
+    if (!picks.length) break;
+    out.push(...picks);
+  }
+  return out.slice(0, REPORT_GAPS_LIMIT);
+}
+
+/** What would move the verdict: the gaps the report names, then what the
+ * checks that qualify it say. */
+function whatWouldChange(scores, progress, markdown = "") {
+  const gaps = reportGaps(markdown).map(text => ({ key: "brief_change_report", text }));
+  const out = [...gaps];
   const grounding = detailRecord(progress?.claim_grounding) ? progress.claim_grounding : null;
   if (scoreNumber(scores.evidence_confidence, 5) && scores.evidence_confidence < 3) {
     out.push({ key: "brief_change_evidence", value: scores.evidence_confidence });
   }
-  if ((scoreNumber(scores.market_accessibility, 5) && scores.market_accessibility <= 2.5) || scores.market_uncertainty) {
+  // Built from a score and the same in every report it appears in: said only
+  // where the report names no gap of its own.
+  if (!gaps.length
+      && ((scoreNumber(scores.market_accessibility, 5) && scores.market_accessibility <= 2.5) || scores.market_uncertainty)) {
     out.push({ key: "brief_change_market" });
   }
   if (grounding && detailCount(grounding.ungrounded) && grounding.ungrounded > 0) {
@@ -1316,6 +1476,42 @@ export function trlText(label) {
   return level ? t(`trl_level_${level}`) : label;
 }
 
+/* A TRL is a whole level by definition; the scorer's figure is a score. The
+ * scoring agent rates readiness from 10 to 90 and code divides by ten
+ * (evidence.py), so 7.3 is a score between two levels, and the scorecard's
+ * label names the level: evidence._trl_label rounds to the nearest whole one,
+ * to the even one on a tie (Python's round: 6.5 is TRL 6, 7.5 is TRL 8).
+ * Until 2026-11-21 one sample page said "TRL 7.3" on its card, "TRL 7
+ * (system prototype in operational environment)" over its brief and
+ * "Technology readiness 7.3 / 9" beside it: three ways for one fact, and
+ * "TRL 7.3" is not a level at all. It is said one way now, "TRL 7 (score
+ * 7.3 / 9)", and the decimal is explained under the scorecard's "Why". No
+ * score is changed. report_summary.py says the same in the PDF. */
+function evenRound(value) {
+  const near = Math.round(value);
+  return Math.abs(value % 1) === 0.5 && near % 2 !== 0 ? near - 1 : near;
+}
+
+/** The whole TRL level for a score: the scorecard label's where it has one
+ * of the code's shape, else the scorer's rounding of the score; null for
+ * neither. */
+export function trlLevel(score, label) {
+  const named = typeof label === "string" ? TRL_LABEL.exec(label.trim())?.[1] : null;
+  if (named) return Number(named);
+  return scoreNumber(score, 9) && score >= 1 ? Math.min(9, Math.max(1, evenRound(score))) : null;
+}
+
+/** "TRL 7 (score 7.3 / 9)", or null without a readable score. */
+export function trlReading(score, label) {
+  if (!(scoreNumber(score, 9) && score >= 1)) return null;
+  return fillText("trl_reading", { level: trlLevel(score, label), score });
+}
+
+/** Where a score between two levels comes from, or null for a whole one. */
+function trlWhy(score, level) {
+  return Number.isInteger(score) ? null : fillText("trl_why_fraction", { score, name: t(`trl_level_${level}`) });
+}
+
 /** A sample's name on a card: its Chinese name in the Chinese interface,
  * where the catalogue gives one (api/samples.py). The report itself is in
  * whatever language it was written in, and the card says which. */
@@ -1330,11 +1526,13 @@ export function decisionBrief({ scores, markdown = "", sources = null, progress 
   const dims = DIMENSIONS
     .map(dim => ({ ...dim, value: scores[dim.key] }))
     .filter(dim => scoreNumber(dim.value, dim.max) && dim.value >= 1)
-    .map(dim => ({ ...dim, share: dim.value / dim.max }));
+    .map(dim => ({ ...dim, share: dim.value / dim.max,
+      shown: dim.key === "trl_score" ? trlReading(dim.value, scores.trl_label) : `${dim.value} / ${dim.max}` }));
   const strongest = dims.length ? dims.reduce((a, b) => (b.share > a.share ? b : a)) : null;
   const weakest = dims.length ? dims.reduce((a, b) => (b.share < a.share ? b : a)) : null;
-  const trl = typeof scores.trl_label === "string" && scores.trl_label.trim() ? trlText(scores.trl_label.trim())
-    : scoreNumber(scores.trl_score, 9) && scores.trl_score >= 1 ? `TRL ${scores.trl_score}` : null;
+  // The level and the score; the label alone where the score cannot be read, as before.
+  const trl = trlReading(scores.trl_score, scores.trl_label)
+    ?? (typeof scores.trl_label === "string" && scores.trl_label.trim() ? trlText(scores.trl_label.trim()) : null);
   const text = typeof markdown === "string" ? markdown : "";
   const lead = executiveSummaryLead(text);
   const base = strongest ? strongest.key.replace(/_score$|_strength$|_accessibility$|_confidence$/, "") : null;
@@ -1358,7 +1556,9 @@ export function decisionBrief({ scores, markdown = "", sources = null, progress 
     // way to read on (2026-11-18).
     next: step ? quoted(step) : opportunity,
     nextWhole: step && step.length > BRIEF_SENTENCE_LIMIT ? step : null,
-    changers: whatWouldChange(scores, progress),
+    changers: whatWouldChange(scores, progress, text),
+    // A run asked for a conclusion has a verdict to change; any other has an assessment.
+    decided: progress?.decision_gate?.mode === "decision_support",
   };
 }
 
@@ -1374,12 +1574,18 @@ const SAMPLE_LANGUAGES = { English: "sample_language_english", "Simplified Chine
 export function sampleFacts(sample) {
   const entry = detailRecord(sample) ? sample : {};
   const grade = scoreNumber(entry.overall_score, 100) ? band(entry.overall_score) : null;
-  const trl = scoreNumber(entry.trl_score, 9) && entry.trl_score >= 1 ? entry.trl_score : null;
   const language = SAMPLE_LANGUAGES[entry.language];
+  // Run with a decision context: the four fields the reader (samples.js
+  // decisionOf) and the gate require, each a line of text.
+  const given = detailRecord(entry.decision) ? entry.decision : null;
+  const decided = Boolean(given) && ["asset_description", "target_application", "decision_owner", "decision_type"]
+    .every((field) => typeof given[field] === "string" && given[field].trim());
   return {
     verdict: grade ? fillText("sample_verdict", { score: entry.overall_score.toFixed(1), band: grade.name }) : null,
     tone: grade ? grade.tone : null,
-    trl: trl === null ? null : fillText("sample_trl", { trl }),
+    decision: decided ? t("sample_decision") : null,
+    // A list entry carries the score, not the label: the level is the scorer's rounding of it.
+    trl: trlReading(entry.trl_score),
     language: language ? t(language) : null,
   };
 }
@@ -1422,8 +1628,8 @@ export function renderDecisionBrief(data, { note = t("brief_note") } = {}) {
   const lines = el("div", "brief__lines");
   if (data.strongest && data.weakest) {
     lines.append(el("p", "brief__line brief__dims", fillText("brief_dims", {
-      strong: t(data.strongest.label), strong_value: `${data.strongest.value} / ${data.strongest.max}`,
-      weak: t(data.weakest.label), weak_value: `${data.weakest.value} / ${data.weakest.max}`,
+      strong: t(data.strongest.label), strong_value: data.strongest.shown,
+      weak: t(data.weakest.label), weak_value: data.weakest.shown,
     })));
   }
   if (data.summary) {
@@ -1470,13 +1676,18 @@ export function renderDecisionBrief(data, { note = t("brief_note") } = {}) {
   wrap.append(cards);
 
   const changers = el("div", "brief__changers");
-  changers.append(el("span", "brief__label", t("brief_changers")));
+  changers.append(el("span", "brief__label", t(data.decided ? "brief_changers" : "brief_changers_assessment")));
+  if (data.changers.some(item => item.key === "brief_change_report")) {
+    changers.append(el("p", "brief__changers-from", t("brief_changers_from")));
+  }
   const list = el("ul", "brief__changer-list");
   const items = data.changers.length ? data.changers : [{ key: "brief_change_none" }];
   for (const item of items) {
-    const li = el("li", "brief__changer", fillText(item.key, {
+    // The report's own words, quoted; every other line is the page's.
+    const li = item.key === "brief_change_report" ? el("li", "brief__changer") : el("li", "brief__changer", fillText(item.key, {
       value: item.value, n: item.n, domain: item.domain ? t(DOMAIN_LABELS[item.domain]) : "",
     }));
+    if (item.key === "brief_change_report") li.append(el("q", null, item.text));
     li.dataset.reason = item.key.replace("brief_change_", "");
     list.append(li);
   }
@@ -1486,10 +1697,10 @@ export function renderDecisionBrief(data, { note = t("brief_note") } = {}) {
   return wrap;
 }
 
-/** "Overall 41.9 / 100 · Early · Technology readiness 4 / 9" above the report. */
+/** "Overall 41.9 / 100 · Early · TRL 4 (score 4 / 9)" above the report. */
 function renderReportScoreLine(scores, onOpenScorecard) {
   if (!detailRecord(scores) || !scoreNumber(scores.overall_score, 100)) return null;
-  const trl = scoreNumber(scores.trl_score, 9) && scores.trl_score >= 1 ? String(scores.trl_score) : "—";
+  const trl = trlReading(scores.trl_score, scores.trl_label) ?? `${t("dim_trl")} —`;
   const line = el("div", "report-score");
   line.append(el("span", "report-score__text", t("report_score_line")
     .replace("{score}", () => scores.overall_score.toFixed(1))
@@ -1646,10 +1857,10 @@ export async function render(container, runId, progress) {
   const views = [];
   if (artifacts.includes("scores")) views.push({ id: "score", label: t("tab_score") });
   if (artifacts.includes("report")) views.push({ id: "report", label: t("tab_report") });
-  // A run that stopped after its writer had answered: the writer's text,
-  // under a tab and a notice that both say what it is (hasDraft).
+  // A run that stopped after its writer had answered: the report as far as
+  // it got, under a tab and a notice that both say what it is (draftWording).
   const draft = hasDraft(progress);
-  if (draft) views.push({ id: "draft", label: t("tab_draft") });
+  if (draft) views.push({ id: "draft", label: t(draftWording(progress).tab) });
   if (artifacts.includes("sources")) views.push({ id: "sources", label: t("tab_sources") });
   // The three checks of a finished report share one tab (renderChecks). Each
   // had a tab of its own beside the scorecard, the report and the sources:
@@ -1876,7 +2087,7 @@ export async function render(container, runId, progress) {
         // this as the assessment's conclusion before learning what it is.
         // That resuming reuses the text is said to whoever can resume: a
         // reader of someone else's run was told to do what they cannot.
-        panel.append(el("p", "draft-note", t(progress.viewer_can_modify === false ? "draft_note" : "draft_note_owner")));
+        panel.append(el("p", "draft-note", t(draftWording(progress).note)));
         const article = el("article", "prose prose--draft");
         article.innerHTML = renderMarkdown(md);
         panel.append(article);
@@ -2351,7 +2562,7 @@ function renderSavedSource(source) {
   const li = el("li", "source");
   const id = el("span", "source__id", source.source_id.text ?? t("sources_id_unavailable"));
   const body = el("div", "source__body");
-  const shown = source.title.text ?? t("sources_title_unavailable");
+  const shown = source.title.text === null ? t("sources_title_unavailable") : withoutSiteName(source.title.text);
   const title = el(source.href ? "a" : "span", "source__link", shown);
   if (shown.length > LONG_SOURCE_TITLE) title.title = shown;
   if (source.href) {
@@ -2681,12 +2892,32 @@ export function ranWithoutReport(progress) {
 /* A run with no report that still has what its writer wrote. The page said
  * "this run produced no report" of a run whose analysts, writer and reviewer
  * had all returned and whose scorer had not (production, 2026-11-18). The
- * server advertises the writer's saved text as the artifact `draft`, only
- * for a run that stopped without a report (runs.draft_report); the page
+ * server advertises the saved text as the artifact `draft` (the reviewer's,
+ * else the writer's: `draft_stage`), only for a run that stopped without a
+ * report (runs.draft_report); the page
  * shows it marked as what it is, and says "no report" only where there is
  * no draft either. */
 export function hasDraft(progress) {
   return ranWithoutReport(progress) && (progress.artifacts ?? []).includes("draft");
+}
+
+/* What a draft is called, for this text and this reader: the i18n keys of
+ * its tab, of the notice above it and of the line where the checks would be.
+ * The server's `draft_stage` says whose text it is. Until 2026-11-20 it was
+ * always the writer's; a run that failed in scoring with its review done was
+ * shown the writer's text "before the review that checks its citations and
+ * claims". Now that run's draft is the reviewed report, said to be reviewed
+ * and not scored. A stage this page does not know gets the writer's
+ * wording, which claims the least. Whoever cannot resume the run is not told
+ * that resuming reuses the text. */
+export function draftWording(progress) {
+  const reviewed = progress?.draft_stage === "reviewer";
+  const owner = progress?.viewer_can_modify !== false;
+  return {
+    tab: reviewed ? "tab_draft_reviewed" : "tab_draft",
+    note: `${reviewed ? "draft_reviewed_note" : "draft_note"}${owner ? "_owner" : ""}`,
+    reliability: reviewed ? "rel_no_report_draft_reviewed" : "rel_no_report_draft",
+  };
 }
 
 export function reliabilityRows(progress) {
@@ -2939,7 +3170,7 @@ export function renderReliability(progress) {
   // No count of checks for a run with no report: one sentence that says so.
   // Not "no problem found": nothing ran, and that is what is said.
   if (ranWithoutReport(progress)) {
-    return el("p", "empty-note reliability-none", t(hasDraft(progress) ? "rel_no_report_draft" : "rel_no_report"));
+    return el("p", "empty-note reliability-none", t(hasDraft(progress) ? draftWording(progress).reliability : "rel_no_report"));
   }
   const rows = reliabilityRows(progress);
   if (!rows.length) return null;

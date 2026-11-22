@@ -205,9 +205,27 @@ class DecisionStatement(BaseModel):
     follows: list[str] = Field(
         default_factory=list,
         description="Up to two sentences after it in the same paragraph: the reasons "
-                    "and conditions the writer put beside it. Quoted, not chosen.",
+                    "and conditions the writer put beside it. For a statement that is a "
+                    "paragraph of its own, the first two of the paragraph right below it "
+                    "in the same section. Quoted, not chosen.",
     )
     needle: str = Field(description="Text of the statement with no citation in it, for finding its paragraph on a page.")
+    bare: bool = Field(
+        False,
+        description="The statement is a conclusion line that says the verdict and nothing "
+                    "else (\"Conclusion: DEFER.\"): a one-line summary quotes what follows it.",
+    )
+    items: list[str] = Field(
+        default_factory=list,
+        description="Where the quoted passage ends with a colon: the entries of the list right "
+                    "under it, as written, if it has at most four and none nested. Quoted, not chosen.",
+    )
+    ordered: bool = Field(False, description="Whether that list is numbered.")
+    listed: int | None = Field(
+        None,
+        description="How many entries that list has (0: the passage ends with a colon and no list "
+                    "is right under it). None where the passage does not end with a colon.",
+    )
 
 
 class DecisionConclusion(BaseModel):
@@ -223,6 +241,10 @@ class DecisionConclusion(BaseModel):
     section: str | None = None
     follows: list[str] = Field(default_factory=list)
     needle: str | None = None
+    bare: bool = False
+    items: list[str] = Field(default_factory=list)
+    ordered: bool = False
+    listed: int | None = None
     statements: list[DecisionStatement] = Field(default_factory=list)
 
 
@@ -443,6 +465,16 @@ class DailyQuota(BaseModel):
     resets_at: AwareDatetime
 
 
+# Which saved text the `draft` artifact of a run that stopped without a
+# report is (api.runs.draft_report).
+DraftStage = Literal["writer", "reviewer"]
+_DRAFT_STAGE_DESCRIPTION = (
+    "Which step's saved text the `draft` artifact is: `reviewer`, the report after "
+    "the review that checks its citations and claims, with no score; `writer`, the "
+    "report before that review. null when the run lists no draft."
+)
+
+
 class RunProgress(BaseModel):
     """Everything a client needs to render live progress in one request.
 
@@ -649,6 +681,7 @@ class RunProgress(BaseModel):
     steps_read_state: Literal["absent", "readable", "partial", "unavailable"] = "absent"
     steps_rejected: int = Field(default=0, ge=0, description="Rejected complete lines observed in this log, not failed tasks.")
     artifacts: list[str] = Field(default_factory=list)
+    draft_stage: DraftStage | None = Field(default=None, description=_DRAFT_STAGE_DESCRIPTION)
 
 
 class RunAccepted(BaseModel):
@@ -861,6 +894,7 @@ class RunStatus(BaseModel):
         default_factory=list,
         description="Artifact names available via /api/runs/{run_id}/{name}",
     )
+    draft_stage: DraftStage | None = Field(default=None, description=_DRAFT_STAGE_DESCRIPTION)
 
 
 class RunSummary(BaseModel):
@@ -1188,6 +1222,30 @@ class PasswordResetDone(BaseModel):
     email: str
 
 
+class SampleDecisionContext(BaseModel):
+    """The decision context a sample's run was given, as it was entered."""
+
+    asset_description: str
+    target_application: str
+    decision_owner: str
+    decision_type: str
+
+
+class SampleDecision(BaseModel):
+    """GET /api/samples/{slug}/decision: what a sample's run was asked and its report's answer.
+
+    The fields GET /api/runs/{run_id}/decision answers with, without a run id:
+    a sample is a committed file, not a run on this deployment.
+    """
+
+    asked: bool = Field(
+        description="True only for a sample whose run was given a decision context. "
+                    "Otherwise nothing below is filled.",
+    )
+    question: DecisionQuestion | None = None
+    conclusion: DecisionConclusion | None = None
+
+
 class SampleSummary(BaseModel):
     """One committed example report, as the list of them states it."""
 
@@ -1208,6 +1266,10 @@ class SampleSummary(BaseModel):
     trl_score: float | None = Field(
         default=None,
         description="The technology readiness level (1-9) from the same scorecard; null likewise.")
+    decision: SampleDecisionContext | None = Field(
+        default=None,
+        description="The decision context the run was given; null for a run that was given none, "
+                    "whose report states no conclusion for a decision-maker.")
 
 
 class SiteInfo(BaseModel):

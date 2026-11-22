@@ -159,7 +159,10 @@ if (input.brief) {
         button.onclick?.();
         return { ...before, after: nodes.find(n => n.tagName === "Q")?.textContent, gone: button.hidden === true };
       })(),
-      changers: nodes.filter(n => n.className === "brief__changer").map(n => [n.dataset.reason, n.textContent]),
+      changers: nodes.filter(n => n.className === "brief__changer").map(n => [n.dataset.reason, text(n)]),
+      changers_title: nodes.find(n => n.className === "brief__changers")?.children[0].textContent,
+      changers_from: nodes.find(n => n.className === "brief__changers-from")?.textContent ?? null,
+      changer_quotes: nodes.filter(n => n.className === "brief__changer").map(n => n.children.some(c => c.tagName === "Q")),
       note: nodes.find(n => n.className === "brief__note")?.textContent,
       next_expand: (() => {
         const card = nodes.find(n => n.className === "brief__card" && n.dataset.card === "next");
@@ -195,13 +198,28 @@ if (input.verdict) {
       cites: nodes.filter(n => n.className === "cite").map(n => n.dataset.cite),
       note: one("verdict-card__note")?.textContent, buttons: nodes.filter(n => n.tagName === "BUTTON" && n.className !== "cite").map(n => [n.className, n.textContent, n.type]),
       more: more ? { text: more.textContent, expanded: more.attributes["aria-expanded"] } : null,
+      list: (() => {
+        const list = nodes.find(n => n.className === "verdict-card__items");
+        return list ? { tag: list.tagName, items: list.children.map(text),
+                        cites: flat(list).filter(n => n.className === "cite").map(n => n.dataset.cite) } : null;
+      })(),
+      listed: one("verdict-card__listed")?.textContent ?? null,
     };
-    if (more) { more.onclick(); card.more.after = text(one("verdict-card__quote")); card.more.gone = more.hidden === true; }
+    if (more) {
+      more.onclick(); card.more.after = text(one("verdict-card__quote")); card.more.gone = more.hidden === true;
+      const after = flat(nodes[0]);
+      card.more.list = after.find(n => n.className === "verdict-card__items")?.children.map(text) ?? null;
+      card.more.listed = after.find(n => n.className === "verdict-card__listed")?.textContent ?? null;
+    }
     for (const node of nodes.filter(n => n.className === "verdict-card__open")) node.listeners?.click?.();
     card.opened = opened;
     card.without_a_report_tab = draw(null).filter(n => n.className === "verdict-card__open").length;
     out.verdict.card = card;
   }
+}
+if (input.score_line) {
+  const node = mod._testRenderReportScoreLine(input.score_line, () => {});
+  out.score_line = node ? flat(node).find(n => n.className === "report-score__text")?.textContent : null;
 }
 if (input.passage) {
   out.passage = mod.passageIn(input.passage.blocks, input.passage.needle, input.passage.section);
@@ -224,8 +242,10 @@ if (input.scores) {
   } : null;
   out.why = nodes.filter(n => n.className === "dim__why").map(n => ({
     summary: n.children[0].textContent, rationale: n.children[1].textContent,
+    level: flat(n).find(c => c.className === "dim__level")?.textContent ?? null,
     cites: flat(n).filter(c => c.className === "cite").map(c => c.dataset.cite) }));
   const caveat = nodes.find(n => (n.className ?? "").includes("scorecard__market-caveat"));
+  out.dims = nodes.filter(n => n.className === "dim").map(n => [n.children[0].textContent, n.children[2].textContent]);
   out.caveat = { tag: caveat.tagName, open: caveat.open,
                  title: flat(caveat).find(n => n.className === "notes__title")?.textContent,
                  status: nodes.find(n => n.className === "scorecard__market-status")?.textContent,
@@ -295,6 +315,7 @@ class ResultReadabilityTests(unittest.TestCase):
         source += "export const _testRenderSavedSource = renderSavedSource;\n"
         source += "export const _testFeedbackView = feedbackView;\n"
         source += "export const _testRenderDecisionBrief = renderDecisionBrief;\n"
+        source += "export const _testRenderReportScoreLine = renderReportScoreLine;\n"
         (work / "result.mjs").write_text(source, encoding="utf-8")
         shutil.copy2(_I18N_JS, work / "i18n.js")
         (work / "harness.mjs").write_text(textwrap.dedent(_HARNESS), encoding="utf-8")
@@ -387,7 +408,7 @@ class ResultReadabilityTests(unittest.TestCase):
                   "trl_rationale": "Component validation only.", "trl_source_ids": ["A2", "M3", "not-an-id"],
                   "mrl_rationale": "No manufacturing line.", "mrl_source_ids": []}
         why = self._run(scores=scores)["why"]
-        self.assertEqual([w["summary"] for w in why], ["Why 4 / 9", "Why 1 / 10"])
+        self.assertEqual([w["summary"] for w in why], ["Why TRL 4 (score 4 / 9)", "Why 1 / 10"])
         self.assertEqual(why[0]["rationale"], "Component validation only.")
         self.assertEqual(why[0]["cites"], ["A2 M3"])
         self.assertEqual(why[1]["cites"], [])
@@ -601,8 +622,41 @@ class MarketEstimatesTests(unittest.TestCase):
         zh = self._run(language="Simplified Chinese", scores=scores,
                        sources_for_scorecard=_market(("Sodium-ion Battery Market", "USD 2 billion in 2025", "Sns"),
                                                      ("Sodium-ion Battery Market", "USD 30 billion in 2025", "Yahoo")))
-        self.assertEqual(zh["market_block"]["lede"], "2 个市场规模数字来自 2 个来源，涉及 1 个定义不同的市场。同一市场、同一年份的数字最大相差 15 倍。")
+        self.assertEqual(zh["market_block"]["lede"], "2 个市场规模数字来自 2 个来源，都属于同一个市场。同一市场、同一年份的数字最大相差 15 倍。")
         self.assertIn("上方评分不变", zh["market_block"]["note"])
+
+    def test_the_headline_is_grammatical_for_one_market_one_figure_and_one_source(self):
+        """Production, 2026-11-20: "8 market-size figures from 3 sources cover 1
+        differently defined markets." In Chinese, "涉及 1 个定义不同的市场"."""
+        scores = {"overall_score": 50.0, "market_accessibility": 2.5, "market_uncertainty": None}
+        lede = lambda *rows, language=None: self._run(  # noqa: E731
+            scores=scores, sources_for_scorecard=_market(*rows), **({"language": language} if language else {}))["market_block"]["lede"]
+        one_market = [("Sodium-ion Battery Market", "USD 2 billion in 2025", "Sns"),
+                      ("Sodium-ion Battery Market", "USD 3 billion in 2025", "Yahoo"),
+                      ("Sodium-ion Battery Market Size", "USD 4 billion in 2026", "Fortune")]
+        self.assertEqual(lede(*one_market), "3 market-size figures from 3 sources, all for one market. "
+                                            "Within one market and year, the figures differ by up to 1.5×.")
+        self.assertEqual(lede(*one_market, language="Simplified Chinese"),
+                         "3 个市场规模数字来自 3 个来源，都属于同一个市场。同一市场、同一年份的数字最大相差 1.5 倍。")
+        # One source, two figures; and one figure, where "no two figures" has nothing to say.
+        self.assertEqual(lede(("Sodium-ion Battery Market", "USD 2 billion in 2025 and USD 44 billion by 2035", "Yahoo")),
+                         "2 market-size figures from 1 source, all for one market. "
+                         "No two figures share a market and a year, so none are compared.")
+        self.assertEqual(lede(("Sodium-ion Battery Market", "USD 2 billion in 2025", "Sns")),
+                         "1 market-size figure from 1 source.")
+        self.assertEqual(lede(("Sodium-ion Battery Market", "USD 2 billion in 2025", "Sns"), language="Simplified Chinese"),
+                         "1 个市场规模数字，来自 1 个来源。")
+        # One market named and figures whose titles name none: not "all for one market".
+        named_and_not = [("Sodium-ion Battery Market", "USD 2 billion in 2025", "Sns"),
+                         ("Grid storage outlook", "USD 9 billion in 2025", "Yahoo")]
+        self.assertEqual(lede(*named_and_not), "2 market-size figures from 2 sources; the source titles name one market. "
+                                               "No two figures share a market and a year, so none are compared.")
+        self.assertEqual(lede(("Grid storage outlook", "USD 9 billion in 2025", "Yahoo"),
+                              ("Energy news", "USD 7 billion in 2026", "Sns")),
+                         "2 market-size figures from 2 sources; no source title names the market. "
+                         "No two figures share a market and a year, so none are compared.")
+        self.assertEqual(lede(*named_and_not, language="Simplified Chinese"),
+                         "2 个市场规模数字来自 2 个来源，来源标题只指明了一个市场。没有两个数字属于同一市场和同一年份，因此未做比较。")
 
 
 _SCORES = {
@@ -668,7 +722,7 @@ class DecisionBriefTests(unittest.TestCase):
         shown = self._brief()["brief_view"]
         self.assertEqual(shown["title"], "Decision brief")
         self.assertEqual(shown["verdict"], "Early · 50.0 / 100")
-        self.assertEqual(shown["readiness"], "TRL 4 (component validated in laboratory) · Manufacturing readiness 3.5 / 10")
+        self.assertEqual(shown["readiness"], "TRL 4 (score 4 / 9) · Manufacturing readiness 3.5 / 10")
         self.assertEqual(shown["tone"], "warning")
 
     def test_the_grade_and_the_score_stand_at_the_head_of_the_brief_as_a_badge(self):
@@ -733,6 +787,27 @@ class DecisionBriefTests(unittest.TestCase):
         card = self._brief()["brief_view"]["cards"]["evidence"]
         self.assertIn("All-solid-state battery system · high · 2023", card)
 
+    def test_a_patent_named_as_the_main_source_is_shown_without_the_sites_name(self):
+        """Google Patents ends the title it serves with " - Google Patents", and
+        the brief's main-source line showed it (production, 2026-11-20). It
+        names the site; the saved title and the report keep it."""
+        titled = "US11437537B2 - All-solid-state battery system - Google Patents"
+        sources = {**_SOURCES, "patent_sources": [_SOURCES["patent_sources"][0],
+                                                  {**_SOURCES["patent_sources"][1], "title": titled}]}
+        brief = self._brief(sources=sources)
+        self.assertEqual(brief["brief"]["evidence"]["title"], "US11437537B2 - All-solid-state battery system")
+        self.assertIn("US11437537B2 - All-solid-state battery system · high · 2023", brief["brief_view"]["cards"]["evidence"])
+        self.assertNotIn("Google Patents", brief["brief_view"]["cards"]["evidence"])
+        # A sample has only the reference list, where the publisher follows the title.
+        refs = ("\n## References\n\n[P2] US11437537B2 - All-solid-state battery system - Google Patents. King Fahd University. "
+                "Published: 2023-05-04. Accessed: 2026-11-08. Type: patent. Credibility: high. Rationale: granted. "
+                "https://example.org/p2\n")
+        sample = self._brief(sources=None, markdown=_REPORT + refs, references=True)["brief"]["evidence"]
+        self.assertEqual(sample["title"], "US11437537B2 - All-solid-state battery system. King Fahd University")
+        # Only the site's own suffix: a title that merely mentions it is left as it is.
+        other = {**_SOURCES, "patent_sources": [{**_SOURCES["patent_sources"][1], "title": "Google Patents - search help"}]}
+        self.assertEqual(self._brief(sources=other)["brief"]["evidence"]["title"], "Google Patents - search help")
+
     def test_a_page_with_no_registry_picks_the_evidence_from_the_reports_own_reference_list(self):
         """A sample page has the report and its scorecard, not the run's source
         registry, so its brief named the first source the strongest dimension
@@ -780,7 +855,7 @@ class DecisionBriefTests(unittest.TestCase):
         self.assertEqual((picked["id"], picked["tier"], picked["year"]), ("P2", "high", "2023"))
 
     def test_a_sample_card_says_the_verdict_the_readiness_level_and_the_language(self):
-        """The six samples run from 48.6 to 74.9, which is the tool telling an
+        """The samples run from 48.6 to 74.9, which is the tool telling an
         early technology from a mature one, and a visitor had to open each to
         see it. The band is the scorecard's own: one function, no second copy
         of the thresholds."""
@@ -793,15 +868,23 @@ class DecisionBriefTests(unittest.TestCase):
             {"overall_score": "74", "trl_score": 0, "language": None},
             {"title": "An entry from before scores were listed"},
         ])["sample_facts"]
-        self.assertEqual(facts[0], {"verdict": "74.9 / 100 · Strong", "tone": "success", "trl": "TRL 9",
-                                    "language": "Report in Chinese"})
-        self.assertEqual(facts[1], {"verdict": "48.6 / 100 · Early", "tone": "warning", "trl": "TRL 5.5",
-                                    "language": "Report in English"})
+        self.assertEqual(facts[0], {"verdict": "74.9 / 100 · Strong", "tone": "success", "trl": "TRL 9 (score 9 / 9)",
+                                    "language": "Report in Chinese", "decision": None})
+        self.assertEqual(facts[1], {"verdict": "48.6 / 100 · Early", "tone": "warning", "trl": "TRL 6 (score 5.5 / 9)",
+                                    "language": "Report in English", "decision": None})
         self.assertEqual((facts[2]["verdict"], facts[2]["trl"]), ("70.0 / 100 · Strong", None))
         self.assertEqual((facts[3]["verdict"], facts[3]["tone"], facts[3]["language"]), ("40.0 / 100 · Nascent", "muted", None))
-        self.assertEqual(facts[4], {"verdict": None, "tone": None, "trl": "TRL 9", "language": "Report in English"})
-        self.assertEqual(facts[5], {"verdict": None, "tone": None, "trl": None, "language": None})
-        self.assertEqual(facts[6], {"verdict": None, "tone": None, "trl": None, "language": None})
+        self.assertEqual(facts[4], {"verdict": None, "tone": None, "trl": "TRL 9 (score 9 / 9)", "language": "Report in English",
+                                    "decision": None})
+        self.assertEqual(facts[5], {"verdict": None, "tone": None, "trl": None, "language": None, "decision": None})
+        self.assertEqual(facts[6], {"verdict": None, "tone": None, "trl": None, "language": None, "decision": None})
+        # Run with a decision context: all four fields, each a line of text, as the
+        # reader's samples.js decisionOf and the gate require; anything else is none.
+        given = {"asset_description": "A cell", "target_application": "Modules", "decision_owner": "A TTO",
+                 "decision_type": "License it"}
+        decided = self._run(sample_facts=[{"decision": given}, {"decision": {**given, "decision_type": " "}},
+                                          {"decision": "License it"}, {"decision": None}])["sample_facts"]
+        self.assertEqual([f["decision"] for f in decided], ["With a decision conclusion", None, None, None])
         # The same words as the scorecard above a report uses for the same score.
         for score, name in ((74.9, "Strong"), (55, "Moderate"), (48.6, "Early"), (12, "Nascent")):
             brief = self._brief(scores={**_SCORES, "overall_score": score})["brief"]
@@ -811,7 +894,8 @@ class DecisionBriefTests(unittest.TestCase):
         chinese = self._run(language="Simplified Chinese", sample_facts=[
             {"overall_score": 74.9, "trl_score": 9, "language": "Simplified Chinese"},
             {"overall_score": 48.6, "trl_score": 5, "language": "English"}])["sample_facts"]
-        self.assertEqual(chinese[0], {"verdict": "74.9 / 100 · 较强", "tone": "success", "trl": "TRL 9", "language": "中文报告"})
+        self.assertEqual(chinese[0], {"verdict": "74.9 / 100 · 较强", "tone": "success", "trl": "TRL 9（评分 9 / 9）", "language": "中文报告",
+                                      "decision": None})
         self.assertEqual(chinese[1]["language"], "英文报告")
 
     def test_the_first_step_is_the_recommendations_sections_first_item_and_falls_back_to_the_first_opportunity(self):
@@ -1009,13 +1093,13 @@ class DecisionBriefTests(unittest.TestCase):
             "**Route: a platform-agnostic training and assessment layer** (simulation content sold to hospitals). "
             "It rests on the strongest evidence.\n\n*Why this route is preferred (analyst inference).*\n"
             "- It rests on the strongest-rated evidence in the registry."),
-            "a platform-agnostic training and assessment layer (simulation content sold to hospitals).")
+            "A platform-agnostic training and assessment layer (simulation content sold to hospitals).")
         self.assertEqual(self._next(
             opening + "**Provenance legend.** *Observed facts* are statements in cited source summaries. "
             "*Estimates* are market-report figures.\n\n### Primary commercialization route\n\n"
             "**Primary route (analyst orientation recommendation): an enabling-technology layer sold to every "
             "platform maker.**\n\nRationale from evidence:\n- The fastest-growing value pool is digital [M5]."),
-            "an enabling-technology layer sold to every platform maker.")
+            "An enabling-technology layer sold to every platform maker.")
         self.assertEqual(self._next(
             "### Primary commercialization route\n\nThe preferred route is licensing to cell makers. It needs no plant.\n\n"
             "- Order books are full."), "The preferred route is licensing to cell makers.")
@@ -1319,6 +1403,81 @@ class DecisionBriefTests(unittest.TestCase):
         self.assertEqual([reason for reason, _ in shown], ["evidence", "market", "grounding", "context"])
         self.assertEqual(shown[0][1], "More high-credibility sources: evidence confidence is 2 / 5.")
 
+    _LIMITS = ("\n## Evidence Limitations\n\n"
+               "- **Academic sources.**\n"
+               "  - Only 8 sources, assessed from abstracts only.\n"
+               "  - No author or affiliation data.\n"
+               "- **Patent sources.**\n"
+               "  - Eight Google Patents search snippets only [P1, P2].\n"
+               "  - Legal status, claim scope and ownership are unverified.\n"
+               "- **Market sources.**\n"
+               "  - All are medium credibility at best. There are no primary filings.\n"
+               "\n## References\n\n[A1] A paper.\n")
+
+    def test_what_would_change_quotes_the_reports_own_evidence_limitations_first(self):
+        """The first line under "What would change this verdict" read "Market
+        figures that measure the same thing: the ones collected may not…" in
+        every one of three reports the user opened on 2026-11-21: a sentence
+        built from a score, the same everywhere, read as boilerplate. The
+        report's own "Evidence Limitations" names the gaps of this report;
+        the first of each group is quoted, up to three, ahead of the lines
+        the checks give, and the generic market line is left out when the
+        report names its own."""
+        report = _REPORT.replace("\n## Evidence Limitations\n\nSources are sparse.", "") + self._LIMITS
+        data = self._brief(markdown=report)
+        self.assertEqual(data["brief"]["changers"], [
+            {"key": "brief_change_report", "text": "Only 8 sources, assessed from abstracts only."},
+            {"key": "brief_change_report", "text": "Eight Google Patents search snippets only."},
+            {"key": "brief_change_report", "text": "All are medium credibility at best."},
+            {"key": "brief_change_evidence", "value": 2.0},
+        ])
+        view = data["brief_view"]
+        self.assertEqual(view["changers"][:3], [["report", "Only 8 sources, assessed from abstracts only."],
+                                                ["report", "Eight Google Patents search snippets only."],
+                                                ["report", "All are medium credibility at best."]])
+        self.assertEqual(view["changer_quotes"], [True, True, True, False], "the report's words are quoted")
+        self.assertEqual(view["changers_from"], "The report's own evidence limitations:")
+        # One gap of its own: the market line is still left out, the checks' lines follow.
+        one = self._brief(markdown=_REPORT + "\n- The only gap [A1].\n")
+        self.assertEqual([c["key"] for c in one["brief"]["changers"]],
+                         ["brief_change_report", "brief_change_evidence", "brief_change_grounding", "brief_change_context"])
+        # No group heads: the first three entries, labels passed over.
+        flat = self._brief(markdown=_REPORT + "\n- **Note:**\n- One gap [A1].\n- Two.\n- Three.\n- Four.\n")
+        self.assertEqual([c.get("text") for c in flat["brief"]["changers"][:3]], ["One gap.", "Two.", "Three."])
+        # Sub-headings as groups, and a bold paragraph label as one.
+        headed = self._brief(markdown=_REPORT.replace("Sources are sparse.",
+            "### Academic\n- A first [A1].\n- A second.\n\n**Market Sources:**\n- M first.\n- M second."))
+        self.assertEqual([c.get("text") for c in headed["brief"]["changers"][:3]], ["A first.", "M first.", "A second."])
+
+    def test_without_entries_of_its_own_the_brief_keeps_the_lines_the_checks_give(self):
+        # The section is a paragraph (as _REPORT's), missing, or under another heading.
+        for report in (_REPORT, _REPORT.replace("## Evidence Limitations", "## Notes")):
+            with self.subTest(report=report[-60:]):
+                data = self._brief(markdown=report)
+                self.assertEqual([c["key"] for c in data["brief"]["changers"]],
+                                 ["brief_change_evidence", "brief_change_market", "brief_change_grounding",
+                                  "brief_change_context"])
+                self.assertIsNone(data["brief_view"]["changers_from"])
+        # A list elsewhere in the report is not the section's.
+        elsewhere = self._brief(markdown=_REPORT.replace("## 1. Technology Overview & Maturity\n",
+                                                         "## 1. Technology Overview & Maturity\n\n- A list item.\n"))
+        self.assertNotIn("brief_change_report", [c["key"] for c in elsewhere["brief"]["changers"]])
+
+    def test_the_chinese_section_is_read_too_and_the_heading_fits_the_brief(self):
+        chinese = ("# 评估\n\n## 执行摘要\n\n该技术处于试点阶段 [A1]。\n\n## 证据局限性\n\n"
+                   "1. **学术证据局限性**：\n   - 仅含六篇论文，更广泛的文献可能提供不同的视角。\n   - 部分来源为综述。\n"
+                   "2. **专利证据局限性**：\n   - 专利权利要求未经审核 [P1]。\n")
+        data = self._run(language="Simplified Chinese", brief={"scores": _SCORES, "markdown": chinese,
+                                                               "progress": _PROGRESS})
+        self.assertEqual([c.get("text") for c in data["brief"]["changers"][:2]],
+                         ["仅含六篇论文，更广泛的文献可能提供不同的视角。", "专利权利要求未经审核。"])
+        self.assertEqual(data["brief_view"]["changers_from"], "报告自己写出的证据局限：")
+        self.assertEqual(data["brief_view"]["changers_title"], "什么会改变这个判断")
+        # A brief with no conclusion is an assessment, not a verdict, in English.
+        self.assertEqual(self._brief()["brief_view"]["changers_title"], "What would change this assessment")
+        asked = {**_PROGRESS, "decision_gate": {"mode": "decision_support"}}
+        self.assertEqual(self._brief(progress=asked)["brief_view"]["changers_title"], "What would change this verdict")
+
     def test_a_clean_run_with_a_decision_context_says_nothing_qualifies_the_score(self):
         scores = {**_SCORES, "evidence_confidence": 4.0, "market_accessibility": 4.0}
         progress = {**_PROGRESS, "claim_grounding": {"checked": 5, "ungrounded": 0, "unverifiable": 0},
@@ -1361,6 +1520,88 @@ class DecisionBriefTests(unittest.TestCase):
         self.assertEqual(next(text for reason, text in english["changers"] if reason == "market"),
                          "Market figures that measure the same thing: the ones collected may not, "
                          "so they cannot be compared directly.")
+
+
+@unittest.skipUnless(shutil.which("node"), "node not installed")
+class TrlWordingTests(unittest.TestCase):
+    """One way of writing a TRL wherever it is shown. The public sample
+    perovskite-silicon-tandem (2026-11-21) said "TRL 7.3" on its card, "TRL 7
+    (system prototype in operational environment)" over its brief and
+    "Technology readiness 7.3 / 9" beside it. A TRL is a whole level by
+    definition; the scorer's 7.3 is a score. Both are said, the same way
+    everywhere, and the decimal is explained once, under "Why". No score is
+    changed."""
+
+    @classmethod
+    def setUpClass(cls):
+        ResultReadabilityTests.setUpClass.__func__(cls)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._tmp.cleanup()
+
+    def _run(self, **payload):
+        return ResultReadabilityTests._run(self, **payload)
+
+    _TANDEM = {**_SCORES, "trl_score": 7.3, "trl_label": "TRL 7 (system prototype in operational environment)",
+               "mrl_score": 6.5, "patent_strength": 2.5, "market_accessibility": 3.0, "evidence_confidence": 2.5,
+               "trl_rationale": "Certified cells exceed 33% on 1 cm² [A3]."}
+
+    def test_the_card_the_brief_and_the_scorecard_say_it_alike(self):
+        brief = self._run(brief={"scores": self._TANDEM, "markdown": _REPORT})
+        self.assertEqual(brief["brief"]["trl"], "TRL 7 (score 7.3 / 9)")
+        self.assertEqual(brief["brief_view"]["readiness"], "TRL 7 (score 7.3 / 9) · Manufacturing readiness 6.5 / 10")
+        self.assertTrue(brief["brief_view"]["lines"][0].startswith(
+            "Strongest dimension: Technology readiness TRL 7 (score 7.3 / 9). Weakest:"), brief["brief_view"]["lines"][0])
+        card = self._run(sample_facts=[{"overall_score": 69.3, "trl_score": 7.3}])["sample_facts"][0]
+        self.assertEqual(card["trl"], "TRL 7 (score 7.3 / 9)")
+        shown = self._run(scores=self._TANDEM)
+        self.assertEqual(shown["dims"][0], ["Technology readiness · TRL 7", "7.3 / 9"])
+        self.assertEqual(shown["why"][0]["summary"], "Why TRL 7 (score 7.3 / 9)")
+        line = self._run(score_line=self._TANDEM)["score_line"]
+        self.assertEqual(line, "Overall 50.0 / 100 · Early · TRL 7 (score 7.3 / 9)")
+
+    def test_why_says_where_the_decimal_comes_from_and_only_where_there_is_one(self):
+        why = self._run(scores=self._TANDEM)["why"][0]
+        self.assertEqual(why["level"], "A TRL is a whole level. The scoring agent rates readiness from 10 to 90, "
+                                       "divided by 10, so a score can fall between two levels: 7.3 / 9 here. "
+                                       "The level shown is the nearest whole one, TRL 7 (system prototype in "
+                                       "operational environment).")
+        self.assertEqual(why["rationale"], "Certified cells exceed 33% on 1 cm² [A3].")
+        whole = self._run(scores={**self._TANDEM, "trl_score": 9, "trl_label": "TRL 9 (actual system proven in "
+                                                                               "operational environment)"})["why"][0]
+        self.assertIsNone(whole["level"])
+        chinese = self._run(scores=self._TANDEM, language="Simplified Chinese")
+        self.assertEqual(chinese["why"][0]["summary"], "为什么是 TRL 7（评分 7.3 / 9）")
+        self.assertEqual(chinese["why"][0]["level"], "TRL 按定义是整数级。评分智能体按 10 到 90 打分、再除以 10，"
+                                                     "所以分数可以落在两级之间，这里是 7.3 / 9；显示的级别取最接近的整数："
+                                                     "TRL 7（系统原型在实际运行环境中完成演示）。")
+        self.assertEqual(chinese["dims"][0], ["技术就绪度 · TRL 7", "7.3 / 9"])
+
+    def test_the_level_is_the_scorecards_own_or_the_scorers_rounding(self):
+        """The level comes from the scorecard's label where it has one; a list
+        entry carries only the score, and its level is evidence._trl_label's
+        rounding, to the even level on a tie (6.5 is TRL 6, 7.5 is TRL 8), so
+        the card and the brief of one sample never name two levels."""
+        facts = self._run(sample_facts=[{"trl_score": s} for s in (6.5, 7.5, 1.0, 8.94, 1.04)])["sample_facts"]
+        self.assertEqual([f["trl"] for f in facts], ["TRL 6 (score 6.5 / 9)", "TRL 8 (score 7.5 / 9)",
+                                                     "TRL 1 (score 1 / 9)", "TRL 9 (score 8.94 / 9)",
+                                                     "TRL 1 (score 1.04 / 9)"])
+        # The label wins where it is readable; a label of another shape is not read.
+        labelled = self._run(brief={"scores": {**self._TANDEM, "trl_score": 6.5,
+                                               "trl_label": "TRL 7 (system prototype in operational environment)"},
+                                    "markdown": _REPORT})["brief"]
+        self.assertEqual(labelled["trl"], "TRL 7 (score 6.5 / 9)")
+        odd = self._run(brief={"scores": {**self._TANDEM, "trl_label": "about seven"}, "markdown": _REPORT})["brief"]
+        self.assertEqual(odd["trl"], "TRL 7 (score 7.3 / 9)")
+        # No readable score: the label alone, as before; neither: nothing.
+        bare = self._run(brief={"scores": {**self._TANDEM, "trl_score": "7.3"}, "markdown": _REPORT})["brief"]
+        self.assertEqual(bare["trl"], "TRL 7 (system prototype in operational environment)")
+        none = self._run(brief={"scores": {**self._TANDEM, "trl_score": None, "trl_label": None},
+                                "markdown": _REPORT})["brief"]
+        self.assertIsNone(none["trl"])
+        missing = self._run(score_line={**self._TANDEM, "trl_score": 0})["score_line"]
+        self.assertEqual(missing, "Overall 50.0 / 100 · Early · Technology readiness —")
 
 
 class SaidAccuratelyTests(unittest.TestCase):
@@ -1606,7 +1847,7 @@ class ScoreSummaryTests(unittest.TestCase):
         self.assertEqual((summary["value"], summary["denom"], summary["band"], summary["tone"]),
                          ("74.0", "/ 100", "Strong", "success"))
         self.assertEqual([row[:3] for row in summary["rows"]], [
-            ["Technology readiness", "9 / 9", "100%"], ["Manufacturing readiness", "9 / 10", "90%"],
+            ["Technology readiness · TRL 9", "9 / 9", "100%"], ["Manufacturing readiness", "9 / 10", "90%"],
             ["Patent position", "3 / 5", "60%"], ["Market accessibility", "3.5 / 5", "70%"],
             ["Evidence confidence", "4 / 5", "80%"]])
         self.assertEqual([row[:3] for row in summary["rows"]], [row[:3] for row in full["rows"]])
@@ -1619,7 +1860,7 @@ class ScoreSummaryTests(unittest.TestCase):
     def test_the_summary_is_said_in_the_readers_language_and_grade(self):
         zh = self._run(summary={**self._SCORES, "overall_score": 48.6}, language="Simplified Chinese")["summary"]
         self.assertEqual((zh["value"], zh["band"], zh["tone"]), ("48.6", "早期", "warning"))
-        self.assertEqual(zh["rows"][0][0], "技术就绪度")
+        self.assertEqual(zh["rows"][0][0], "技术就绪度 · TRL 9")
 
     def test_a_dimension_that_cannot_be_read_is_a_dash_and_nothing_more(self):
         summary = self._run(summary={**self._SCORES, "mrl_score": 0, "patent_strength": "3"})["summary"]
@@ -1956,7 +2197,7 @@ def _reply(**conclusion):
     stated = {"status": "stated", "verdict": "defer", "statement": _STATEMENT, "section": "Executive Summary",
               "follows": ["Licensing should be revisited once outdoor module data exist [A3]."],
               "needle": "In sum, the actor-specific conclusion is DEFER because module-scale validation",
-              "statements": []}
+              "bare": False, "statements": []}
     stated.update(conclusion)
     return {"run_id": "r", "asked": True, "question": _QUESTION, "conclusion": stated}
 
@@ -2079,6 +2320,112 @@ class DecisionConclusionTests(unittest.TestCase):
         chinese = self._card(_reply(statement="决策结论为暂缓许可 [A2]。", follows=["待取得户外数据后重新评估 [A3]。", "第三句。"]),
                              "Simplified Chinese")["card"]
         self.assertEqual(chinese["says"], "报告原文： 决策结论为暂缓许可 [A2]。待取得户外数据后重新评估 [A3]。第三句。")
+
+    def test_a_conclusion_line_with_no_stop_is_not_run_into_its_reasons(self):
+        """Production run 20261120T131247Z-55c7… wrote "**Conclusion:** **DEFER**"
+        alone and its reasons in the next paragraph. Joined with a space the
+        card would read "Conclusion: DEFER Evidence conditions…", and a full
+        stop put in would be the page's, not the report's: a line break, as
+        decision_verdict.joined makes for the PDF."""
+        follows = ["Evidence conditions behind the conclusion: module-scale stability data are missing [A2].",
+                   "No freedom-to-operate opinion has been obtained [P1]."]
+        card = self._card(_reply(statement="Conclusion: DEFER", follows=follows, bare=True))["card"]
+        self.assertEqual(card["says"], "The report says: Conclusion: DEFER\nEvidence conditions behind the conclusion: "
+                         "module-scale stability data are missing [A2]. No freedom-to-operate opinion has been obtained [P1].")
+        # A line that ends with its stop, or with a citation after it, is joined by a space as before.
+        for statement in ("Conclusion: DEFER.", "Conclusion: DEFER. [A2]", "Conclusion: DEFER [A2]."):
+            with self.subTest(statement=statement):
+                shown = self._card(_reply(statement=statement, follows=["Next sentence."], bare=True))["card"]
+                self.assertEqual(shown["says"], f"The report says: {statement} Next sentence.")
+        # A citation with no stop before it is no stop.
+        cited = self._card(_reply(statement="Conclusion: DEFER [A2]", follows=["Next sentence."], bare=True))["card"]
+        self.assertEqual(cited["says"], "The report says: Conclusion: DEFER [A2]\nNext sentence.")
+        # The break is drawn: the card's text keeps line breaks (and only the server's text is in it).
+        css = (Path(__file__).resolve().parents[1] / "web" / "static" / "css" / "result.css").read_text(encoding="utf-8")
+        self.assertRegex(css, r"\.verdict-card__text\s*\{\s*white-space:\s*pre-line;\s*\}")
+
+    def test_a_bare_conclusion_line_shows_its_first_reason_even_when_the_passage_is_long(self):
+        """The production report of 20261120T131247Z-55c7… (read 2026-11-21):
+        "Conclusion: DEFER" alone, then two sentences of reasons, 497
+        characters in all, over the card's 480. The card showed the statement
+        and a button, which for a line that says only the verdict is the
+        headline twice and the reasons behind a press."""
+        first = ("Evidence conditions behind the conclusion: The validated evidence supports promising high-energy "
+                 "pouch-cell demonstrations and pre-industrial prototype activity [A1, A2], and market signals show "
+                 "early aerospace testing and emerging eVTOL certification pathways [M3, M6].")
+        second = ("However, solid-state lithium-metal aviation batteries remain pre-commercial or early pilot stage, "
+                  "and the evidence does not show certified deployment, procurement contracts, or recurring revenue "
+                  "[M5, M3, M6].")
+        card = self._card(_reply(statement="Conclusion: DEFER", follows=[first, second], bare=True))["card"]
+        self.assertEqual(card["says"], f"The report says: Conclusion: DEFER\n{first} Show what follows it")
+        self.assertEqual(card["more"]["text"], "Show what follows it")
+        self.assertTrue(card["more"]["after"].endswith("recurring revenue [M5, M3, M6]."))
+        # A statement that says more than the verdict still shows itself alone when the passage is long.
+        long = self._card(_reply(follows=[first, second]))["card"]
+        self.assertEqual(long["says"], f"The report says: {_STATEMENT} Show what follows it")
+        # And a first reason too long for the card is not forced in.
+        huge = self._card(_reply(statement="Conclusion: DEFER", follows=[first * 3], bare=True))["card"]
+        self.assertEqual(huge["says"], "The report says: Conclusion: DEFER Show what follows it")
+
+    def test_a_passage_ending_with_a_colon_is_followed_by_the_list_it_introduces(self):
+        """The public sample perovskite-silicon-tandem (2026-11-21): the card
+        quoted "…based on four evidence conditions [A1][A3][M6][P1–P8]:" and
+        stopped there. The four conditions come with it, numbered as the
+        report numbers them, citations as buttons."""
+        follows = ["This report recommends DEFER on the decision, based on four evidence conditions [A1][A3]:"]
+        items = ["The asset's certified performance is not in the validated evidence [A1].",
+                 "Field durability, yield and cost data are absent [M6].",
+                 "The patent evidence is snippet-level [P1, P2].", "The market estimates diverge widely [M3]."]
+        reply = _reply(statement="Decision applicability and conclusion: DEFER.", follows=follows, bare=True,
+                       items=items, ordered=True, listed=4)
+        card = self._card(reply)["card"]
+        self.assertEqual(card["says"], "The report says: Decision applicability and conclusion: DEFER. " + follows[0])
+        self.assertEqual(card["list"]["tag"], "OL")
+        self.assertEqual(card["list"]["items"], items)
+        self.assertEqual(card["list"]["cites"], ["A1", "M6", "P1 P2", "M3"])
+        self.assertIsNone(card["listed"])
+        bullets = self._card(_reply(follows=follows, items=items[:2], ordered=False, listed=2))["card"]
+        self.assertEqual(bullets["list"]["tag"], "UL")
+        # A list the report has and the card does not quote is pointed to, never cut.
+        many = self._card(_reply(follows=follows, items=[], ordered=True, listed=6))["card"]
+        self.assertIsNone(many["list"])
+        self.assertEqual(many["listed"], "(The report lists 6 points here: see them in the report.)")
+        nothing = self._card(_reply(follows=follows, items=[], listed=0), "Simplified Chinese")["card"]
+        self.assertEqual(nothing["listed"], "（报告在这里接着写了下去，在报告中查看）")
+        chinese = self._card(_reply(follows=follows, items=[], listed=6), "Simplified Chinese")["card"]
+        self.assertEqual(chinese["listed"], "（报告在这里列出了 6 项，在报告中查看）")
+        # A passage that does not lead into anything has neither.
+        plain = self._card(_reply())["card"]
+        self.assertEqual((plain["list"], plain["listed"]), (None, None))
+        # A malformed reply is no list: only strings, and never a part of a list.
+        odd = self._card(_reply(follows=follows, items=["One.", 7, None], listed="4"))["card"]
+        self.assertEqual(odd["list"]["items"], ["One."])
+        self.assertIsNone(odd["listed"])
+        six = self._card(_reply(follows=follows, items=[f"Entry {n}." for n in range(6)], listed=6))["card"]
+        self.assertIsNone(six["list"])
+        self.assertEqual(six["listed"], "(The report lists 6 points here: see them in the report.)")
+        uncounted = self._card(_reply(follows=follows, items=[f"Entry {n}." for n in range(5)], listed=None))["card"]
+        self.assertEqual(uncounted["listed"], "(The report lists 5 points here: see them in the report.)")
+        # Where the passage is too long to show at once, the list waits for it.
+        long = self._card(_reply(follows=["Licensing should wait for outdoor data [A3]. " * 12 + "Conditions:"],
+                                 items=items, ordered=True, listed=4))["card"]
+        self.assertIsNone(long["list"])
+        self.assertEqual(long["more"]["list"], items)
+
+    def test_the_comparison_row_gives_the_conclusion_and_its_first_reason_not_the_conclusion_twice(self):
+        """The comparison of 2026-11-20 showed `DEFER: "Conclusion: DEFER."` for a
+        run whose card had its reasons: the row quoted the statement only."""
+        line = lambda **over: self._card(_reply(**over))["line"]  # noqa: E731
+        bare = line(statement="Conclusion: DEFER.", bare=True,
+                    follows=["The office should defer a full licence until module data exist [A2].", "A second sentence."])
+        self.assertEqual(bare, {"text": "DEFER: “The office should defer a full licence until module data exist [A2].”",
+                                "tone": "warning"})
+        # Nothing after it: the conclusion alone, not quoted again.
+        self.assertEqual(line(statement="Conclusion: DEFER.", bare=True, follows=[]), {"text": "DEFER", "tone": "warning"})
+        # A statement that says more than the verdict is its own first reason.
+        self.assertEqual(line(), {"text": f"DEFER: “{_STATEMENT}”", "tone": "warning"})
+        self.assertEqual(line(statement="Decision: DEFER until module data exist [A2].", bare=False, follows=["Next."]),
+                         {"text": "DEFER: “Decision: DEFER until module data exist [A2].”", "tone": "warning"})
 
     def test_the_passage_is_found_by_its_text_then_by_its_heading(self):
         blocks = [{"tagName": "H2", "textContent": "Executive Summary"},

@@ -41,7 +41,7 @@ class SampleCatalogTests(unittest.TestCase):
         for item in listed:
             self.assertNotIn("file", item)
             self.assertEqual(set(item), {"slug", "title", "title_zh", "topic", "committed", "commit", "model",
-                                         "language", "overall_score", "trl_score"})
+                                         "language", "decision", "overall_score", "trl_score"})
 
     def test_unknown_slug_is_a_key_error_not_a_path_lookup(self):
         for slug in ("nope", "../pyproject.toml", "..\\README.md", "README"):
@@ -135,7 +135,7 @@ class SampleHttpTests(unittest.TestCase):
         model = schema["components"]["schemas"][answer["items"]["$ref"].rsplit("/", 1)[-1]]
         self.assertEqual(set(model["properties"]),
                          {"slug", "title", "title_zh", "topic", "committed", "commit", "model", "language",
-                          "overall_score", "trl_score"})
+                          "decision", "overall_score", "trl_score"})
         self.assertNotIn("file", model["properties"])
 
     def test_a_sample_whose_scorecard_cannot_be_read_is_listed_without_a_score(self):
@@ -251,6 +251,109 @@ class SampleHttpTests(unittest.TestCase):
                 with self.subTest(body=body), patch.object(samples, "_EXAMPLES_ROOT", Path(tmp)), \
                         patch.object(samples, "_BY_SLUG", {"broken": broken}):
                     self.assertEqual(self.client.get("/api/samples/broken/scores").status_code, 404)
+
+    def test_a_sample_carries_a_decision_context_exactly_where_its_report_was_permitted_a_conclusion(self):
+        """The entry is the only record of what the run was asked, so it is held
+        to the report's own code-written applicability paragraph: decision
+        support with a GO / NO-GO permitted where the entry has a context, and
+        not otherwise. The owner it names is the one the report names."""
+        decided = [sample for sample in samples.SAMPLES if sample.decision is not None]
+        self.assertEqual([sample.slug for sample in decided], ["perovskite-silicon-tandem"])
+        for sample in samples.SAMPLES:
+            with self.subTest(slug=sample.slug):
+                report = samples.read_sample(sample.slug)
+                block = report.split("## ", 1)[0]
+                permitted = "Mode `decision_support`" in block and "`GO/NO_GO` is permitted" in block
+                self.assertEqual(permitted, sample.decision is not None)
+                if sample.decision is not None:
+                    for field in ("asset_description", "target_application", "decision_owner", "decision_type"):
+                        self.assertTrue(getattr(sample.decision, field).strip(), field)
+                    self.assertIn(sample.decision.decision_owner.lower(), report.lower())
+
+    def test_the_conclusion_is_read_from_the_committed_report_and_needs_no_code(self):
+        """What the run page's card shows for a run, on the committed file: the
+        owner and the decision the entry records, and the conclusion the
+        report states, found in it now by the run page's reader. A sample run
+        without a decision context is answered `asked: false` and nothing else."""
+        from academic_agent.decision_verdict import find_verdict
+        from academic_agent.report_display import conclusion_for_display
+
+        with patch.object(access, "ACCESS_CODE", "secret123"):
+            answers = {sample.slug: self.client.get(f"/api/samples/{sample.slug}/decision") for sample in samples.SAMPLES}
+            # Control: nothing but GET is let through.
+            self.assertEqual(self.client.post("/api/samples/perovskite-silicon-tandem/decision", json={}).status_code, 401)
+        for sample in samples.SAMPLES:
+            with self.subTest(slug=sample.slug):
+                answer = answers[sample.slug]
+                self.assertEqual(answer.status_code, 200)
+                body = answer.json()
+                if sample.decision is None:
+                    self.assertEqual(body, {"asked": False, "question": None, "conclusion": None})
+                    continue
+                self.assertTrue(body["asked"])
+                self.assertEqual(body["question"], {"decision_owner": sample.decision.decision_owner,
+                                                    "decision_type": sample.decision.decision_type})
+                report = samples.read_sample(sample.slug)
+                self.assertEqual(body["conclusion"], json.loads(json.dumps(
+                    conclusion_for_display(find_verdict(report), report))))
+        perovskite = answers["perovskite-silicon-tandem"].json()["conclusion"]
+        self.assertEqual((perovskite["status"], perovskite["verdict"]), ("stated", "defer"))
+        self.assertEqual(perovskite["statement"], "Decision applicability and conclusion: DEFER.")
+        # The section is named as the displayed report heads it, so the card's
+        # link finds it on the page the reader draws.
+        self.assertIn(f"## {perovskite['section']}\n", self.client.get("/api/samples/perovskite-silicon-tandem").text)
+        self.assertEqual({item["verdict"] for item in perovskite["statements"]}, {"defer"})
+
+    def test_the_card_quotes_words_the_served_report_contains(self):
+        """The rule the card's link depends on: the statement, its needle and
+        its section are in the words of the report the page draws, which is
+        the display text, not the committed bytes. The committed sample reads
+        the same either way, so a report whose display text differs stands in:
+        "GO/NO_GO" is shown as "GO / NO-GO", and a quote of the saved bytes
+        would match nothing on the page."""
+        report = ("# T\n\n## Executive Summary\n\nText here.\n\n"
+                  "## 5. Commercialization Opportunities & Recommendations\n\n"
+                  "Conclusion: DEFER, pending evidence for each GO/NO_GO gate.\n")
+        entry = samples.Sample("shown", "shown.md", "t", "t", "2026-01-01", "0000000", "model-x",
+                               decision=samples.SampleDecision("a", "b", "Owner", "Decide"))
+        with TemporaryDirectory() as tmp:
+            (Path(tmp) / "shown.md").write_text(report, encoding="utf-8")
+            with patch.object(samples, "_EXAMPLES_ROOT", Path(tmp)), patch.object(samples, "_BY_SLUG", {"shown": entry}):
+                conclusion = self.client.get("/api/samples/shown/decision").json()["conclusion"]
+                served = self.client.get("/api/samples/shown").text
+        flat = " ".join(served.split())
+        self.assertEqual(conclusion["status"], "stated")
+        self.assertIn("GO / NO-GO", conclusion["statement"])
+        for key in ("statement", "needle"):
+            self.assertIn(" ".join(conclusion[key].split()), flat, key)
+        self.assertIn(f"## {conclusion['section']}\n", served)
+
+    def test_no_conclusion_is_a_404_for_an_unknown_or_missing_sample(self):
+        for path in ("/api/samples/nope/decision", "/api/samples/..%2Fpyproject.toml/decision",
+                     "/api/samples/perovskite-silicon-tandem/decision/extra"):
+            with self.subTest(path=path):
+                self.assertEqual(self.client.get(path).status_code, 404)
+        gone = samples.Sample("gone", "does-not-exist.md", "t", "t", "2026-01-01", "0000000", "model-x",
+                              decision=samples.SampleDecision("a", "b", "c", "d"))
+        with patch.object(samples, "_BY_SLUG", {"gone": gone}):
+            self.assertEqual(self.client.get("/api/samples/gone/decision").status_code, 404)
+
+    def test_the_conclusion_endpoint_declares_what_it_returns(self):
+        """Declared, so a field the model left out cannot be dropped silently
+        on its way to the page (AGENTS.md: test the seam)."""
+        schema = app.openapi()
+        answer = schema["paths"]["/api/samples/{slug}/decision"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
+        model = schema["components"]["schemas"][answer["$ref"].rsplit("/", 1)[-1]]
+        self.assertEqual(set(model["properties"]), {"asked", "question", "conclusion"})
+        listed = self.client.get("/api/samples").json()
+        self.assertEqual(listed[0]["decision"], {
+            "asset_description": "Lab-scale perovskite-silicon tandem solar cell technology from a university research group",
+            "target_application": "Utility-scale photovoltaic modules",
+            "decision_owner": "Technology transfer office",
+            "decision_type": "License the technology",
+        })
+        self.assertEqual([item["slug"] for item in listed if item["decision"] is None],
+                         [sample.slug for sample in samples.SAMPLES if sample.decision is None])
 
     def test_reader_page_is_served_for_list_and_deep_links(self):
         with patch.object(access, "ACCESS_CODE", "secret123"):
@@ -378,11 +481,52 @@ class SampleClientTests(unittest.TestCase):
                 found = dict(re.findall(r'^\s+(samples_\w+): "((?:[^"\\]|\\.)*)",?\s*$', table, re.M))
                 self.assertGreaterEqual(len(found), 14)
                 self.assertEqual([key for key, text in found.items() if caution.search(text)], ["samples_historical"])
-                for part in ("{date}", "{commit}", "{model}"):
+                for part in ("{date}", "{model}"):
                     self.assertIn(part, found["samples_historical"])
+                # "On pipeline 9bd948c" was a term to a reader: the commit is
+                # under "Technical details" (samples_revision), not in the sentence.
+                self.assertNotIn("{commit}", found["samples_historical"])
+                self.assertNotRegex(found["samples_historical"], r"(?i)pipeline|流水线")
+                self.assertIn("{commit}", found["samples_revision"])
         self.assertEqual(re.search(r'samples_sub: "([^"]+)"', english)[1],
                          "Finished assessments you can read without an account or API keys.")
         self.assertEqual(re.search(r'samples_sub: "([^"]+)"', chinese)[1], "无需账号或 API Key 即可阅读的完整评估。")
+
+
+class SampleListLayoutTests(unittest.TestCase):
+    """Seen at 717 px on 2026-11-21: the cards were one row that scrolled
+    sideways, two and a half of them showed, and the one sample with a
+    decision conclusion was the seventh. The page also said "Choose a report
+    above." before there was anything above to choose."""
+
+    def test_the_sample_with_a_decision_conclusion_comes_first(self):
+        self.assertIsNotNone(samples.SAMPLES[0].decision)
+        self.assertEqual(samples.list_samples()[0]["slug"], "perovskite-silicon-tandem")
+        self.assertEqual(sum(1 for sample in samples.SAMPLES if sample.decision), 1)
+
+    def test_every_card_is_on_the_page_at_every_width(self):
+        css = (_REPO / "web/static/css/samples.css").read_text(encoding="utf-8")
+        listing = css[css.index(".samples__list {"):]
+        self.assertNotRegex(css, r"\.samples__list \{[^}]*overflow-x", "no row that scrolls sideways")
+        self.assertNotIn("scroll-snap", css)
+        self.assertRegex(listing, r"^\.samples__list \{\s*display: grid;")
+        narrow = css[css.index("@media (max-width: 767px)"):]
+        narrow = narrow[:narrow.index("\n}\n")]
+        self.assertRegex(narrow, r"\.samples__list \{[^}]*grid-template-columns: repeat\(auto-fill, minmax\(")
+        reader = (_REPO / "web/static/js/samples.js").read_text(encoding="utf-8")
+        self.assertNotIn("scrollLeft", reader, "nothing scrolls sideways to bring a card into view")
+
+    def test_the_page_holds_placeholders_until_the_list_arrives(self):
+        page = (_REPO / "web/samples.html").read_text(encoding="utf-8")
+        listing = page[page.index('id="sample-list"'):page.index("</nav>")]
+        self.assertIn('aria-busy="true"', listing)
+        self.assertEqual(listing.count('class="sample-card sample-card--placeholder" aria-hidden="true"'), 4)
+        reader = page[page.index('id="sample-reader"'):]
+        reader = reader[:reader.index("</section>")]
+        self.assertNotIn("samples_choose", reader)
+        self.assertIn('<div class="skeleton"></div>', reader)
+        css = (_REPO / "web/static/css/samples.css").read_text(encoding="utf-8")
+        self.assertIn(".sample-card--placeholder", css)
 
 
 _ALLOWED_TAGS = {
@@ -429,7 +573,7 @@ class SampleRenderingTests(unittest.TestCase):
 
     def test_every_sample_yields_a_brief_and_a_scorecard_through_the_shipped_renderer(self):
         """The run page's own functions on the committed files: the verdict,
-        the report's first sentence, a risk and a first step for all six, and
+        the report's first sentence, a risk and a first step for every sample, and
         five readable dimensions each with its reason."""
         harness = textwrap.dedent("""
             import { readFileSync } from "node:fs";
@@ -447,8 +591,10 @@ class SampleRenderingTests(unittest.TestCase):
             const cls = (node) => node.className ?? "";
             const mod = await import("./result.mjs");
             const inputs = JSON.parse(readFileSync(process.argv[2], "utf-8"));
-            console.log(JSON.stringify(inputs.map(({ scores, markdown }) => {
-              const data = mod.decisionBrief({ scores, markdown });
+            console.log(JSON.stringify(inputs.map(({ scores, markdown, decided }) => {
+              // As samples.js does for a sample whose run was given a decision context.
+              const progress = decided ? { decision_gate: { mode: "decision_support" } } : null;
+              const data = mod.decisionBrief({ scores, markdown, progress });
               const brief = flat(mod.renderDecisionBrief(data, { note: "said by the sample page" }));
               const card = flat(mod.renderScorecard(scores));
               return {
@@ -472,7 +618,8 @@ class SampleRenderingTests(unittest.TestCase):
             shutil.copy2(_REPO / "web/static/js/i18n.js", work / "i18n.js")
             (work / "run.mjs").write_text(harness, encoding="utf-8")
             inputs = [{"scores": samples.read_sample_scores(s.slug),
-                       "markdown": report_for_display(samples.read_sample(s.slug))} for s in samples.SAMPLES]
+                       "markdown": report_for_display(samples.read_sample(s.slug)),
+                       "decided": s.decision is not None} for s in samples.SAMPLES]
             (work / "inputs.json").write_text(json.dumps(inputs), encoding="utf-8")
             result = subprocess.run(
                 [shutil.which("node"), str(work / "run.mjs"), str(work / "inputs.json")],
@@ -486,15 +633,18 @@ class SampleRenderingTests(unittest.TestCase):
                 self.assertEqual(shown["value"], overall)
                 for line in ("summary", "risk", "next"):
                     self.assertTrue(shown[line], line)
-                # All six open their recommendations by naming the assessment
+                # Every one opens its recommendations by naming the assessment
                 # mode; that sentence was each one's "first recommended step".
                 self.assertNotRegex(shown["next"], r"(?i)^(assessment mode|decision owner|评估模式)")
                 self.assertNotRegex(shown["next"], r"[:：]$")
                 self.assertEqual(shown["empty"], 0, "no card of the brief is left saying there is nothing")
-                # No decision context was given to any of these runs, and a
-                # sample keeps no checks: the context line is the one that
-                # is always true of them.
-                self.assertIn("brief_change_context", shown["changers"])
+                # A sample keeps no checks, so the context line is what tells
+                # a reader what a decision context would add; the one run
+                # that was given a context is not told it would help.
+                if sample.decision is None:
+                    self.assertIn("brief_change_context", shown["changers"])
+                else:
+                    self.assertNotIn("brief_change_context", shown["changers"])
                 self.assertEqual(shown["note"], "said by the sample page")
                 self.assertEqual(len(shown["dims"]), 5)
                 self.assertNotIn("—", shown["dims"])
@@ -512,7 +662,7 @@ class SampleProvenanceTests(unittest.TestCase):
             with self.subTest(slug=sample.slug):
                 self.assertIn(f"]({sample.file})", readme, "a listed sample is described in examples/README.md")
                 self.assertIn(f"`{sample.model}`", readme, "...with the model it was run on")
-        self.assertIn("Six complete", readme)
+        self.assertIn("Seven complete", readme)
 
     def test_every_sample_names_a_model_and_a_revision(self):
         for sample in samples.SAMPLES:
@@ -520,8 +670,11 @@ class SampleProvenanceTests(unittest.TestCase):
                 self.assertRegex(sample.commit, r"^[0-9a-f]{7}$")
                 self.assertRegex(sample.model, r"^[a-z0-9][a-z0-9.-]+$")
                 self.assertRegex(sample.committed, r"^\d{4}-\d{2}-\d{2}$")
-        # The notice on the page says all three.
+        # The notice on the page says all three: the date and the model in its
+        # sentence, the revision under "Technical details".
         strings = (_REPO / "web/static/js/samples_i18n.js").read_text(encoding="utf-8")
         self.assertEqual(strings.count("{model}"), 2)
+        self.assertEqual(strings.count("{commit}"), 2)
         source = (_REPO / "web/static/js/samples.js").read_text(encoding="utf-8")
-        self.assertIn('.replace("{model}", sample.model)', source)
+        self.assertIn('.replace("{model}", () => sample.model)', source)
+        self.assertIn('t("samples_revision").replace("{commit}", () => sample.commit)', source)

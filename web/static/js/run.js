@@ -1,7 +1,7 @@
 /* Live run: stage model, polling, and the progress view. */
 
 import * as api from "./api.js";
-import { t, language as uiLanguage } from "./i18n.js";
+import { t, language as uiLanguage, locale } from "./i18n.js";
 
 /* ── Stage model ───────────────────────────────────────────────────────
  * The worker reports one free-text stage string at a time. The UI shows the
@@ -289,13 +289,21 @@ export function usageSummary(usage, accounting = null) {
  * thousand tokens. That text is the record and stays inside the fold; this
  * line is what a reader gets without opening it.
  *
- * No sum is ever invented: a run whose model has no price, or whose recorded
- * cost is zero, says the cost cannot be estimated and names the model; a
- * partial sum is a floor and is said as one. "" where no tokens are on
- * record or the collector says its record is unavailable: the fold then
- * keeps its plain name, and the text inside says why.
+ * No sum is ever invented: a run whose model has no price says no cost is
+ * shown and names the model, and one whose recorded cost is zero says the
+ * cost cannot be estimated; a partial sum is a floor and is said as one. ""
+ * where no tokens are on record or the collector says its record is
+ * unavailable: the fold then keeps its plain name, and the text inside says
+ * why.
+ *
+ * `fundedBy` is the run's `funded_by`. "cost cannot be estimated: no price
+ * on record for qwen3.8-2.4t-a95b" headed every run on the account's saved
+ * model and on the deployment's default (production, 2026-11-20): a sentence
+ * about this site's price table. A reader who paid with their own key is
+ * told where the exact amount is; a run the site paid for is not sent to a
+ * console its reader does not have.
  */
-export function usageHeadline(usage, accounting = null) {
+export function usageHeadline(usage, accounting = null, fundedBy = null) {
   if (accounting?.state === "unavailable") return "";
   const tokens = usage?.total_tokens;
   if (!Number.isFinite(tokens) || tokens <= 0) return "";
@@ -308,8 +316,11 @@ export function usageHeadline(usage, accounting = null) {
   const priced = Number.isFinite(usage.cost_usd) && usage.cost_usd > 0;
   let cost;
   if (!priced) {
-    const missing = unpriced.length ? unpriced : models;
-    cost = missing.length ? say("usage_head_no_cost", { models: missing.join(", ") }) : say("usage_head_no_cost_plain");
+    // A record from before unpriced_models was kept says nothing but a null
+    // cost; its models are the unpriced ones. A zero is not "no price".
+    const missing = unpriced.length ? unpriced : usage.cost_usd == null ? models : [];
+    const key = fundedBy === "own_keys" ? "usage_head_no_price_own" : "usage_head_no_price";
+    cost = missing.length ? say(key, { models: missing.join(", ") }) : say("usage_head_no_cost_plain");
   } else {
     const sum = usage.cost_usd < 0.01 ? say("usage_head_under_a_cent") : `$${usage.cost_usd.toFixed(2)}`;
     if (usage.cost_complete === false && unpriced.length) {
@@ -388,7 +399,8 @@ const HEADER_STRINGS = {
     usage_head_cost_floor_plain: "estimated cost at least {cost}",
     usage_head_cost_missing: "estimated cost at least {cost}; no price on record for {models}",
     usage_head_under_a_cent: "under $0.01",
-    usage_head_no_cost: "cost cannot be estimated: no price on record for {models}",
+    usage_head_no_price: "no cost shown, as no unit price is on record yet for {models}",
+    usage_head_no_price_own: "no cost shown, as no unit price is on record yet for {models}; see your provider's console for the exact amount",
     usage_head_no_cost_plain: "cost cannot be estimated",
     stage_timing: "Stage timing",
     eta_left: "about {range} left",
@@ -419,6 +431,19 @@ const HEADER_STRINGS = {
     // On the run a resume continued (the reads' continued_by).
     continued_note: "This run was resumed later.",
     continued_open: "Open the run that continued it",
+    // The header a reader of someone else's run is shown (readerHeader).
+    reader_assessed: "Assessed {date}",
+    reader_started: "Started {date}",
+    reader_assessed_range: "Assessed {from} – {to}",
+    reader_started_range: "Started {from} – {to}",
+    reader_dates_title: "Dates are in UTC.",
+    reader_model: "Model: {model}",
+    reader_took: "took {time}",
+    reader_took_all: "took {time} in all",
+    reader_ran: "ran for {time}",
+    reader_ran_all: "ran for {time} in all",
+    reader_running: "running for {time}",
+    reader_running_all: "running for {time} in all",
     // While the account's own assessment is going (activeRunNotice).
     busy_banner: "You have an assessment in progress: {topic}.",
     busy_banner_plain: "You have an assessment in progress.",
@@ -456,7 +481,8 @@ const HEADER_STRINGS = {
     resume_note_model_changed: "It will run on {model}, not on {ranOn}, which this run used.",
     resume_step_evidence: "the evidence analysis",
     resume_step_writing: "writing the report",
-    resume_step_review: "the review and scoring",
+    resume_step_review: "the review",
+    resume_step_scoring: "the scoring",
     // The main action when the cause is the reader's model or key.
     fix_model: "Change the model",
     fix_keys: "Check your API keys",
@@ -478,7 +504,8 @@ const HEADER_STRINGS = {
     usage_head_cost_floor_plain: "估算费用至少 {cost}",
     usage_head_cost_missing: "估算费用至少 {cost}；{models} 没有记录价格",
     usage_head_under_a_cent: "不到 $0.01",
-    usage_head_no_cost: "费用无法估算：{models} 没有记录价格",
+    usage_head_no_price: "{models} 还没有登记单价，所以不显示费用",
+    usage_head_no_price_own: "{models} 还没有登记单价，所以不显示费用；准确金额请看你的服务商控制台",
     usage_head_no_cost_plain: "费用无法估算",
     stage_timing: "阶段耗时",
     eta_left: "预计还需约 {range}",
@@ -507,6 +534,18 @@ const HEADER_STRINGS = {
     lineage_missing: "上一次运行的记录已被删除，所以这些数字只包含本次运行。",
     continued_note: "这次运行后来已被续跑。",
     continued_open: "打开接着它做的那次运行",
+    reader_assessed: "评估于 {date}",
+    reader_started: "开始于 {date}",
+    reader_assessed_range: "评估于 {from}至{to}",
+    reader_started_range: "开始于 {from}至{to}",
+    reader_dates_title: "日期按 UTC 计。",
+    reader_model: "模型：{model}",
+    reader_took: "用时 {time}",
+    reader_took_all: "合计用时 {time}",
+    reader_ran: "运行了 {time}",
+    reader_ran_all: "合计运行了 {time}",
+    reader_running: "已运行 {time}",
+    reader_running_all: "合计已运行 {time}",
     busy_banner: "你有一份评估正在进行：{topic}。",
     busy_banner_plain: "你有一份评估正在进行。",
     busy_view: "查看",
@@ -538,7 +577,8 @@ const HEADER_STRINGS = {
     resume_note_model_changed: "它会在 {model} 上运行，而不是这次运行所用的 {ranOn}。",
     resume_step_evidence: "证据分析",
     resume_step_writing: "撰写报告",
-    resume_step_review: "评审与评分",
+    resume_step_review: "核查",
+    resume_step_scoring: "评分",
     fix_model: "更换模型",
     fix_keys: "检查 API Key",
     leave_note: "可以关掉这个页面，完成后在左侧历史里找到它。",
@@ -729,6 +769,83 @@ export function lineageSummary({ state, recovery, lineage, elapsed_seconds, usag
   }
   // Chinese sets no space between a word and the "至少" that follows it.
   return { reuse, earlier, totals: totals.replace(/([一-鿿]) (?=至少)/g, "$1"), missing };
+}
+
+/* When a run was started, from its id: create_run_id() begins every id with
+ * that moment in UTC. null for an id that does not. */
+export function runStartedAt(runId) {
+  const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z-/.exec(typeof runId === "string" ? runId : "");
+  if (!m) return null;
+  const when = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]));
+  return Number.isNaN(when.getTime()) ? null : when;
+}
+
+/**
+ * The header a reader of someone else's run is shown: when it was assessed,
+ * on which model, and how long it took. The header under the title was
+ * written for whoever ran it, and a shared link is how a report travels: a
+ * colleague it was forwarded to read token counts, "see your provider's
+ * console", the stage times and a paragraph about resuming, and "3:57" for
+ * an assessment that had taken 29 minutes over two runs (production run
+ * 20261120T131247Z, 2026-11-21). app.js shows this instead of those to
+ * anyone who may not modify the run; its owner's header is unchanged.
+ *
+ * Returns { assessed, title, model, seconds, timeKey }, each "" or null when
+ * there is nothing sure to say:
+ *  - `assessed`: the day the assessment began, which is when its evidence
+ *    was gathered. A resume takes its evidence from the run it continues,
+ *    so a chain begins with its oldest run (every id in `lineage`, which the
+ *    reads give any reader), unless this run could reuse nothing and
+ *    gathered its own (`cold_start`); a chain over several days is said as
+ *    a span. In UTC, as the ids are, and the title says so.
+ *  - `model`: the model the run was configured with, else its usage record's.
+ *  - `seconds` and `timeKey`: how long it took, in all for a resume. The
+ *    total follows the server's rule (runs._lineage): written only when it
+ *    knows every run's time (`elapsed_complete`), never a partial sum.
+ */
+export function readerHeader({ run_id, state, llm_model, usage, elapsed_seconds, lineage, recovery, stage_timings } = {}) {
+  const firstStage = Array.isArray(stage_timings) ? new Date(stage_timings[0]?.started_at ?? NaN) : null;
+  const own = runStartedAt(run_id) ?? (firstStage && !Number.isNaN(firstStage.getTime()) ? firstStage : null);
+  const earlier = Array.isArray(lineage?.earlier) ? lineage.earlier : [];
+  let from = own;
+  if (own && recovery?.state !== "cold_start") {
+    for (const row of earlier) {
+      const began = runStartedAt(row?.run_id);
+      if (began && began < from) from = began;
+    }
+  }
+  const day = (when) => new Intl.DateTimeFormat(locale(), { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
+    .format(when);
+  const done = state === "completed";
+  let assessed = "";
+  if (own) {
+    assessed = day(from) === day(own)
+      ? say(done ? "reader_assessed" : "reader_started", { date: day(own) })
+      : say(done ? "reader_assessed_range" : "reader_started_range", { from: day(from), to: day(own) });
+  }
+
+  const configured = typeof llm_model === "string" ? llm_model.trim() : "";
+  const recorded = [...new Set((usage?.agents ?? []).map((agent) => agent?.model).filter((name) => typeof name === "string" && name))];
+  const named = configured || recorded.join(", ");
+
+  const known = (value) => Number.isFinite(value) && value >= 0;
+  const all = Boolean(lineage);
+  const combined = lineage?.combined;
+  const seconds = !all ? (known(elapsed_seconds) ? elapsed_seconds : null)
+    : combined?.elapsed_complete === true && known(combined.elapsed_seconds) ? combined.elapsed_seconds : null;
+  const verb = state === "running" ? "reader_running" : done ? "reader_took" : "reader_ran";
+  return {
+    assessed,
+    title: assessed ? headerLabel("reader_dates_title") : "",
+    model: named ? say("reader_model", { model: named }) : "",
+    seconds,
+    timeKey: all ? `${verb}_all` : verb,
+  };
+}
+
+/** "took 29:28 in all": a reader's time line for `seconds`, by readerHeader's key. */
+export function readerTime(timeKey, seconds) {
+  return say(timeKey, { time: formatDuration(seconds) });
 }
 
 /**
@@ -1078,12 +1195,24 @@ export function failureGuide({
 
 /* Where a resumed run starts again: the first of these whose nodes are not
  * all saved. The node names are the checkpoints' own
- * (checkpoint_runtime.TASK_NODES); a test holds the two lists together. */
+ * (checkpoint_runtime.TASK_NODES), and the steps are the stages above, one
+ * for one, so this note and the resumed run's own "Run here" line name the
+ * same step; a test holds all three together. The reviewer and the scorer
+ * were one step until 2026-11-20, when a run that failed in scoring with its
+ * reviewer saved was said to start again "at the review and scoring" and its
+ * resume ran the scoring alone. */
 export const RESUME_STEPS = [
-  { label: "resume_step_evidence", nodes: ["academic", "patent", "market"] },
-  { label: "resume_step_writing", nodes: ["writer"] },
-  { label: "resume_step_review", nodes: ["reviewer", "scorer"] },
+  { stage: "evidence", label: "resume_step_evidence", nodes: ["academic", "patent", "market"] },
+  { stage: "report", label: "resume_step_writing", nodes: ["writer"] },
+  { stage: "review", label: "resume_step_review", nodes: ["reviewer"] },
+  { stage: "scoring", label: "resume_step_scoring", nodes: ["scorer"] },
 ];
+
+/** The step a resume from these saved checkpoints starts at (the last one when all are saved). */
+export function resumeStep(committed) {
+  const saved = Array.isArray(committed) ? committed : [];
+  return RESUME_STEPS.find((step) => !step.nodes.every((node) => saved.includes(node))) ?? RESUME_STEPS.at(-1);
+}
 
 /**
  * Beside "Resume from checkpoint": what it costs, where it starts, on which model.
@@ -1095,7 +1224,7 @@ export const RESUME_STEPS = [
  */
 export function resumeNote({ committed, quota = false, model = null, ranOn = null } = {}) {
   if (!Array.isArray(committed) || !committed.includes("retrieval")) return "";
-  const next = RESUME_STEPS.find((step) => !step.nodes.every((node) => committed.includes(node))) ?? RESUME_STEPS.at(-1);
+  const next = resumeStep(committed);
   const parts = [];
   if (quota) parts.push(headerLabel("resume_note_quota"));
   parts.push(headerLabel(quota ? "resume_note_step" : "resume_note_step_first").replace("{step}", () => headerLabel(next.label)));

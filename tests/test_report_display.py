@@ -101,9 +101,11 @@ def test_a_paragraph_outside_the_preamble_is_left_alone():
     block = add_applicability_block("", decision_gate=gate, output_language="English").strip()
     report = "# Report\n\n" + BODY + "\n\n" + block + "\n"
     # Not turned into the scope sentences and still under its marker; only the
-    # spelling every line of prose gets.
-    assert "`GO/NO_GO`" in report
-    assert report_for_display(report).split("## References")[0] == report.replace("`GO/NO_GO`", "GO / NO-GO")
+    # spelling every line of prose gets: the verdict vocabulary, and the mode
+    # code as a word (the provenance code is not one of those and stays).
+    assert "`GO/NO_GO`" in report and "Mode `orientation`" in report
+    assert report_for_display(report).split("## References")[0] == (
+        report.replace("`GO/NO_GO`", "GO / NO-GO").replace("Mode `orientation`", "Mode orientation"))
 
 
 def test_the_reference_list_loses_its_doubled_stops():
@@ -111,7 +113,7 @@ def test_the_reference_list_loses_its_doubled_stops():
     refs = shown.split("## References", 1)[1]
     assert ".." not in refs
     assert ("[A1] A title ending in a stop. Some Journal. Published: 2021-05-01. Accessed: 2026-10-21. "
-            "Type: academic_paper. Credibility: high. Rationale: OpenAlex record, 12 citations. "
+            "Type: Academic paper. Credibility: high. Rationale: OpenAlex record, 12 citations. "
             "https://doi.org/10.1/x") in refs
     assert "Published: n.d. Accessed:" in refs
 
@@ -181,7 +183,7 @@ def test_an_english_report_without_the_paragraph_is_as_before():
     shown = report_for_display(saved)
     assert "\n## References\n" in shown and "参考文献" not in shown
     assert ("[A1] A title ending in a stop. Some Journal. Published: 2021-05-01. Accessed: 2026-10-21. "
-            "Type: academic_paper. Credibility: high. Rationale: OpenAlex record, 12 citations. "
+            "Type: Academic paper. Credibility: high. Rationale: OpenAlex record, 12 citations. "
             "https://doi.org/10.1/x") in shown
     assert "\n## Reviewer Notes\n" in shown
     # No legend at all (a report older than the legend): English, as before.

@@ -91,7 +91,7 @@
     <p>Each assessment has a long random address. Anyone who has that address can read the assessment without signing in, which is what lets you share a report. Cancelling, deleting or resuming an assessment made under an account needs that account. Share the link only with people who should read the report.</p>
 
     <h2>Your browser</h2>
-    <p>The page keeps your language choice and your sign-in session in the browser's local storage. API keys are in the browser only if you chose not to save them to your account: then they are in session storage for the open tab, and gone when it closes. If you unticked the box, that choice is remembered in local storage as a mark that holds no key. There are no cookies. Nothing on the page loads from another site.</p>
+    <p>The page keeps your language choice and your sign-in session in the browser's local storage. Until you choose one, the page opens in Chinese if your browser lists Chinese first and in English otherwise; that is decided in the browser and not stored. API keys are in the browser only if you chose not to save them to your account: then they are in session storage for the open tab, and gone when it closes. If you unticked the box, that choice is remembered in local storage as a mark that holds no key. There are no cookies. Nothing on the page loads from another site.</p>
 
     <h2>Operational records</h2>
     <p>The server logs each request's path and result, without its body, your keys or your password. Where the operator has enabled tracing, it records timings and outcomes of each stage; it excludes your topic, your text, prompts and keys.</p>
@@ -168,7 +168,7 @@
     <p>每条评估有一个很长的随机地址。拿到这个地址的人无需登录就能阅读该评估，这也是报告可以分享的原因。取消、删除或恢复账号名下的评估需要登录该账号。请只把链接发给应该读到报告的人。</p>
 
     <h2>你的浏览器</h2>
-    <p>页面把语言选择和登录会话保存在浏览器的本地存储里，只有在你选择不把 API Key 保存到账号时，密钥才会留在浏览器里：保存在当前标签页的会话存储里，关闭标签页即消失。如果你取消过勾选，这个选择会记在本地存储里，只是一个不含密钥的标记。没有 Cookie，页面上没有任何内容从其他网站加载。</p>
+    <p>页面把语言选择和登录会话保存在浏览器的本地存储里；你选择语言之前，浏览器设置里排在第一位的是中文时页面用中文打开，否则用英文，这只在浏览器里判断，不会保存。只有在你选择不把 API Key 保存到账号时，密钥才会留在浏览器里：保存在当前标签页的会话存储里，关闭标签页即消失。如果你取消过勾选，这个选择会记在本地存储里，只是一个不含密钥的标记。没有 Cookie，页面上没有任何内容从其他网站加载。</p>
 
     <h2>运行记录</h2>
     <p>服务器日志记录每个请求的路径和结果，不记录请求内容、密钥或密码。运营者启用追踪时，会记录各阶段的耗时与结果，其中不包含你的主题、文本、提示词和密钥。</p>

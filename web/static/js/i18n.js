@@ -11,7 +11,17 @@
 
 const STRINGS = {
   English: {
-    run_connection_missing: "The server could not find this run. Automatic polling has stopped.",
+    // A link to a run that is not there (app.js showGone). Until 2026-11-21
+    // one line said so: "The server could not find this run. Automatic
+    // polling has stopped." under a header reading UNKNOWN.
+    gone_title: "This assessment can no longer be opened",
+    gone_lede: "Nothing is kept at this link any more. The likely reasons:",
+    gone_deleted: "Its owner deleted it.",
+    gone_retention_days: "It was deleted automatically: this site keeps an assessment for {days} days.",
+    gone_retention: "It was deleted automatically at the end of the period this site keeps assessments for.",
+    gone_link: "The link is incomplete: part of it may have been cut off when it was copied or forwarded. Compare it with the one you were sent.",
+    gone_samples: "See a sample report",
+    gone_own: "Assess your own topic",
     invalid_byok: "Saved BYOK credentials are invalid. Re-enter your keys or explicitly choose an access code; no paid request was sent.",
     logout_wait_paid: "Wait for the paid request's reply before signing out. Switching now could lose its result; this does not cancel provider work.",
     run_connection_stale: "Connection interrupted. Displaying the last confirmed state; retrying. This does not mean the run failed.",
@@ -220,6 +230,9 @@ const STRINGS = {
     brief_next: "First recommended step",
     brief_next_none: "The report gives no numbered recommendation.",
     brief_changers: "What would change this verdict",
+    // The same list in a brief with no conclusion to change (orientation mode).
+    brief_changers_assessment: "What would change this assessment",
+    brief_changers_from: "The report's own evidence limitations:",
     brief_change_evidence: "More high-credibility sources: evidence confidence is {value} / 5.",
     brief_change_market: "Market figures that measure the same thing: the ones collected may not, so they cannot be compared directly.",
     brief_change_grounding: "Sources whose text can be checked: {n} numeric claims could not be verified.",
@@ -252,7 +265,18 @@ const STRINGS = {
     verdict_unread: "The report's conclusion could not be read",
     verdict_unread_detail: "The request for it failed, so nothing is claimed here either way. Open the report to read its conclusion, or reload the page.",
     verdict_note: "Read from the report's own text. The scores are not changed by it.",
-    market_estimates_headline: "{n} market-size figures from {firms} sources cover {scopes} differently defined markets. {spread}",
+    // After a quoted passage that ends with a colon, where the list it introduces is not quoted.
+    verdict_listed: "(The report lists {n} points here: see them in the report.)",
+    verdict_continues: "(The report goes on from here: see it in the report.)",
+    market_estimates_headline: "{figures} from {sources} cover {scopes} differently defined markets. {spread}",
+    market_estimates_headline_one_market: "{figures} from {sources}, all for one market. {spread}",
+    market_estimates_headline_one_named: "{figures} from {sources}; the source titles name one market. {spread}",
+    market_estimates_headline_unnamed: "{figures} from {sources}; no source title names the market. {spread}",
+    market_estimates_headline_one_figure: "{figures} from {sources}. {spread}",
+    market_estimates_figures: "{n} market-size figures",
+    market_estimates_figures_one: "1 market-size figure",
+    market_estimates_sources: "{firms} sources",
+    market_estimates_sources_one: "1 source",
     market_estimates_same: "Within one market and year, the figures differ by up to {ratio}×.",
     market_estimates_no_pair: "No two figures share a market and a year, so none are compared.",
     market_estimates_none: "The saved market sources state no market-size figure.",
@@ -264,7 +288,10 @@ const STRINGS = {
     market_estimates_note: "Each figure is listed under the market its own source names, as that source wrote it. Figures are not converted or compared across markets, and the score above is unchanged.",
     dim_why: "Why {value}",
     dim_sources: "Based on",
-    report_score_line: "Overall {score} / 100 · {band} · Technology readiness {trl} / 9",
+    report_score_line: "Overall {score} / 100 · {band} · {trl}",
+    // A TRL is a whole level; the scorer's figure is a score (result.js trlReading).
+    trl_reading: "TRL {level} (score {score} / 9)",
+    trl_why_fraction: "A TRL is a whole level. The scoring agent rates readiness from 10 to 90, divided by 10, so a score can fall between two levels: {score} / 9 here. The level shown is the nearest whole one, {name}.",
     report_score_link: "See the scorecard",
     report_headings_english: "The section headings of this report are in English: translating them into the report's language did not succeed when the run started. The text under them is not affected.",
     cite_card_label: "Cited sources",
@@ -302,6 +329,7 @@ const STRINGS = {
     cancelling: "Cancelling…",
     resume: "Resume from checkpoint",
     delete_run: "Delete",
+    delete_run_named: "Delete: {topic}",
     confirm_delete_run: "Delete this run permanently? The report and every other artifact will be gone for good.",
     confirm_broad_topic: "This input may not describe a sufficiently scoped research commercialization topic. Add a specific technology and use case for a stronger report.\n\nRun it anyway?",
     msg_deleted: "Run deleted.",
@@ -321,6 +349,10 @@ const STRINGS = {
     tab_draft: "Draft (not reviewed or scored)",
     draft_note: "This is an unreviewed, unscored draft. The run stopped before its report was finished: this is what the report writer wrote, before the review that checks its citations and claims, and with no score. Do not treat it as the assessment.",
     draft_note_owner: "This is an unreviewed, unscored draft. The run stopped before its report was finished: this is what the report writer wrote, before the review that checks its citations and claims, and with no score. Do not treat it as the assessment. Resuming the run finishes the remaining steps and reuses this text.",
+    // The same, for a run that stopped after its review (draft_stage "reviewer").
+    tab_draft_reviewed: "Draft (reviewed, not scored)",
+    draft_reviewed_note: "This is a reviewed draft with no score. The run stopped before its report was finished: this is the report after the review that checks its citations and claims, before the scoring. Do not treat it as the assessment.",
+    draft_reviewed_note_owner: "This is a reviewed draft with no score. The run stopped before its report was finished: this is the report after the review that checks its citations and claims, before the scoring. Do not treat it as the assessment. Resuming the run finishes the remaining steps and reuses this text.",
     tab_sources: "Sources",
     tab_grounding: "Citation check",
     // One tab for the three checks of a finished report (result.js renderChecks).
@@ -476,6 +508,7 @@ const STRINGS = {
     rel_consistency_no_report: "Not run: this run produced no report",
     rel_no_report: "This run produced no report, so there are no check results.",
     rel_no_report_draft: "This run stopped before its report was finished, so the automated checks did not run. What the report writer had written is shown below as a draft.",
+    rel_no_report_draft_reviewed: "This run stopped before its report was finished, so the automated checks did not run. The report as the review left it is shown below as a draft.",
     rel_review: "Independent quality review",
     rel_review_passed: "The reviewer completed and its corrections passed report validation",
     rel_review_partial: "{count} proposed correction(s) could not be applied exactly; those validated draft passages were preserved",
@@ -515,8 +548,10 @@ const STRINGS = {
     rel_trail_incomplete: "The per-agent evidence files could not be written; the report is unaffected",
 
     readiness: "commercialization readiness",
+    // A sample whose run was given a decision context, on the landing's list
+    // (the reader's card says samples_card_decision, the same words).
+    sample_decision: "With a decision conclusion",
     sample_verdict: "{score} / 100 · {band}",
-    sample_trl: "TRL {trl}",
     sample_language_english: "Report in English",
     sample_language_chinese: "Report in Chinese",
     band_strong: "Strong",
@@ -688,6 +723,7 @@ const STRINGS = {
     compare_loading: "Reading both runs…",
     compare_same_run: "These are the same run. Choose another to compare with.",
     compare_not_finished: "This run did not finish, so it has no scores to compare.",
+    compare_local_time: "{time} (your local time)",
     compare_no_scores: "Neither run has a readable scorecard.",
     compare_metric: "Score",
     compare_overall: "Overall readiness (of 100)",
@@ -787,6 +823,10 @@ const STRINGS = {
     byok_guide: "New to this? One model key and one search key are enough. Measured here, one cost about $0.05 in model fees with DeepSeek, $0.10 to $0.25 with Qwen, and about $0.55 with Anthropic. Your providers bill you directly, and this service adds nothing.",
     // "Get both keys in 3 steps", on the landing and under the keys form.
     key_guide_title: "Get both keys in 3 steps",
+    // After the three steps, on the landing and in the key form: no sum and no
+    // one provider's rule, which change; the failure a run then meets says
+    // "cannot be billed" (api/runs.py provider_billing).
+    key_guide_balance: "Some model providers let a new key make calls only once the account has a balance. If your first assessment stops because the account cannot be billed, top it up with that provider. Each provider's current terms apply.",
     key_guide_trial: "Your free first assessment needs neither key. For the assessments after it:",
     key_guide_step1: "Model key: create an API key at DeepSeek, the cheapest provider measured here.",
     key_guide_step2: "Search key: create an API key at Tavily. Its free plan includes 1,000 searches a month.",
@@ -856,8 +896,8 @@ const STRINGS = {
     landing_point3_title: "Checks shown with every report",
     landing_point3_body: "Automated checks come with each report and say where it is weakest, and where a check could not reach a result.",
     landing_shot_title: "What a finished assessment looks like",
-    landing_shot_caption: "A screenshot of this interface from November 2026: the sample assessment of continuous glucose monitoring, opened at its decision brief and scorecard. Select it to read the whole report.",
-    landing_shot_alt: "Screenshot: a decision brief headed 74.0 / 100, Strong, with its main source, biggest risk and first recommended step, above a scorecard of five scored dimensions.",
+    landing_shot_caption: "A screenshot of this interface from November 2026: the sample assessment of perovskite-silicon tandem solar cells, run with a decision context (a technology transfer office deciding whether to license the technology), opened at its decision conclusion. Select it to read its brief and the whole report.",
+    landing_shot_alt: "Screenshot: the decision conclusion DEFER for the decision owner Technology transfer office and the decision License the technology, quoting the report's sentence and the four conditions it lists.",
     landing_sources: "Evidence comes from public sources: papers from OpenAlex, Crossref, PubMed, arXiv and Semantic Scholar, patents from Google Patents, and market sources through the web search service you choose.",
     landing_faq_title: "Common questions",
     landing_faq_q1: "How long is my data kept?",
@@ -868,6 +908,8 @@ const STRINGS = {
     landing_faq_a3: "An optional part of the form that says whose decision the report is for: the asset, the target application, the decision owner and the decision to make. With all four, the report may give a GO / NO-GO for that decision, bounded by its evidence. Without them the assessment still runs, as an orientation brief that claims no decision.",
     landing_faq_q4: "Can I upload a paper?",
     landing_faq_a4: "Yes: attach a PDF of up to 50 MB instead of typing a topic. Text selected from it is sent to the model provider you chose, to extract what the paper contributes. The PDF is deleted as soon as that succeeds, and an extracted summary that no assessment uses is deleted within 24 hours. Upload only papers you are allowed to send to that provider.",
+    landing_faq_q6: "What if an assessment fails partway? Am I charged?",
+    landing_faq_a6: "Its page says why it stopped. If the report had been written, the page keeps it as a draft, marked as unreviewed or unscored. You can resume the run from its last checkpoint: it starts again at the step that failed and reuses what was saved before it, and it uses one more of today's runs. Model tokens your provider has already billed stay billed by that provider, as for any run: this service cannot refund them. If the run failed because the model service could not be reached, it does not count toward today's runs, up to three such runs a day per account.",
     landing_faq_q5: "How are the fees worked out?",
     landing_faq_a5: "This service charges nothing and cannot refund a provider's charge. An assessment runs on your own model key and search key, and each provider bills you directly, by its own meter. The table above is what one assessment cost in model fees when it was measured here; searches are billed by the search service, and both search services have a free allowance.",
     landing_figure_caption: "A real run from November 2026, opened in the current interface.",
@@ -878,7 +920,14 @@ const STRINGS = {
   },
 
   "Simplified Chinese": {
-    run_connection_missing: "服务器未找到此任务，已停止自动轮询。",
+    gone_title: "这份评估已无法打开",
+    gone_lede: "这个链接上已经没有内容了。可能的原因：",
+    gone_deleted: "评估的所有者删除了它。",
+    gone_retention_days: "它已被自动删除：本站的评估保存 {days} 天。",
+    gone_retention: "它已到本站的保存期限，被自动删除。",
+    gone_link: "链接不完整：复制或转发时可能被截掉了一部分。请和你收到的原链接核对一下。",
+    gone_samples: "看示例报告",
+    gone_own: "评估你自己的课题",
     invalid_byok: "保存的 BYOK 凭据格式异常。请重新填写密钥，或明确选择使用口令；尚未发送付费请求。",
     logout_wait_paid: "请等待付费请求回包后再退出，避免丢失结果。此提示不会取消供应商调用。",
     run_connection_stale: "连接中断，当前展示最后一次确认的状态，正在重试；这不代表任务运行失败。",
@@ -1068,6 +1117,8 @@ const STRINGS = {
     brief_next: "建议的第一步",
     brief_next_none: "报告没有给出编号的建议。",
     brief_changers: "什么会改变这个判断",
+    brief_changers_assessment: "什么会改变这个判断",
+    brief_changers_from: "报告自己写出的证据局限：",
     brief_change_evidence: "更多高可信度来源：证据可信度目前 {value} / 5。",
     brief_change_market: "同一口径的市场规模数据：现有数字口径可能不一，无法直接比较。",
     brief_change_grounding: "可核对正文的来源：{n} 条数值声明无法核对。",
@@ -1098,7 +1149,17 @@ const STRINGS = {
     verdict_unread: "未能读取报告的结论",
     verdict_unread_detail: "读取请求失败，所以这里不作任何判断。请打开报告查看结论，或刷新页面。",
     verdict_note: "摘自报告原文，不改变评分。",
-    market_estimates_headline: "{n} 个市场规模数字来自 {firms} 个来源，涉及 {scopes} 个定义不同的市场。{spread}",
+    verdict_listed: "（报告在这里列出了 {n} 项，在报告中查看）",
+    verdict_continues: "（报告在这里接着写了下去，在报告中查看）",
+    market_estimates_headline: "{figures}来自 {sources}，涉及 {scopes} 个定义不同的市场。{spread}",
+    market_estimates_headline_one_market: "{figures}来自 {sources}，都属于同一个市场。{spread}",
+    market_estimates_headline_one_named: "{figures}来自 {sources}，来源标题只指明了一个市场。{spread}",
+    market_estimates_headline_unnamed: "{figures}来自 {sources}，来源标题都没有指明市场。{spread}",
+    market_estimates_headline_one_figure: "{figures}，来自 {sources}。{spread}",
+    market_estimates_figures: "{n} 个市场规模数字",
+    market_estimates_figures_one: "1 个市场规模数字",
+    market_estimates_sources: "{firms} 个来源",
+    market_estimates_sources_one: "1 个来源",
     market_estimates_same: "同一市场、同一年份的数字最大相差 {ratio} 倍。",
     market_estimates_no_pair: "没有两个数字属于同一市场和同一年份，因此未做比较。",
     market_estimates_none: "已保存的市场来源中没有市场规模数字。",
@@ -1110,7 +1171,9 @@ const STRINGS = {
     market_estimates_note: "每个数字按其来源自己命名的市场归类，原样列出；不同市场之间不换算、不比较，上方评分不变。",
     dim_why: "为什么是 {value}",
     dim_sources: "依据",
-    report_score_line: "总分 {score} / 100 · {band} · 技术就绪度 {trl} / 9",
+    report_score_line: "总分 {score} / 100 · {band} · {trl}",
+    trl_reading: "TRL {level}（评分 {score} / 9）",
+    trl_why_fraction: "TRL 按定义是整数级。评分智能体按 10 到 90 打分、再除以 10，所以分数可以落在两级之间，这里是 {score} / 9；显示的级别取最接近的整数：{name}。",
     report_score_link: "查看评分卡",
     report_headings_english: "这份报告的章节标题是英文：运行开始时，把标题译成报告语言的那一步没有成功。标题下的正文不受影响。",
     cite_card_label: "引用来源",
@@ -1145,6 +1208,7 @@ const STRINGS = {
     cancelling: "正在取消…",
     resume: "从检查点续跑",
     delete_run: "删除",
+    delete_run_named: "删除：{topic}",
     confirm_delete_run: "确定要永久删除这条记录吗？报告和其他所有产出文件都会一并清除，无法恢复。",
     confirm_broad_topic: "该输入可能不是范围足够明确的科研商业化主题。建议补充具体技术与应用场景，以获得更可靠的报告。\n\n仍要继续运行吗？",
     msg_deleted: "记录已删除。",
@@ -1161,6 +1225,9 @@ const STRINGS = {
     tab_draft: "草稿（未经审稿和打分）",
     draft_note: "这是一份未经审稿和打分的草稿。这次运行在报告完成前停下了：下面是报告撰写这一步写出的文字，还没有经过核对引用和论断的审查，也没有评分。请不要把它当作评估结论。",
     draft_note_owner: "这是一份未经审稿和打分的草稿。这次运行在报告完成前停下了：下面是报告撰写这一步写出的文字，还没有经过核对引用和论断的审查，也没有评分。请不要把它当作评估结论。续跑会完成剩下的步骤，并沿用这份文字。",
+    tab_draft_reviewed: "草稿（已核查、未评分）",
+    draft_reviewed_note: "这是一份已核查、未评分的草稿。这次运行在报告完成前停下了：下面是经过核对引用和论断的审查之后的报告，还没有评分。请不要把它当作评估结论。",
+    draft_reviewed_note_owner: "这是一份已核查、未评分的草稿。这次运行在报告完成前停下了：下面是经过核对引用和论断的审查之后的报告，还没有评分。请不要把它当作评估结论。续跑会完成剩下的步骤，并沿用这份文字。",
     tab_sources: "来源",
     tab_grounding: "引用核查",
     tab_checks: "自动检查",
@@ -1293,6 +1360,7 @@ const STRINGS = {
     rel_consistency_no_report: "未运行：这次运行没有生成报告",
     rel_no_report: "这次运行没有生成报告，所以没有检查结果。",
     rel_no_report_draft: "这次运行在报告完成前停下了，所以自动检查没有运行。报告撰写这一步已写出的文字作为草稿显示在下面。",
+    rel_no_report_draft_reviewed: "这次运行在报告完成前停下了，所以自动检查没有运行。经过审查的报告作为草稿显示在下面。",
     rel_review: "独立质量审查",
     rel_review_passed: "审查智能体已完成，且修订通过报告校验",
     rel_review_partial: "有 {count} 条建议修订无法精确定位；对应段落保留了已校验的撰写草稿",
@@ -1330,8 +1398,8 @@ const STRINGS = {
     rel_trail: "审计记录",
     rel_trail_incomplete: "各智能体的证据文件未能写入；报告本身不受影响",
     readiness: "商业化就绪度",
+    sample_decision: "含决策结论",
     sample_verdict: "{score} / 100 · {band}",
-    sample_trl: "TRL {trl}",
     sample_language_english: "英文报告",
     sample_language_chinese: "中文报告",
     band_strong: "较强",
@@ -1487,6 +1555,7 @@ const STRINGS = {
     compare_loading: "正在读取两次评估……",
     compare_same_run: "这是同一次评估，请选择另一次来对比。",
     compare_not_finished: "这次评估没有完成，没有可对比的分数。",
+    compare_local_time: "{time}（本地时间）",
     compare_no_scores: "两次评估都没有可读的评分卡。",
     compare_metric: "分数",
     compare_overall: "总体就绪度（满分 100）",
@@ -1579,6 +1648,7 @@ const STRINGS = {
     byok_close: "关闭",
     byok_guide: "第一次用？一个模型 Key 加一个检索 Key 就够了。本项目实测的一次评估的模型费用：DeepSeek 约 $0.05，Qwen 约 $0.10 到 $0.25，Anthropic 约 $0.55。费用由服务商直接向你收取，本服务不加收任何费用。",
     key_guide_title: "3 步拿到两个 Key",
+    key_guide_balance: "有的模型服务商要先充值、账户有余额后，新 Key 才能调用。如果第一次评估因账户无法扣费而停下，请到该服务商处充值。具体以各服务商当前的规则为准。",
     key_guide_trial: "免费的首次评估不需要这两个 Key。之后的评估需要：",
     key_guide_step1: "模型 Key：在 DeepSeek 创建一个 API Key，它是本项目实测里最便宜的服务商。",
     key_guide_step2: "检索 Key：在 Tavily 创建一个 API Key，免费套餐每月含 1,000 次检索。",
@@ -1605,7 +1675,11 @@ const STRINGS = {
     landing_sign_in: "登录",
     landing_create: "创建账号",
     landing_eyebrow: "面向技术转移办公室、创业者和投资人",
-    landing_title: "输入一篇论文，得到一份带引用的商业化初筛报告。",
+    // A zero-width space (\u200b) between the phrases marks the only places a
+    // line may end: landing.css keeps the characters of a phrase together in
+    // a Chinese interface. Without them a line could end anywhere, and at
+    // 1280 px it ended inside "带引用的" (2026-11-21).
+    landing_title: "输入一篇论文，\u200b得到一份\u200b带引用的\u200b商业化初筛报告。",
     landing_lede: "给它一个研究主题或一篇论文。六个 AI 智能体评估这项技术离市场还有多远，写出一份就技术成熟度、制造、专利和市场打分的报告，每条结论都有引用，风险逐条说明。",
     landing_read_sample: "先读一份完整报告，无需账号",
     landing_trial: "首次评估免费，无需 API Key。",
@@ -1644,8 +1718,8 @@ const STRINGS = {
     landing_point3_title: "每份报告都附自动检查",
     landing_point3_body: "自动检查的结果随报告一起给出，指出报告最薄弱的地方，也说明哪项检查没能得出结论。",
     landing_shot_title: "一份完成的评估长什么样",
-    landing_shot_caption: "2026 年 11 月截自本界面：示例评估“糖尿病连续血糖监测”，停在它的决策简报和评分卡处。点击可阅读完整报告。",
-    landing_shot_alt: "界面截图：一份决策简报，开头是 74.0 / 100、较强，列出主要来源、最大风险和建议的第一步，下面是含五个维度得分的评分卡。",
+    landing_shot_caption: "2026 年 11 月截自本界面：示例评估“钙钛矿-硅叠层太阳能电池”，运行时填写了决策场景（技术转移办公室决定是否许可这项技术），停在它的决策结论处。点击可阅读它的简报和完整报告。",
+    landing_shot_alt: "界面截图：决策结论为暂缓，决策负责人 Technology transfer office，待作决策 License the technology，引用报告原文和它列出的四个条件。",
     landing_sources: "证据来自公开来源：论文来自 OpenAlex、Crossref、PubMed、arXiv 和 Semantic Scholar，专利来自 Google Patents，市场资料通过你选择的网页检索服务获取。",
     landing_faq_title: "常见问题",
     landing_faq_q1: "数据保存多久？",
@@ -1656,6 +1730,8 @@ const STRINGS = {
     landing_faq_a3: "表单里的可选部分，用来说明这份报告是为谁的决策写的：资产或科研成果、目标应用、决策负责人和待作决策。四项都填，报告可以针对这个决策给出 GO / NO-GO，但仍以证据为限。不填也能运行，得到的是一份方向性简报，不下决策结论。",
     landing_faq_q4: "能上传论文吗？",
     landing_faq_a4: "可以：上传一份不超过 50 MB 的 PDF，代替手动输入主题。从中选取的文本会发送给你选择的模型服务商，用来提取论文的贡献。提取成功后 PDF 立即删除；提取出的摘要如果没有被任何评估使用，会在 24 小时内删除。只上传你有权发送给该服务商的论文。",
+    landing_faq_q6: "评估中途失败了怎么办？会扣费吗？",
+    landing_faq_a6: "运行页会说明它为什么停下。如果报告已经写出，页面会把它保留为草稿，并标明未经审稿或未评分。你可以从最近的检查点续跑：从失败的那一步重新开始，沿用之前已保存的部分，并再用 1 次今日额度。服务商已经计费的 token 和任何一次运行一样由服务商收取，本服务无法退还。如果失败是因为连不上模型服务，这次运行不计入今日额度，每个账户每天最多 3 次。",
     landing_faq_q5: "费用怎么算？",
     landing_faq_a5: "本服务不收费，也无法退还服务商收取的费用。评估使用你自己的模型 Key 和检索 Key 运行，由各服务商按它自己的计量直接向你收费。上面的表格是本项目实测的一次评估的模型费用；检索由检索服务商计费，两家检索服务都有免费额度。",
     landing_figure_caption: "2026 年 11 月的一次真实运行，在当前界面中打开。",
@@ -1668,10 +1744,42 @@ const STRINGS = {
 
 const STORAGE_KEY = "ui-language";
 
-let current = "English";
-try { current = localStorage.getItem(STORAGE_KEY) ?? "English"; }
-catch { /* Preferences cannot prevent module initialization in a restricted browser. */ }
-if (!STRINGS[current]) current = "English";
+/* Which language a page opens in. One rule, here, for every page that loads
+ * this module: the landing, the workbench, the sample reader, the privacy
+ * page and the operator's console.
+ *
+ * A language the reader chose (setLanguage, from a language select) is kept
+ * and wins. Without one, the browser's first preferred language decides:
+ * Simplified Chinese for any "zh" tag, English for everything else. Until
+ * 2026-11-21 a page opened in English unless a choice was stored, and a
+ * visitor whose browser said "zh-CN" had to find the small "EN" select first.
+ * The guess is never stored, so that only a choice is remembered and a
+ * browser set to another language later is followed.
+ *
+ * The browser's language is the window's navigator's. Node has had a
+ * navigator of its own since version 21, which reports the machine's locale;
+ * read from the global object, every test that imports this module would read
+ * Chinese strings on a machine set to Chinese and English ones on CI. */
+function chosenLanguage() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return Object.hasOwn(STRINGS, stored ?? "") ? stored : null;
+  } catch {
+    return null;  // Preferences cannot prevent module initialization in a restricted browser.
+  }
+}
+
+function browserLanguage() {
+  try {
+    const navigator = globalThis.window?.navigator;
+    const first = navigator?.languages?.[0] ?? navigator?.language;
+    return typeof first === "string" && /^zh(-|$)/i.test(first) ? "Simplified Chinese" : "English";
+  } catch {
+    return "English";
+  }
+}
+
+let current = chosenLanguage() ?? browserLanguage();
 
 /** Translate a key, falling back to English and then to the key itself. */
 export function t(key) {
@@ -1680,6 +1788,14 @@ export function t(key) {
 
 export function language() {
   return current;
+}
+
+/** The locale dates and times are drawn in: the interface's, never the
+ * browser's own. An English interface in a Chinese browser drew the
+ * comparison's start time as "2026年11月18日 19:34" beside a keys panel that
+ * said "16 Nov 2026" (2026-11-20). */
+export function locale() {
+  return current === "English" ? "en-GB" : "zh-CN";
 }
 
 export function setLanguage(next) {

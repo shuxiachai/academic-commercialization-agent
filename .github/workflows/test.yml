@@ -239,6 +239,11 @@ jobs:
         # journey; Tab, Shift+Tab, Enter, Space and Escape are the only input.
         run: uv run --python 3.12 --group e2e python -m e2e.keyboard_smoke
 
+      - name: Open the pages in a zh-CN and an en-US browser and switch the landing's language
+        # Same static-only server; the browser answers the API as the public
+        # deployment answers a visitor who is not signed in. No POST is made.
+        run: uv run --python 3.12 --group e2e python -m e2e.language_smoke
+
       - name: Exercise the isolated saved-source entry with a scripted selector
         # A separate unmounted app owns this POST journey. Its selector is a
         # fixture callback, not a provider; existing smoke guards stay intact.

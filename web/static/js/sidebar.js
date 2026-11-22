@@ -30,6 +30,8 @@ const GROUP_ORDER = ["Today", "Yesterday", "Earlier"];
 // Stopping a run has its own explicit Cancel button in the run pane; once a
 // run reaches one of these states, deleting it here means what it says.
 const DELETABLE_STATES = new Set(["completed", "failed", "cancelled", "timeout"]);
+// How much of a topic a delete button's name carries before it is cut with "…".
+const DELETE_NAME_LIMIT = 60;
 // The states the list colours (workbench.css .runitem__state), each with a word in i18n.js (run_state_*).
 const STATE_WORDS = new Set(["running", "completed", "failed", "cancelled", "timeout"]);
 
@@ -156,8 +158,15 @@ export function render(container, runs, { activeId, onSelect, onDelete, emptyKey
       const del = document.createElement("button");
       del.type = "button";
       del.className = "runitem__delete icon-btn";
-      del.setAttribute("aria-label", t("delete_run"));
-      del.title = t("delete_run");
+      // Named by the run it removes. Every button was "Delete", so a screen
+      // reader's list of controls held one per run and nothing to tell them
+      // apart (2026-11-20). An earlier attempt shares its topic with the row
+      // above it and is told apart by how it ended.
+      const topic = run.topic || run.run_id;
+      const short = topic.length > DELETE_NAME_LIMIT ? `${topic.slice(0, DELETE_NAME_LIMIT - 1).trimEnd()}…` : topic;
+      const named = t("delete_run_named").replace("{topic}", earlier ? `${short} — ${label.textContent}` : short);
+      del.setAttribute("aria-label", named);
+      del.title = named;
       del.innerHTML = TRASH_ICON;
       del.addEventListener("click", (e) => {
         e.stopPropagation();

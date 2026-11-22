@@ -16,6 +16,7 @@ harness relies on in place.
 from __future__ import annotations
 
 import html
+import json
 import re
 import shutil
 import subprocess
@@ -70,6 +71,8 @@ SCENARIOS = (
     "the_card_in_sign_in_mode_says_only_what_signing_in_needs",
     # The run header's fold for the model, the revision and a plain completion.
     "a_change_of_language_renames_the_tab_and_redraws_the_landing_samples",
+    # The two parts of the landing the page draws itself follow a change of language too.
+    "a_change_of_language_redraws_the_scorecard_and_the_retention_line",
     # The screenshot of a finished assessment further down the landing.
     "the_screenshot_is_asked_for_once_the_landing_stays_in_the_theme_and_language_in_use",
     "a_run_that_did_not_finish_offers_what_fits_its_cause",
@@ -79,6 +82,10 @@ SCENARIOS = (
     "the_owners_actions_keep_the_rare_ones_behind_more",
     "a_signed_in_reader_of_someone_elses_run_is_told_so_and_offered_no_owner_action",
     "what_the_server_says_decides_and_a_run_with_no_owner_is_this_tabs_or_not",
+    # What a reader of a shared link is shown: a header for them, and a page
+    # that says so when the run is gone (tests/test_shared_link_pages.py).
+    "a_reader_of_a_shared_run_is_shown_a_header_written_for_them",
+    "a_link_to_a_run_that_is_gone_says_so_and_offers_a_way_on",
     # "Get both keys in 3 steps" where the first assessment is free.
     "the_key_guide_under_the_keys_form_knows_a_free_run_is_left",
 )
@@ -139,6 +146,33 @@ def _landing_strings(language: str) -> dict[str, str]:
 # What a report is not, in the words the three places used.
 _CAUTION = re.compile(r"not a measure|historical|not current|not replace|makes no model"
                       r"|不代表|历史运行|不是当前|不代替|不会发起")
+
+
+def test_the_chinese_title_breaks_only_between_its_phrases():
+    """At 1280 px the Chinese title broke as "输入一篇论文，得到一份带 /
+    引用的商业化初筛报告。" (measured 2026-11-21): a Chinese line may break
+    between any two characters, and text-wrap: balance picked the most even
+    split, which fell inside "带引用的". A phone's width happened to break it
+    at its phrases.
+
+    The string now says where a line may end, with a zero-width space between
+    its phrases, and in a Chinese interface the stylesheet keeps a phrase's
+    characters together (word-break: keep-all), with overflow-wrap: anywhere
+    as the last resort for a phrase wider than the screen. The English title
+    has no such marks and is styled as before. e2e/language_smoke.py measures
+    the lines in Chromium at desktop and phone widths."""
+    # As i18n.js spells it: the escape, so the marks can be seen in the source.
+    chinese = _landing_strings("Simplified Chinese")["landing_title"]
+    assert chinese.split("\\u200b") == ["输入一篇论文，", "得到一份", "带引用的", "商业化初筛报告。"]
+    english = _landing_strings("English")["landing_title"]
+    assert "\\u" not in english and "\u200b" not in english
+    css = (_WEB / "static/css/landing.css").read_text(encoding="utf-8")
+    rule = re.search(r":lang\(zh\) \.landing__pitch h1 \{([^}]*)\}", css)
+    assert rule, "A rule for the Chinese title only"
+    assert re.search(r"word-break:\s*keep-all;", rule.group(1))
+    assert re.search(r"overflow-wrap:\s*anywhere;", rule.group(1))
+    plain = re.search(r"\n\.landing__pitch h1 \{([^}]*)\}", css).group(1)
+    assert "word-break" not in plain and "overflow-wrap" not in plain, "English keeps its own breaking"
 
 
 def test_the_landing_says_what_a_report_is_not_once():
@@ -298,7 +332,7 @@ _CSS = (_WEB / "static/css/landing.css").read_text(encoding="utf-8")
 _PRIVACY = (_WEB / "privacy.html").read_text(encoding="utf-8")
 _PRIVACY_EN, _PRIVACY_ZH = _PRIVACY.split('data-lang-block="zh"', 1)
 _SHOTS = _WEB / "static" / "landing"
-_SHOT_NAMES = sorted(f"brief-scorecard-{size}-{theme}-{language}.png"
+_SHOT_NAMES = sorted(f"decision-conclusion-{size}-{theme}-{language}.png"
                      for size in ("desktop", "phone") for theme in ("light", "dark") for language in ("en", "zh"))
 
 
@@ -349,7 +383,7 @@ def test_the_screenshot_of_a_finished_assessment_is_one_file_for_each_theme_widt
         assert path.stat().st_size < 200_000, f"{name}: a picture a phone has to fetch"
     # A phone's file is a phone's capture (two device pixels a CSS pixel), not a desk's made small.
     assert sizes[("en", "phone")][0] < 800 < sizes[("en", "desktop")][0]
-    assert "/static/landing/brief-scorecard-${size}-${theme}-${language}.png" in _APP
+    assert "/static/landing/decision-conclusion-${size}-${theme}-${language}.png" in _APP
     # The markup names no file: a page that never shows the landing asks for none.
     landing = _landing_markup()
     figure = landing[landing.index('<figure class="landing__shot-figure">'):]
@@ -369,23 +403,55 @@ def test_the_screenshot_of_a_finished_assessment_is_one_file_for_each_theme_widt
 
 
 def test_the_screenshot_is_of_the_sample_it_opens_and_says_when_it_was_taken():
+    """Until 2026-11-21 the landing showed no decision conclusion from top to
+    bottom: its capture was the glucose-monitoring sample's brief and
+    scorecard, the scorecard the card beside the pitch draws as well, and on a
+    phone 1,510 px tall. It is now the sample run with a decision context, at
+    its conclusion card (DEFER, who decides, what, the four conditions), and
+    neither a scorecard, which the card above shows, nor the brief, which the
+    sample's page has one press away."""
     from api import samples
 
-    slug = re.search(r'const LANDING_PREVIEW_SAMPLE = "([a-z0-9-]+)";', _APP)[1]
+    preview = re.search(r'const LANDING_PREVIEW_SAMPLE = "([a-z0-9-]+)";', _APP)[1]
     landing = _landing_markup()
     figure = landing[landing.index('<figure class="landing__shot-figure">'):]
-    assert f'<a class="landing__shot-link" href="/samples/{slug}">' in figure, "the capture opens the page it is a capture of"
+    slug = re.search(r'<a class="landing__shot-link" href="/samples/([a-z0-9-]+)">', figure)[1]
+    sample = next(entry for entry in samples.SAMPLES if entry.slug == slug)
+    assert sample.decision is not None, "the capture shows a decision conclusion"
+    assert slug != preview, "and not the scorecard the card beside the pitch draws"
+    conclusion = samples.sample_decision(slug)["conclusion"]
+    assert conclusion["status"] == "stated" and conclusion["verdict"] == "defer"
     scores = samples.read_sample_scores(slug)
     english, chinese = _landing_strings("English"), _landing_strings("Simplified Chinese")
     # What the picture's description says is in it is what that sample's page shows.
-    assert f'{scores["overall_score"]:.1f} / 100' in english["landing_shot_alt"] and "Strong" in english["landing_shot_alt"]
-    assert scores["overall_score"] >= 70, "the grade the description names"
-    assert f'{scores["overall_score"]:.1f} / 100' in chinese["landing_shot_alt"] and "较强" in chinese["landing_shot_alt"]
+    assert len(conclusion["items"]) == 4, "the four conditions the description names"
+    for said in ("DEFER", sample.decision.decision_owner, sample.decision.decision_type, "four conditions"):
+        assert said in english["landing_shot_alt"], said
+    for said in ("暂缓", "Technology transfer office", "License the technology", "四个条件"):
+        assert said in chinese["landing_shot_alt"], said
+    for absent in (f'{scores["overall_score"]:.1f}', "scorecard", "brief headed"):
+        assert absent not in english["landing_shot_alt"], absent
+    assert "评分卡" not in chinese["landing_shot_alt"]
     assert "November 2026" in english["landing_shot_caption"] and "2026 年 11 月" in chinese["landing_shot_caption"]
-    assert "continuous glucose monitoring" in english["landing_shot_caption"]
-    sample = next(entry for entry in samples.SAMPLES if entry.slug == slug)
+    assert sample.title.lower() in english["landing_shot_caption"].lower()
     assert sample.title_zh in chinese["landing_shot_caption"]
+    assert "decision context" in english["landing_shot_caption"] and "决策场景" in chinese["landing_shot_caption"]
     assert re.search(r'alt="([^"]+)"', figure)[1] == english["landing_shot_alt"], "served as it is then painted"
+    assert re.search(r'data-i18n="landing_shot_caption">([^<]+)<', figure)[1] == english["landing_shot_caption"]
+
+
+def test_the_landing_lists_the_sample_with_a_decision_conclusion_and_says_so():
+    """The landing lists the first five samples (app.js drawLandingSamples);
+    the one with a decision conclusion was the seventh and never among them."""
+    from api import samples
+
+    assert "landingSamples.slice(0, 5)" in _APP
+    assert any(sample.decision for sample in samples.SAMPLES[:5])
+    english, chinese = _strings_of("English"), _strings_of("Simplified Chinese")
+    assert english["sample_decision"] == "With a decision conclusion" and chinese["sample_decision"] == "含决策结论"
+    reader = (_WEB / "static/js/samples_i18n.js").read_text(encoding="utf-8")
+    assert f'samples_card_decision: "{english["sample_decision"]}"' in reader, "the reader's card says the same"
+    assert f'samples_card_decision: "{chinese["sample_decision"]}"' in reader
 
 
 def test_the_pictures_are_served_and_revalidated_like_every_page_file():
@@ -438,6 +504,35 @@ def test_the_landing_names_only_sources_the_pipeline_asks():
             assert not re.search(r"raw data|原始数据", text), key
 
 
+def test_the_key_guide_says_a_key_may_need_a_balance_before_it_can_call():
+    """A new user's first run could stop on a provider that wants a balance
+    before a new key can call, and nothing before it said so. Both guides
+    (the landing's and the key form's) say it once, after the steps, without a
+    sum or one provider's rule: those change, and the provider's terms apply."""
+    english, chinese = _strings_of("English"), _strings_of("Simplified Chinese")
+    for guide in ("landing-key-guide", "byok-key-guide"):
+        block = _INDEX[_INDEX.index(f'id="{guide}"'):]
+        block = block[:block.index("</details>")]
+        assert block.index("</ol>") < block.index('data-i18n="key_guide_balance"'), guide
+        served = re.search(r'data-i18n="key_guide_balance">([^<]+)<', block)[1]
+        assert served == english["key_guide_balance"], guide
+    for text in (english["key_guide_balance"], chinese["key_guide_balance"]):
+        assert not re.search(r"\d|\$|¥|€|USD|美元|元", text), text
+    assert "balance" in english["key_guide_balance"] and "current terms" in english["key_guide_balance"]
+    assert "余额" in chinese["key_guide_balance"] and "当前的规则为准" in chinese["key_guide_balance"]
+    # The failure a run meets then says the same thing in its own words.
+    from api import runs
+    billing = next(category for category in runs._PUBLIC_FAILURE_CATEGORIES if category.code == "provider_billing")
+    assert "balance" in billing.own_keys
+
+
+def _strings_of(language: str) -> dict[str, str]:
+    """Every string of one language's table in i18n.js."""
+    english, chinese = _STRINGS.split('"Simplified Chinese": {', 1)
+    table = english if language == "English" else chinese
+    return {key: json.loads(text) for key, text in re.findall(r'^    (\w+): (".*"),$', table, re.M)}
+
+
 def _faq() -> list[tuple[str, str]]:
     landing = _landing_markup()
     section = landing[landing.index('<section class="landing__faq" id="landing-faq"'):]
@@ -447,14 +542,15 @@ def _faq() -> list[tuple[str, str]]:
                       section, re.S)
 
 
-def test_the_landing_answers_five_questions_and_each_answer_is_already_written_down_somewhere():
+def test_the_landing_answers_six_questions_and_each_answer_is_already_written_down_somewhere():
     """How long data is kept, which languages, what a decision context is,
-    whether a paper can be uploaded, how fees are worked out. An answer on a
-    landing page is the easiest place for a claim nobody checked, so each is
-    held here to the page, the constant or the document it repeats."""
+    whether a paper can be uploaded, how fees are worked out, and (since
+    2026-11-21) what happens when a run fails partway. An answer on a landing
+    page is the easiest place for a claim nobody checked, so each is held
+    here to the page, the constant or the document it repeats."""
     from api import papers
 
-    assert _faq() == [(f"landing_faq_q{n}", f"landing_faq_a{n}") for n in range(1, 6)]
+    assert _faq() == [(f"landing_faq_q{n}", f"landing_faq_a{n}") for n in range(1, 7)]
     assert "<details class=\"landing__question\" open" not in _INDEX, "closed until asked"
     english, chinese = _landing_strings("English"), _landing_strings("Simplified Chinese")
 
@@ -515,5 +611,32 @@ def test_the_landing_answers_five_questions_and_each_answer_is_already_written_d
     assert "不收费" in chinese["landing_faq_a5"]
     faq_at, table_at = landing.index('id="landing-faq"'), landing.index('id="landing-costs"')
     assert table_at < faq_at and "table above" in english["landing_faq_a5"] and "上面的表格" in chinese["landing_faq_a5"]
+    # 6. A run that fails partway: what the run page does and the refund rule (#418, #438).
+    from api import runs
+    # run.js's own English strings (its tables say the same in Chinese).
+    run_en = (_WEB / "static/js/run.js").read_text(encoding="utf-8")
+    a6, a6_zh = english["landing_faq_a6"], chinese["landing_faq_a6"]
+    assert english["landing_faq_q6"] == "What if an assessment fails partway? Am I charged?"
+    assert chinese["landing_faq_q6"] == "评估中途失败了怎么办？会扣费吗？"
+    # The draft a stopped run keeps, as its notice words it.
+    page = _strings_of("English")
+    assert "unreviewed" in page["draft_note"] and "no score" in page["draft_note"]
+    assert "draft" in a6 and "unreviewed or unscored" in a6 and "草稿" in a6_zh
+    # Resume: the button's name, where it starts and what it costs, as the run page says.
+    assert page["resume"] == "Resume from checkpoint" and "resume the run from its last checkpoint" in a6
+    assert "starts again at {step} and reuses what was saved before it" in run_en
+    assert "starts again at the step that failed and reuses what was saved before it" in a6
+    assert "Resuming uses one more of today's runs." in run_en and "uses one more of today's runs" in a6
+    assert "续跑" in a6_zh and "再用 1 次今日额度" in a6_zh
+    # The provider's charge is the provider's: the privacy page's term.
+    assert "cannot refund them" in _PRIVACY_EN and "this service cannot refund them" in a6
+    assert "无法退还" in a6_zh
+    # The one refund after a worker has run: an unreachable model service, three a day.
+    assert runs.UNREACHABLE_REFUNDS_PER_DAY == 3
+    assert "the model provider could not be reached" in run_en
+    assert "could not be reached" in a6 and "does not count toward today's runs" in a6
+    assert "up to three such runs a day per account" in a6
+    assert "连不上模型服务" in a6_zh and "每个账户每天最多 3 次" in a6_zh
+
     # Each question is a control a finger can press.
     assert re.search(r"\.landing__question > summary \{[^}]*min-height: 48px", _CSS)

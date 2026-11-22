@@ -58,7 +58,7 @@ _HARNESS = """
         return box.children[0].children.map((row) => [row.dataset.state, row.children.at(-1).className,
                                                       row.children.at(-1).textContent]);
       }
-      if (call === "hasDraft" || call === "ranWithoutReport") return result[call](...args);
+      if (call === "hasDraft" || call === "ranWithoutReport" || call === "draftWording") return result[call](...args);
       if (call === "label") return i18n.t(...args);
       return run[call](...args);
     });
@@ -279,7 +279,9 @@ def test_a_resume_recorded_since_the_fix_reads_as_it_was_recorded(page):
 
 
 def test_the_timing_fold_is_given_the_runs_recovery_record():
-    assert "timingEl.textContent = runView.timingSummary(stage_timings, recovery);" in APP_JS
+    # Its owner's fold; a reader of someone else's run is not shown stage times
+    # (tests/test_shared_link_pages.py, a_reader_of_a_shared_run_is_shown_a_header_written_for_them).
+    assert 'timingEl.textContent = reader ? "" : runView.timingSummary(stage_timings, recovery);' in APP_JS
 
 
 # ── The run a resume continued ─────────────────────────────────────────────
@@ -428,7 +430,8 @@ def test_the_line_sits_under_the_header_and_links_the_earlier_run():
     lineage, outcome = INDEX.index('id="run-lineage"'), INDEX.index('id="run-outcome"')
     assert INDEX.index('id="run-recovery"') < lineage < outcome, "Directly under the header's line, before the outcome"
     assert 'id="run-lineage" hidden' in INDEX
-    assert "paintLineage({ state, recovery, lineage, elapsed_seconds, usage, usage_accounting });" in APP_JS
+    # Said to the run's owner; a reader has the total in the header line instead.
+    assert "paintLineage(reader ? {} : { state, recovery, lineage, elapsed_seconds, usage, usage_accounting });" in APP_JS
     assert 'link.addEventListener("click", () => openRun(view.earlier));' in APP_JS
     # The count of checkpoints is gone from the page and from both languages.
     assert "recovery_reused_short" not in APP_JS and "recovery_reused_short" not in STRINGS
@@ -528,17 +531,55 @@ def test_the_draft_is_named_for_what_it_is_in_both_languages(page):
     assert "draft" in with_en and "草稿" in with_zh
 
 
+@pytest.mark.parametrize(("progress", "wording"), [
+    # The writer's text, to its owner and to a reader of the link.
+    ({"draft_stage": "writer"}, ("tab_draft", "draft_note_owner", "rel_no_report_draft")),
+    ({"draft_stage": "writer", "viewer_can_modify": False}, ("tab_draft", "draft_note", "rel_no_report_draft")),
+    # Production, 2026-11-20: the run failed in scoring with its review done.
+    ({"draft_stage": "reviewer"},
+     ("tab_draft_reviewed", "draft_reviewed_note_owner", "rel_no_report_draft_reviewed")),
+    ({"draft_stage": "reviewer", "viewer_can_modify": False},
+     ("tab_draft_reviewed", "draft_reviewed_note", "rel_no_report_draft_reviewed")),
+    # A server that does not say which text it is: the writer's wording, as before.
+    ({}, ("tab_draft", "draft_note_owner", "rel_no_report_draft")),
+    ({"draft_stage": "something new"}, ("tab_draft", "draft_note_owner", "rel_no_report_draft")),
+])
+def test_the_draft_is_named_for_the_step_whose_text_it_is(page, progress, wording):
+    said = page([EN, "draftWording", [{"state": "failed", "artifacts": ["draft"], **progress}]])[0]
+    assert (said["tab"], said["note"], said["reliability"]) == wording
+
+
+def test_a_reviewed_draft_says_it_was_reviewed_and_not_scored_in_both_languages(page):
+    tab_en, tab_zh, note_en, note_zh, owner_en, owner_zh, rel_en, rel_zh = page(
+        [EN, "label", ["tab_draft_reviewed"]], [ZH, "label", ["tab_draft_reviewed"]],
+        [EN, "label", ["draft_reviewed_note"]], [ZH, "label", ["draft_reviewed_note"]],
+        [EN, "label", ["draft_reviewed_note_owner"]], [ZH, "label", ["draft_reviewed_note_owner"]],
+        [EN, "label", ["rel_no_report_draft_reviewed"]], [ZH, "label", ["rel_no_report_draft_reviewed"]])
+    assert tab_en == "Draft (reviewed, not scored)" and tab_zh == "草稿（已核查、未评分）"
+    assert note_en.startswith("This is a reviewed draft with no score.")
+    assert "after the review that checks its citations and claims" in note_en
+    assert "Do not treat it as the assessment." in note_en
+    assert note_zh.startswith("这是一份已核查、未评分的草稿。") and "请不要把它当作评估结论。" in note_zh
+    # Nothing in it says the text came before the review, as the writer's notice does.
+    assert "unreviewed" not in note_en and "before the review" not in note_en and "未经审稿" not in note_zh
+    assert "Resum" not in note_en and "续跑" not in note_zh
+    assert owner_en == note_en + " Resuming the run finishes the remaining steps and reuses this text."
+    assert owner_zh == note_zh + "续跑会完成剩下的步骤，并沿用这份文字。"
+    assert "produced no report" not in rel_en and "draft" in rel_en and "review" in rel_en
+    assert "没有生成报告" not in rel_zh and "草稿" in rel_zh and "审查" in rel_zh
+
+
 def test_the_draft_tab_is_drawn_from_the_draft_artifact_under_its_notice():
-    assert "if (draft) views.push({ id: \"draft\", label: t(\"tab_draft\") });" in RESULT_JS
+    assert "if (draft) views.push({ id: \"draft\", label: t(draftWording(progress).tab) });" in RESULT_JS
     assert 'api.getArtifact(runId, "draft")' in RESULT_JS
     start = RESULT_JS.index('} else if (id === "draft") {')
     body = RESULT_JS[start:RESULT_JS.index('} else if (id === "checks") {', start)]
     assert body.index('el("p", "draft-note"') < body.index("renderMarkdown(md)"), "The notice is read before the text"
-    # A reader of someone else's run cannot resume it, and is not told to.
-    assert 't(progress.viewer_can_modify === false ? "draft_note" : "draft_note_owner")' in body
+    # The notice is the one for this text and this reader (draftWording).
+    assert 'el("p", "draft-note", t(draftWording(progress).note))' in body
     # A run with a draft and no report must not ask for the report it does not have.
     assert "(draft ? draftOnce() : reportOnce()).then(citationIndex)" in RESULT_JS
-    assert 't(hasDraft(progress) ? "rel_no_report_draft" : "rel_no_report")' in RESULT_JS
+    assert 't(hasDraft(progress) ? draftWording(progress).reliability : "rel_no_report")' in RESULT_JS
 
 
 # ── How long a run takes, said on the landing and the sign-in card ──────────

@@ -280,6 +280,34 @@ const scenarios = {
     assert.equal(compare.comparison(failed, run(B, "completed", SCORES_B)).sides[0].decision.verdict.text,
       "The report's conclusion could not be read");
   },
+  async dates() {
+    // An English interface in a Chinese browser showed "2026年11月18日 19:34"
+    // here and "16 Nov 2026" in the keys panel (2026-11-20): this card asked
+    // the browser's locale, the panel the interface's. The time is the
+    // reader's own clock, and the card says so.
+    const i18n = await import("../../web/static/js/i18n.js");
+    // setLanguage repaints the marked-up page; this one has none.
+    Object.assign(globalThis.document, { querySelectorAll: () => [], documentElement: {} });
+    const original = Date.prototype.toLocaleString;
+    const asked = [];
+    Date.prototype.toLocaleString = function (locale, options) { asked.push(locale); return original.call(this, locale, options); };
+    try {
+      const when = (language) => {
+        i18n.setLanguage(language);
+        const container = new Element("div");
+        compare.render(container, compare.comparison(run(A, "completed", SCORES_A), run(B, "completed", SCORES_B)));
+        return container.all((n) => n.className === "compare__when tabular").map((n) => n.textContent);
+      };
+      const options = { dateStyle: "medium", timeStyle: "short" };
+      const started = compare.startedAt(A);
+      assert.deepEqual(when("English")[0], `${original.call(started, "en-GB", options)} (your local time)`);
+      assert.deepEqual(when("Simplified Chinese")[0], `${original.call(started, "zh-CN", options)}（本地时间）`);
+      assert.deepEqual([...new Set(asked)], ["en-GB", "zh-CN"], "never the browser's own locale");
+    } finally {
+      Date.prototype.toLocaleString = original;
+      i18n.setLanguage("English");
+    }
+  },
 };
 assert.ok(scenarios[process.argv[2]], "Unknown contract scenario");
 await scenarios[process.argv[2]]();

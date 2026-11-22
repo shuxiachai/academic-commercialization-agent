@@ -37,9 +37,9 @@ _HARNESS = """
     const run = await import("./run.mjs");
     const i18n = await import("./i18n.js");
     const cases = JSON.parse(process.argv[2]);
-    const out = cases.map(({ usage, accounting, language }) => {
+    const out = cases.map(({ usage, accounting, language, funded_by }) => {
       i18n.setLanguage(language ?? "English");
-      return run.usageHeadline(usage, accounting ?? null);
+      return run.usageHeadline(usage, accounting ?? null, funded_by ?? null);
     });
     console.log(JSON.stringify(out));
 """
@@ -92,15 +92,36 @@ def test_a_run_without_a_price_says_so_and_shows_no_sum(headline):
     nameless = {"total_tokens": 900, "cost_usd": None, "agents": []}
     english = headline({"usage": unpriced}, {"usage": zero}, {"usage": nameless})
     assert english == [
-        "About 105.5k tokens · cost cannot be estimated: no price on record for deepseek-v4.1-flash-1017",
-        "About 105.5k tokens · cost cannot be estimated: no price on record for deepseek-v4.1-flash-1017",
+        "About 105.5k tokens · no cost shown, as no unit price is on record yet for deepseek-v4.1-flash-1017",
+        # A zero from a priced model is not "no price": the cost is said to be unknown, nothing more.
+        "About 105.5k tokens · cost cannot be estimated",
         "About 900 tokens · cost cannot be estimated",
     ]
     for line in english:
         assert "$" not in line
     chinese = headline({"usage": unpriced, "language": "Simplified Chinese"},
                        {"usage": nameless, "language": "Simplified Chinese"})
-    assert chinese == ["约 10.6 万 token · 费用无法估算：deepseek-v4.1-flash-1017 没有记录价格", "约 900 token · 费用无法估算"]
+    assert chinese == ["约 10.6 万 token · deepseek-v4.1-flash-1017 还没有登记单价，所以不显示费用", "约 900 token · 费用无法估算"]
+
+
+def test_a_run_on_the_readers_own_key_is_pointed_to_their_providers_console(headline):
+    """Every run on the account's saved model and on the deployment's default
+    said "cost cannot be estimated: no price on record for qwen3.8-2.4t-a95b"
+    (production, 2026-11-20): a sentence about the price table, not about the
+    reader's bill. Until the operator records that model's price
+    (token_usage._PRICING), the line says no cost is shown and why, and a
+    reader who paid with their own key is told where the exact amount is.
+    A run the site paid for is not sent to a console its reader does not have."""
+    unpriced = _usage(cost_usd=None, cost_complete=False, unpriced_models=["qwen3.8-2.4t-a95b"])
+    assert headline({"usage": unpriced, "funded_by": "own_keys"},
+                    {"usage": unpriced, "funded_by": "own_keys", "language": "Simplified Chinese"},
+                    {"usage": unpriced, "funded_by": "deployment"}) == [
+        "About 105.5k tokens · no cost shown, as no unit price is on record yet for qwen3.8-2.4t-a95b; "
+        "see your provider's console for the exact amount",
+        "约 10.6 万 token · qwen3.8-2.4t-a95b 还没有登记单价，所以不显示费用；准确金额请看你的服务商控制台",
+        "About 105.5k tokens · no cost shown, as no unit price is on record yet for qwen3.8-2.4t-a95b",
+    ]
+    assert "runView.usageHeadline(usage, usage_accounting, funded_by)" in _APP
 
 
 def test_a_partial_sum_is_a_floor_and_small_sums_are_not_rounded_to_nothing(headline):
@@ -127,7 +148,8 @@ def test_where_nothing_was_counted_the_fold_keeps_its_plain_heading(headline):
 
 
 def test_the_header_uses_the_headline_and_keeps_the_full_accounting_inside():
-    assert 'const headline = runView.usageHeadline(usage, usage_accounting);' in _APP
+    # The owner's; a reader of someone else's run is not told what it used or cost.
+    assert 'const headline = reader ? "" : runView.usageHeadline(usage, usage_accounting, funded_by);' in _APP
     # The headline heads the fold; the plain name is only the fallback.
     assert '$("#run-usage-label").textContent = `· ${headline || runView.headerLabel("usage_details")}`;' in _APP
     # The accounting text and the helper ledger are still written into the fold, unchanged.

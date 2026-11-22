@@ -58,10 +58,18 @@
     <p data-samples-i18n="samples_sub">Finished assessments you can read without an account or API keys.</p>
   </section>
 
-  <nav class="samples__list" id="sample-list" aria-label="Sample reports"></nav>
+  <!-- Placeholders until /api/samples answers (samples.js replaces them):
+       the reader used to say "Choose a report above." while there was
+       nothing above to choose from. -->
+  <nav class="samples__list" id="sample-list" aria-label="Sample reports" aria-busy="true">
+    <span class="sample-card sample-card--placeholder" aria-hidden="true"></span>
+    <span class="sample-card sample-card--placeholder" aria-hidden="true"></span>
+    <span class="sample-card sample-card--placeholder" aria-hidden="true"></span>
+    <span class="sample-card sample-card--placeholder" aria-hidden="true"></span>
+  </nav>
 
   <section class="samples__reader" id="sample-reader" aria-live="polite">
-    <p class="empty-note" data-samples-i18n="samples_choose">Choose a report above.</p>
+    <div class="skeleton"></div>
   </section>
 </div>
 

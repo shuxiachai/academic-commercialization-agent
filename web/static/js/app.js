@@ -301,12 +301,12 @@ function stopClock() {
   clock = null;
 }
 
-function startClock(fromSeconds) {
+function startClock(fromSeconds, format = runView.formatDuration) {
   stopClock();
   const anchor = Date.now();
   const paint = () => {
     const secs = fromSeconds + Math.floor((Date.now() - anchor) / 1000);
-    $("#run-elapsed").textContent = runView.formatDuration(secs);
+    $("#run-elapsed").textContent = format(secs);
   };
   paint();
   clock = setInterval(paint, 1000);
@@ -320,55 +320,80 @@ function paintHeader({
 }) {
   if (topic) $("#run-title").textContent = topic;
 
+  // Whoever may not change this run reads it: someone it was shared with.
+  // Its header was written for the person who ran it (token counts, "see
+  // your provider's console", stage times, a paragraph about resuming) and
+  // said "3:57" of an assessment that took 29 minutes over two runs. A
+  // reader is told when it was assessed, on which model, and how long it
+  // took in all (run.js readerHeader); the owner's header is unchanged.
+  // What the reads return is not changed either: only what is drawn.
+  const reader = viewerMode || !mayModify(arguments[0]);
+  const view = reader ? runView.readerHeader(arguments[0]) : null;
+
   const pill = $("#run-pill");
   pill.className = `pill pill--${state}`;
   pill.textContent = runView.stateLabel(state);
 
-  if (state === "running") {
-    startClock(elapsed_seconds ?? 0);
+  const assessed = $("#run-assessed");
+  assessed.textContent = view?.assessed ?? "";
+  assessed.title = view?.title ?? "";
+  assessed.hidden = !assessed.textContent;
+  const model = $("#run-model");
+  model.textContent = view?.model ? `${view.assessed ? "· " : ""}${view.model}` : "";
+  model.hidden = !model.textContent;
+
+  // The reader's time is the whole assessment's, and nothing where it is not known for certain.
+  const lead = view && (view.assessed || view.model) ? "· " : "";
+  const elapsedText = view
+    ? (seconds) => (view.seconds === null ? "" : `${lead}${runView.readerTime(view.timeKey, seconds)}`)
+    : runView.formatDuration;
+  if (state === "running" && view?.seconds !== null) {
+    startClock(view ? view.seconds : elapsed_seconds ?? 0, elapsedText);
   } else {
     stopClock();
-    $("#run-elapsed").textContent = runView.formatDuration(elapsed_seconds);
+    $("#run-elapsed").textContent = elapsedText(view ? view.seconds : elapsed_seconds);
   }
 
   // What recent runs on this model took from this step on, for a run still going.
-  const etaText = state === "running" ? runView.etaSummary(eta) : "";
+  const etaText = state === "running" && !reader ? runView.etaSummary(eta) : "";
   $("#run-eta").textContent = etaText ? `· ${etaText}` : "";
   $("#run-eta").title = etaText ? runView.etaTitle(eta, llm_model) : "";
   paintNotifyButton(state);
 
-  const summary = runView.sourceSummary(source_counts);
+  const summary = reader ? "" : runView.sourceSummary(source_counts);
   const el = $("#run-sources");
   el.textContent = summary ? `· ${summary}` : "";
 
   // Which model and which code: the deployment swaps models without notice,
   // so a report must say what produced it rather than leave the reader to
   // assume today's model. Both values ride on the status payload already.
-  const identity = runView.identitySummary(usage, pipeline_revision);
+  // A reader has the model in the line above; the revision is a maintainer's.
+  const identity = reader ? "" : runView.identitySummary(usage, pipeline_revision);
   const identityEl = $("#run-identity");
   identityEl.textContent = identity;
   identityEl.title = identity ? runView.headerLabel("identity_title") : "";
 
   // Shown for failed runs too: a run that died halfway still spent whatever
-  // it spent, and that is the bill nobody can otherwise estimate.
-  const spend = runView.usageSummary(usage, usage_accounting);
+  // it spent, and that is the bill nobody can otherwise estimate. Not to a
+  // reader: what the run used and cost is its owner's account.
+  const spend = reader ? "" : runView.usageSummary(usage, usage_accounting);
   const spendEl = $("#run-usage");
-  const auxiliary = runView.auxiliarySummary(auxiliary_usage);
+  const auxiliary = reader ? "" : runView.auxiliarySummary(auxiliary_usage);
   spendEl.textContent = [spend, auxiliary].filter(Boolean).join(" · ");
-  spendEl.title = [runView.usageTitle(usage, usage_accounting), auxiliary].filter(Boolean).join("\n");
+  spendEl.title = reader ? "" : [runView.usageTitle(usage, usage_accounting), auxiliary].filter(Boolean).join("\n");
   // Folded, never dropped: the full accounting text with its caveats stays in
   // the DOM and one click away, while the header leads with the outcome.
   $("#run-usage-details").hidden = !spendEl.textContent;
   // The fold is headed by what the run used and what that is estimated to
   // have cost; where nothing was counted it keeps its plain name. The text
   // above, with the helper ledger and every caveat, is the detail inside.
-  const headline = runView.usageHeadline(usage, usage_accounting);
+  const headline = reader ? "" : runView.usageHeadline(usage, usage_accounting, funded_by);
   $("#run-usage-label").textContent = `· ${headline || runView.headerLabel("usage_details")}`;
 
   // Where the time went, folded the same way. The stage list shows it while
   // the run is going; the finished view replaces that list.
   const timingEl = $("#run-timing");
-  timingEl.textContent = runView.timingSummary(stage_timings, recovery);
+  timingEl.textContent = reader ? "" : runView.timingSummary(stage_timings, recovery);
   $("#run-timing-details").hidden = !timingEl.textContent;
   $("#run-timing-label").textContent = `· ${runView.headerLabel("stage_timing")}`;
 
@@ -393,17 +418,20 @@ function paintHeader({
   const tech = $("#run-tech-details");
   if (ordinaryEnding) tech.append?.(terminalEl);
   else $("#run-status-record").before?.(terminalEl);
-  tech.hidden = !(identity || ordinaryEnding);
+  tech.hidden = reader || !(identity || ordinaryEnding);
   $("#run-tech-label").textContent = `· ${runView.headerLabel("tech_details")}`;
 
   // Why it ended and whether it spent one of today's runs, kept with the run
   // rather than in a toast that is gone before the page is read again.
   const outcomeEl = $("#run-outcome");
-  const outcome = runView.outcomeSummary({ state, error, error_code, funded_by, daily_charge, daily_charge_reason, checkpointing });
+  // Whether it spent a daily run is said to the owner whose run it was.
+  const outcome = runView.outcomeSummary({ state, error, error_code, funded_by, daily_charge: reader ? null : daily_charge,
+    daily_charge_reason, checkpointing });
   outcomeEl.textContent = outcome;
   outcomeEl.hidden = !outcome;
   paintRunHelp({ state, error_code, funded_by, run_id });
-  paintLineage({ state, recovery, lineage, elapsed_seconds, usage, usage_accounting });
+  // What a resume reused and the two runs' sums are the owner's; a reader has the total above.
+  paintLineage(reader ? {} : { state, recovery, lineage, elapsed_seconds, usage, usage_accounting });
   paintContinued(continued_by);
 
   // A run takes minutes and does not need the page. Said to whoever started
@@ -966,13 +994,46 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden) document.title = baseTitle();
 });
 
+/* A link to a run that is not there: its owner deleted it, the deployment's
+ * retention removed it, or the link was cut short when it was copied. Every
+ * shared link comes to this once its run reaches the retention age. Until
+ * 2026-11-21 the page kept the run's header, reading "…", UNKNOWN and "— ·
+ * Usage & cost", over one line, "The server could not find this run.
+ * Automatic polling has stopped.", and nothing else. It says now that the
+ * assessment cannot be opened and why that may be, and offers the samples
+ * and an assessment of one's own: plain links, the same for a reader and a
+ * signed-in user. */
+function showGone() {
+  stopClock();
+  $("#run-head").hidden = true;
+  $("#run-body").hidden = true;
+  $("#run-gone").hidden = false;
+  paintGone();
+}
+
+/* The reason about age, in the deployment's own terms: its retention period
+ * from /health (refreshCapacity, which paints this again when it reads one).
+ * A deployment that keeps runs until they are deleted has no such reason to
+ * give; before any reading it is said without a number. */
+function paintGone() {
+  const line = $("#run-gone-retention");
+  const reading = capacityReading && capacityReading !== "offline" ? capacityReading : null;
+  const days = reading?.retention_days;
+  const kept = Number.isSafeInteger(days) && days > 0;
+  line.hidden = Boolean(reading) && !kept;
+  line.textContent = kept ? t("gone_retention_days").replace("{days}", String(days)) : t("gone_retention");
+}
+
 async function openRun(runId, { known } = {}) {
   stopFollowing();
   showRun(runId);
   $("#run-connection").textContent = "";
+  $("#run-gone").hidden = true;
+  $("#run-head").hidden = false;
 
   const body = $("#run-body");
   body.innerHTML = "";
+  body.hidden = false;
   paintHeader({ topic: known?.topic ?? "…", state: known?.state ?? "unknown" });
   paintActions(known?.state ?? "unknown", known?.checkpointing, mayModify(known), known ?? null);
   try { history.pushState({}, "", `/run/${runId}`); }
@@ -988,9 +1049,9 @@ async function openRun(runId, { known } = {}) {
     onConnection({ state, lastSuccessAt }) {
       // Connectivity is a fact about our read, not a new worker state. Stop
       // extrapolating elapsed time until a fresh progress response anchors it.
+      // A run that is not there is said by the page in its place (showGone), not here.
       $("#run-connection").textContent = state === "stale"
-        ? t(lastSuccessAt === null ? "run_connection_unconfirmed" : "run_connection_stale")
-        : state === "missing" ? t("run_connection_missing") : "";
+        ? t(lastSuccessAt === null ? "run_connection_unconfirmed" : "run_connection_stale") : "";
       if (state !== "connected") stopClock();
     },
     onUpdate(progress) {
@@ -1028,7 +1089,8 @@ async function openRun(runId, { known } = {}) {
       }
     },
     onError(err) {
-      toast(errorText(err), "error");
+      if (err.status === 404) showGone();
+      else toast(errorText(err), "error");
     },
   });
 }
@@ -1279,6 +1341,9 @@ function syncComposer() {
     control.disabled = submitting || paidReceipts.state().uncertain || (busy && control.id === "plan-start");
   });
   attachBtn.disabled = extracting || submitting || paidReceipts.state().uncertain || busy;
+  // What happens to a PDF's text, while there is a PDF: being read, or
+  // attached. Before one is chosen it is the Paper button's description.
+  $("#paper-privacy").hidden = !(extracting || attachedPaper);
   // Keep the submitted payload stable in the visible composer as well. The
   // handler guard still matters for programmatic submits and queued events.
   for (const input of [topic, $("#language"), $("#profile"), ...decisionContextInputs]) {
@@ -1779,6 +1844,7 @@ async function refreshCapacity() {
     capacityReading = "offline";
   }
   paintCapacityLabel();
+  if (!$("#run-gone").hidden) paintGone();
 }
 
 function paintCapacityLabel() {
@@ -2303,8 +2369,11 @@ function paintLanding() {
 }
 
 /* The screenshot of a finished assessment, further down the landing: the
- * decision brief and scorecard of the sample the card above draws its
- * scorecard from, as that sample's page shows them. One file for each theme,
+ * sample run with a decision context (perovskite-silicon-tandem), at its
+ * decision conclusion, as that sample's page shows it. Until 2026-11-21 it
+ * was the glucose-monitoring sample's brief and scorecard: the same sample,
+ * and the same scorecard, as the card beside the pitch, and no decision
+ * conclusion anywhere on the landing. One file for each theme,
  * width and interface language (web/static/landing/), so the capture is in
  * the theme the visitor reads in and legible at a phone's width: the single
  * dark, 900 px picture this page had until 2026-11-13 was neither.
@@ -2318,8 +2387,8 @@ function paintLanding() {
  * does not move when it arrives; tests/test_landing_page.py reads the sizes
  * back from the files. */
 const LANDING_SHOT_SIZES = {
-  en: { desktop: [1744, 1912], phone: [734, 3020] },
-  zh: { desktop: [1744, 1912], phone: [734, 2794] },
+  en: { desktop: [1744, 836], phone: [764, 1416] },
+  zh: { desktop: [1744, 836], phone: [764, 1336] },
 };
 let landingShotShown = false;
 
@@ -2336,7 +2405,7 @@ function paintLandingShot() {
   const narrow = $("#landing-shot-phone");
   const language = i18n.language() === "Simplified Chinese" ? "zh" : "en";
   const theme = themeInUse();
-  const file = (size) => `/static/landing/brief-scorecard-${size}-${theme}-${language}.png`;
+  const file = (size) => `/static/landing/decision-conclusion-${size}-${theme}-${language}.png`;
   const sized = (node, [width, height]) => { node.width = width; node.height = height; };
   sized(narrow, LANDING_SHOT_SIZES[language].phone);
   sized(picture, LANDING_SHOT_SIZES[language].desktop);
@@ -2418,17 +2487,33 @@ async function showLanding() {
  * A scorecard that cannot be read leaves one quiet line and nothing else;
  * the sample list under it does not depend on this request. */
 const LANDING_PREVIEW_SAMPLE = "continuous-glucose-monitoring";
+// The scores as read, kept so a change of language draws the card again
+// without asking again (drawLandingPreview): undefined while they are on
+// their way, null when they could not be read.
+let landingScores;
 
 async function paintLandingPreview() {
+  try {
+    landingScores = await api.sampleScores(LANDING_PREVIEW_SAMPLE);
+  } catch {
+    landingScores = null;  // unread, the note drawn below says so; never an error on the page
+  }
+  // The landing may have been put away while the scores were on their way.
+  if ($("#landing").hidden) return;
+  drawLandingPreview();
+}
+
+/* The card's words are the interface's ("Strong", "Technology readiness"...),
+ * so it is drawn again when the language changes. Until 2026-11-21 it was
+ * drawn once, and a visitor who switched the landing to Chinese read it in
+ * English until a reload. */
+function drawLandingPreview() {
   const frame = $("#landing-preview");
   const note = $("#landing-preview-note");
   let card = null;
   try {
-    const scores = await api.sampleScores(LANDING_PREVIEW_SAMPLE);
-    // The landing may have been put away while the scores were on their way.
-    if ($("#landing").hidden) return;
-    card = result.renderScoreSummary(scores);
-  } catch { /* unread or undrawable, the note below says so; never an error on the page */ }
+    if (landingScores) card = result.renderScoreSummary(landingScores);
+  } catch { /* undrawable, the note below says so */ }
   frame.innerHTML = "";
   if (card) frame.append(card);
   // "loading" in the markup keeps the frame's height; "missing" gives it up.
@@ -2449,6 +2534,17 @@ async function paintLandingSamples() {
   if (!Array.isArray(samples)) return;
   landingSamples = samples;
   drawLandingSamples();
+}
+
+/* What the landing draws itself rather than i18n.apply(), drawn again in the
+ * language just chosen from what was already read: nothing is asked for
+ * again. A scorecard still on its way is drawn when it arrives, and a
+ * landing that was put away is not drawn into. */
+function drawLandingInLanguage() {
+  drawLandingSamples();
+  if ($("#landing").hidden) return;
+  if (landingScores !== undefined) drawLandingPreview();
+  drawLandingRetention();
 }
 
 /* The names and the facts beside them are in the reader's language, so they
@@ -2476,6 +2572,15 @@ function drawLandingSamples() {
       if (facts.tone) note.dataset.tone = facts.tone;
       link.append(note);
     }
+    // The sample whose report states a conclusion for a decision-maker says
+    // so here, as its card on /samples does: until 2026-11-21 it was not in
+    // this list at all, and nothing on the landing showed a conclusion.
+    if (facts.decision) {
+      const tag = document.createElement("span");
+      tag.className = "landing__sample-decision";
+      tag.textContent = facts.decision;
+      link.append(tag);
+    }
     item.append(link);
     list.append(item);
   }
@@ -2486,18 +2591,27 @@ function drawLandingSamples() {
  * sign up. The key form said the same until 2026-11-18. Silent on failure:
  * /health is unauthenticated, and an unreachable server must not leave a
  * claim on screen that nothing has confirmed. No line beats a wrong one. */
+let landingRetention;   // the reading's retention_days, kept for a change of language; undefined until read
 async function paintLandingRetention() {
-  const node = $("#landing-retention");
   try {
     const reading = await api.health();
     noteHealthFacts(reading);
-    const { retention_days } = reading;
-    node.textContent = retention_days
-      ? t("byok_retention").replace("{days}", retention_days)
-      : t("byok_retention_forever");
+    landingRetention = reading.retention_days ?? null;
   } catch {
-    node.textContent = "";
+    landingRetention = undefined;
   }
+  drawLandingRetention();
+}
+
+/* Drawn again on a change of language, as the scorecard is: until 2026-11-21
+ * the first answer under "How long is my data kept?" stayed in the language
+ * the page had loaded in. */
+function drawLandingRetention() {
+  const node = $("#landing-retention");
+  if (landingRetention === undefined) node.textContent = "";
+  else node.textContent = landingRetention
+    ? t("byok_retention").replace("{days}", landingRetention)
+    : t("byok_retention_forever");
 }
 
 /* Whether this visit could end on the landing: at its address, with nothing
@@ -2788,7 +2902,7 @@ function showGate(errorKey = null, { keysOnly = false, creating: startCreating =
    * change made on another device. */
   let savedView = 0;
   let listed = null;       // what the server last said is saved, for the check's wording
-  const locale = () => (i18n.language() === "English" ? "en-GB" : "zh-CN");
+  const locale = () => i18n.locale();
   const providerName = (id) => $("#byok-provider").querySelector?.(`option[value="${id}"]`)?.textContent || id;
   const searchName = (id) => $("#byok-search").querySelector?.(`option[value="${id}"]`)?.textContent || id;
   // A word joiner after the ellipsis, so a line never breaks inside "…abcd".
@@ -3468,7 +3582,9 @@ async function pickComparison(runId) {
     label.textContent = run.topic || run.run_id;
     const meta = document.createElement("span");
     meta.className = "picker__meta tabular";
-    meta.textContent = [same ? t("compare_pick_same") : null, when ? when.toLocaleDateString() : null, run.owner_label || null]
+    // In the interface's language, as the keys panel dates are; not the browser's.
+    const day = when ? when.toLocaleDateString(i18n.locale(), { year: "numeric", month: "short", day: "numeric" }) : null;
+    meta.textContent = [same ? t("compare_pick_same") : null, day, run.owner_label || null]
       .filter(Boolean).join(" · ");
     choose.append(label, meta);
     choose.addEventListener("click", () => {
@@ -3562,7 +3678,7 @@ langSelect.addEventListener("change", () => {
   paintAccountIdentity();
   paintRunTimes();
   paintActiveRun();
-  drawLandingSamples();
+  drawLandingInLanguage();
   // The capture of the interface is in the interface's language too.
   if (landingShotShown) paintLandingShot();
   paintTrialNote();

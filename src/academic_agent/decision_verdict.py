@@ -277,6 +277,24 @@ def _verdict_in(sentence: str, *, heads_block: bool) -> tuple[str, bool] | None:
     return None
 
 
+def _says_only_the_verdict(statement: str) -> bool:
+    """Whether a conclusion line holds its verdict and nothing more:
+    "Conclusion: DEFER.", "Decision applicability and conclusion: DEFER.",
+    "DEFER.", "结论：暂缓。". Not "Decision: DEFER until module data exist",
+    which carries its condition."""
+    plain = _plain(_CITATION.sub("", statement))
+    for label in (_LABEL, _CHINESE_LABEL):
+        match = label.match(plain)
+        if match:
+            plain = match["rest"]
+            break
+    for pattern in (_LABELLED_TOKEN, _CHINESE_TOKEN):
+        token = pattern.search(plain)
+        if token and not re.search(r"\w", plain[:token.start()] + plain[token.end():]):
+            return True
+    return False
+
+
 def _needle(statement: str) -> str:
     """The longest stretch of the statement with no citation in it, as the page prints it."""
     runs = [_plain(run) for run in _CITATION.split(statement)]
@@ -284,54 +302,149 @@ def _needle(statement: str) -> str:
     return longest[:_NEEDLE_LIMIT].strip()
 
 
+PARAGRAPH, ITEM, QUOTE, SUBHEADING = "paragraph", "item", "quote", "subheading"
+# "---", "***", "___": a rule across the page. Nothing on either side of it is
+# read as the continuation of the other.
+_THEMATIC_BREAK = re.compile(r"^(?:-[ \t]*){3,}$|^(?:\*[ \t]*){3,}$|^(?:_[ \t]*){3,}$")
+
+
 def _blocks(report: str):
-    """(section heading, block text) for every paragraph and list item read."""
+    """(section heading, kind, block text, indent) for every paragraph, list
+    item, quoted line and sub-heading read, in the report's order, and `None`
+    wherever something that is not read stands between two of them: a
+    top-level heading, a table, a fenced block, a rule. Two blocks with no
+    `None` between them are next to each other in one section. `indent` is
+    how far the block's first line is indented, so a list item nested under
+    another can be told from the next item of the same list."""
     section = ""
     skipped = False
     block: list[str] = []
+    kind = PARAGRAPH
+    indent = 0
     fenced = False
 
     def flush():
         if block:
             text = " ".join(block)
             block.clear()
-            return text
+            return None if skipped else (section, kind, text, indent)
         return None
 
     for raw in report.splitlines():
         line = raw.strip()
         if line.startswith("```"):
             fenced = not fenced
-            text = flush()
-            if text and not skipped:
-                yield section, text
+            if part := flush():
+                yield part
+            yield None
             continue
         if fenced:
             continue
         heading = _HEADING.match(line)
         if heading:
-            text = flush()
-            if text and not skipped:
-                yield section, text
+            if part := flush():
+                yield part
             if len(heading[1]) <= 2:
+                yield None
                 section = _plain(heading[2])
                 skipped = bool(_SKIPPED_SECTIONS.match(section))
             elif not skipped:
                 # "### Decision: DEFER" states it as well as a paragraph does.
-                yield section, heading[2]
+                yield section, SUBHEADING, heading[2], 0
+            continue
+        if _THEMATIC_BREAK.match(line):
+            if part := flush():
+                yield part
+            yield None
             continue
         if not line or line.startswith(("|", ">")) or _LIST_ITEM.match(line):
-            text = flush()
-            if text and not skipped:
-                yield section, text
+            if part := flush():
+                yield part
+            if line.startswith("|"):
+                yield None
+                continue
             if line.startswith(">"):
                 line = line.lstrip("> ").strip()
-            if not line or line.startswith("|"):
+                kind = QUOTE
+            else:
+                kind = ITEM if line else PARAGRAPH
+            if not line:
                 continue
+            indent = len(raw.expandtabs(4)) - len(raw.expandtabs(4).lstrip())
+        elif not block:
+            kind = PARAGRAPH
+            indent = len(raw.expandtabs(4)) - len(raw.expandtabs(4).lstrip())
         block.append(line)
-    text = flush()
-    if text and not skipped:
-        yield section, text
+    if part := flush():
+        yield part
+
+
+# A paragraph that is one emphasised phrase and nothing else is a heading in
+# all but its marks: "**Next steps.**", "**Stop criteria:**". What comes
+# after it belongs to it, not to the paragraph before.
+_EMPHASIS_ALONE = re.compile(r"^(?:\*\*[^*]+\*\*|__[^_]+__|\*[^*]+\*|_[^_]+_)\s*[.:：。]?$")
+
+
+def _next_paragraph(parts: list, at: int) -> list[str]:
+    """Up to two sentences of the paragraph right after `parts[at]` in the
+    same section, or none.
+
+    For a conclusion written as a paragraph of its own. The run that showed
+    the need (production, 2026-11-20) wrote "**Conclusion:** **DEFER**" alone
+    and its reasons in the next paragraph, "**Evidence conditions behind the
+    conclusion:** ..."; the card quoted "Conclusion: DEFER" and nothing else.
+    Only a paragraph directly below is read: not a list item (a list is
+    shown whole in the report, not two of its lines), not a quote, not a
+    sub-heading or a paragraph that is only a bold label, and never across a
+    heading, a table, a fenced block or a rule.
+    """
+    if at + 1 >= len(parts) or parts[at + 1] is None:
+        return []
+    _, kind, text, _ = parts[at + 1]
+    if kind != PARAGRAPH or _EMPHASIS_ALONE.match(text) or not re.search(r"\w", _plain(text)):
+        return []
+    return [_plain(s)[:_STATEMENT_LIMIT] for s in _sentences(text)[:_FOLLOWS]]
+
+
+# How a passage ends when it leads into what comes after it: a colon,
+# citations and closing marks aside ("…four evidence conditions [A1][A3]:").
+_LEADS_IN = re.compile(r"[:：][\s)\]\"'”’」』）*_`]*$")
+_ORDERED_ITEM = re.compile(r"^\d+[.)]\s+")
+#: The most entries a card quotes. A longer list is counted, never cut.
+_ITEMS_LIMIT = 4
+
+
+def leads_in(passage: str) -> bool:
+    """Whether a passage ends with a colon, so what it introduces comes after it."""
+    return bool(_LEADS_IN.search(_CITATION.sub("", passage or "").rstrip()))
+
+
+def _list_after(parts: list, at: int) -> tuple[list[str], bool, int]:
+    """(entries, numbered, how many) of the list right under `parts[at]`.
+
+    For a passage that ends with a colon. The public sample
+    perovskite-silicon-tandem (2026-11-21) closed its conclusion with "…based
+    on four evidence conditions [A1][A3][M6][P1–P8]:" and the card stopped
+    there; the four conditions were the numbered list under that sentence.
+    Only a list directly below, in the same section, with nothing between,
+    is read. Its entries are quoted whole where there are at most four and
+    none has entries nested under it; otherwise none is, and the count says
+    how many the report lists, so the card points to them rather than show
+    a part of the list as if it were all of it.
+    """
+    run: list[tuple[str, int]] = []
+    for part in parts[at + 1:]:
+        if part is None or part[1] != ITEM:
+            break
+        run.append((part[2], part[3]))
+    if not run:
+        return [], False, 0
+    level = run[0][1]
+    top = [text for text, indent in run if indent <= level]
+    ordered = bool(_ORDERED_ITEM.match(run[0][0]))
+    if len(top) < len(run) or len(top) > _ITEMS_LIMIT:
+        return [], ordered, len(top)
+    return [_plain(_LIST_ITEM.sub("", text))[:_STATEMENT_LIMIT] for text in top], ordered, len(top)
 
 
 #: The card's words where no interface language applies: the PDF, which is in
@@ -358,6 +471,8 @@ _CARD_COPY: dict[str, dict[str, str]] = {
         "conflicting_detail": "Each is quoted below as written; this card does not choose between them.",
         "in_section": "{verdict}, in “{section}”:",
         "note": "Read from the report's own text. The scores are not changed by it.",
+        "listed": "(The report lists {n} points here: see them in the report.)",
+        "continues": "(The report goes on from here: see it in the report.)",
     },
     "Simplified Chinese": {
         "title": "决策结论",
@@ -378,15 +493,35 @@ _CARD_COPY: dict[str, dict[str, str]] = {
         "conflicting_detail": "下面按原文逐条引用，这张卡不替报告取舍。",
         "in_section": "{verdict}，出自“{section}”：",
         "note": "摘自报告原文，不改变评分。",
+        "listed": "（报告在这里列出了 {n} 项，在报告中查看）",
+        "continues": "（报告在这里接着写了下去，在报告中查看）",
     },
 }
 
 
+# How a sentence ends when it ends with a stop, citations aside.
+_SPOKEN_END = re.compile(r"[.!?。！？:：;；…][\s)\]\"'”’」』）*]*$")
+
+
 def joined(sentences: list[str]) -> str:
-    """Sentences as one passage: a space between them, none after a Chinese full stop."""
+    """Sentences as one passage: a space between them, none after a Chinese
+    full stop, and a line break after one that ends with no stop at all.
+
+    That last is a conclusion line of its own ("Conclusion: DEFER") whose
+    reasons come from the next paragraph. Run into them it would read
+    "Conclusion: DEFER Evidence conditions ...", and a full stop put in would
+    be the card's, not the report's. result.js decisionVerdict joins the
+    same way.
+    """
     passage = ""
     for sentence in sentences:
-        passage += ("" if not passage or passage[-1] in "。！？" else " ") + sentence
+        if not passage or passage[-1] in "。！？":
+            gap = ""
+        elif not _SPOKEN_END.search(_CITATION.sub("", passage)):
+            gap = "\n"
+        else:
+            gap = " "
+        passage += gap + sentence
     return passage
 
 
@@ -394,6 +529,9 @@ def card_text(question: dict[str, Any] | None, conclusion: dict[str, Any], langu
     """The card as lines of text, in the report's language (English otherwise).
 
     `tone` is the verdict code, or the status when there is no single verdict.
+    `items` is the list a quoted passage ending with a colon introduces, as
+    (marker, entry) pairs; `listed_note` says where to read on when that
+    list is not quoted (longer than four, nested, or not a list at all).
     """
     copy = _CARD_COPY.get(language, _CARD_COPY["English"])
     asked = []
@@ -403,10 +541,19 @@ def card_text(question: dict[str, Any] | None, conclusion: dict[str, Any], langu
             asked.append(f"{copy[key]}: {value.strip()}" if language != "Simplified Chinese"
                          else f"{copy[key]}：{value.strip()}")
     status = conclusion.get("status")
-    card: dict[str, Any] = {"title": copy["title"], "asked": asked, "note": copy["note"], "quotes": [], "where": None}
+    card: dict[str, Any] = {"title": copy["title"], "asked": asked, "note": copy["note"], "quotes": [], "where": None,
+                            "items": [], "listed_note": None}
     if status == STATED:
         card.update(tone=conclusion["verdict"], headline=copy[conclusion["verdict"]], detail=None)
         card["quotes"] = [(copy["says"], joined([conclusion["statement"], *conclusion.get("follows", [])]))]
+        # The list the passage introduces, numbered as the report numbers it;
+        # or, where it is not quoted, where to read on.
+        items = conclusion.get("items") or []
+        ordered = conclusion.get("ordered") is True
+        card["items"] = [(f"{number}." if ordered else "•", item) for number, item in enumerate(items, 1)]
+        listed = conclusion.get("listed")
+        if not items and isinstance(listed, int):
+            card["listed_note"] = copy["listed"].format(n=listed) if listed else copy["continues"]
         if conclusion.get("section"):
             card["where"] = copy["where"].format(section=conclusion["section"])
     elif status == CONFLICTING:
@@ -429,13 +576,25 @@ def find_verdict(report: str) -> dict[str, Any]:
     (the report's own conclusion line where it has one, else the first place
     it is said), the `section` it stands in, up to two sentences that follow it in the same
     paragraph (`follows`: the reasons and conditions the writer put next to
-    it), and a `needle`, text a page can find the paragraph by. `statements`
+    it; for a statement that is a paragraph of its own, the first two of the
+    paragraph right below it, see _next_paragraph), `bare` (the statement is
+    a conclusion line that says the verdict and nothing else, "Conclusion:
+    DEFER.", so a one-line summary has nothing to quote from it), a
+    `needle`, text a page can find the paragraph by, and for a passage that
+    ends with a colon what it introduces (see _list_after): `items`, the
+    entries of the list right under it, quoted, `ordered`, whether that list
+    is numbered, and `listed`, how many entries it has (0: no list is right
+    under it; None: the passage does not end with a colon). `statements`
     lists every one found, so a disagreement can be shown rather than hidden.
     """
     text = _OWNED_BLOCK.sub("", report or "")
     statements: list[dict[str, Any]] = []
     own_lines: list[int] = []
-    for section, block in _blocks(text):
+    parts = list(_blocks(text))
+    for at, part in enumerate(parts):
+        if part is None:
+            continue
+        section, kind, block, _ = part
         sentences = _sentences(block)
         for index, sentence in enumerate(sentences):
             stated = _verdict_in(sentence, heads_block=index == 0)
@@ -445,20 +604,45 @@ def find_verdict(report: str) -> dict[str, Any]:
             if own_line:
                 own_lines.append(len(statements))
             shown = _plain(_LIST_ITEM.sub("", sentence))
+            follows = [_plain(s)[:_STATEMENT_LIMIT] for s in sentences[index + 1:index + 1 + _FOLLOWS]]
+            # The sentence the passage ends with, as written, and the block it
+            # stands in. A colon is not a stop (_STOP), so a sentence that ends
+            # with one is the last of its block: the list under that block is
+            # the one it introduces. Read whole, not cut to _STATEMENT_LIMIT,
+            # where a colon could fall by chance in the middle of a sentence.
+            last, closes = sentences[index + len(follows)], at
+            if kind == PARAGRAPH and len(sentences) == 1:
+                # The conclusion is the whole paragraph; its reasons, if the
+                # writer gave them, open the next one.
+                follows = _next_paragraph(parts, at)
+                if follows:
+                    last, closes = _sentences(parts[at + 1][2])[len(follows) - 1], at + 1
+            items: list[str] = []
+            ordered = False
+            listed: int | None = None
+            if leads_in(_plain(last)):
+                # What the passage introduces: the list right under a paragraph,
+                # or nothing (a list item, a quote, a sub-heading ending with a
+                # colon), and then the card says the report goes on.
+                items, ordered, listed = _list_after(parts, closes) if kind == PARAGRAPH else ([], False, 0)
             statements.append({
                 "verdict": code,
                 "statement": shown[:_STATEMENT_LIMIT],
                 "section": section,
-                "follows": [_plain(s)[:_STATEMENT_LIMIT] for s in sentences[index + 1:index + 1 + _FOLLOWS]],
+                "follows": follows,
                 "needle": _needle(_LIST_ITEM.sub("", sentence)),
+                "bare": own_line and _says_only_the_verdict(shown),
+                "items": items,
+                "ordered": ordered,
+                "listed": listed,
             })
     codes = sorted({item["verdict"] for item in statements}, key=VERDICTS.index)
+    empty = {"verdict": None, "statement": None, "section": None, "follows": [], "needle": None,
+             "bare": False, "items": [], "ordered": False, "listed": None}
     if not statements:
-        return {"status": NOT_STATED, "verdict": None, "statement": None, "section": None,
-                "follows": [], "needle": None, "statements": []}
+        return {"status": NOT_STATED, **empty, "statements": []}
     if len(codes) > 1:
-        return {"status": CONFLICTING, "verdict": None, "statement": None, "section": None,
-                "follows": [], "needle": None, "statements": statements}
+        return {"status": CONFLICTING, **empty, "statements": statements}
     # Which of several agreeing statements to quote. The report's own
     # conclusion line where it has one ("Conclusion: DEFER."), else the first.
     # The one production report read for this (2026-11-18) says DEFER twice:

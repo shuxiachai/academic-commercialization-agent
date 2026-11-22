@@ -83,6 +83,16 @@
   letter-spacing: -0.02em;
   text-wrap: balance;
 }
+/* A Chinese line may end between any two characters, and balance picks the
+   most even split: at 1280 px that fell inside "带引用的" (2026-11-21). The
+   Chinese title marks the ends of its phrases with zero-width spaces
+   (i18n.js landing_title); keep-all keeps the characters between them
+   together. A phrase wider than the column may still break, rather than
+   spill over the card beside it. English is left as it was. */
+:lang(zh) .landing__pitch h1 {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
 .landing__lede {
   max-width: 36em;
   margin-top: var(--space-5);
@@ -239,10 +249,17 @@
   font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
+/* The sample whose report states a conclusion for a decision-maker, as its
+   card on /samples marks it. */
+.landing__sample-decision {
+  color: var(--accent);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
 .landing__sample .btn { margin-top: var(--space-4); min-height: 44px; }
 
 /* ── What a finished assessment looks like ──
-   A screenshot of one sample's decision brief and scorecard, in the theme,
+   A screenshot of one sample's decision conclusion, in the theme,
    at the width and in the language the visitor reads in (app.js
    paintLandingShot names the file). It is framed as what it is, a capture of
    another page, and it opens that page. The width and height on the picture
