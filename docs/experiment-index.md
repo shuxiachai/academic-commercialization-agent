@@ -311,6 +311,7 @@ to reuse consumed cohorts.
 - [2026 08 22 patent relevance candidate screen v1](prereg-2026-08-22-patent-relevance-candidate-screen-v1.md)
 - [2026 08 22 reviewer value audit](prereg-2026-08-22-reviewer-value-audit.md)
 - [2026 08 22 user utility audit](prereg-2026-08-22-user-utility-audit.md)
+- [2026 08 22 user utility audit guide](user-utility-audit-guide.md): the frozen collection procedure for the protocol above
 - [2026 08 23 checkpoint fault recovery](prereg-2026-08-23-checkpoint-fault-recovery.md)
 - [2026 08 24 input shape contracts](prereg-2026-08-24-input-shape-contracts.md)
 - [2026 08 24 paid same revision recovery follow up](prereg-2026-08-24-paid-same-revision-recovery-follow-up.md)
