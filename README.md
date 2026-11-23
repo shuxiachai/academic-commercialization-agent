@@ -413,6 +413,12 @@ Contributors: [Song Guoyu (@7776403yu)](https://github.com/7776403yu),
 API credits for development and testing were provided by [Infistar](https://infistar.cc).
 Explore [more projects on the author's GitHub profile](https://github.com/shuxiachai).
 
+## Citing
+
+If you use this software in a paper, cite it from the sidebar's
+**Cite this repository** button, which offers APA and BibTeX formats. It
+reads the citation metadata in [`CITATION.cff`](CITATION.cff).
+
 ## License
 
 [MIT](LICENSE). Contributions are accepted under the same license; see

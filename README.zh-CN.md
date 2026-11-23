@@ -341,6 +341,12 @@ Kubernetes 本身不能解决这些缺口。没有接入邮件服务的部署既
 开发测试用的 API 额度由 [Infistar](https://infistar.cc) 提供。
 更多项目与实践见 [GitHub 个人主页](https://github.com/shuxiachai)。
 
+## 引用
+
+如果在论文中使用本软件，请通过侧边栏的 **Cite this repository** 按钮引用，
+它提供 APA 和 BibTeX 两种格式。该按钮读取 [`CITATION.cff`](CITATION.cff)
+中的引用元数据。
+
 ## 许可证
 
 本项目采用 [MIT 许可证](LICENSE)。提交的贡献同样按 MIT 许可，详见
