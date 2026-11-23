@@ -6,6 +6,10 @@ labels: enhancement
 assignees: ''
 ---
 
+Planning to write the change yourself? Read
+[Proposing a change of your own](https://github.com/shuxiachai/academic-commercialization-agent/blob/main/CONTRIBUTING.md#proposing-a-change-of-your-own)
+first, and wait for the maintainer to accept this issue before you start.
+
 **What problem does this solve?**
 Describe the use case or limitation you're running into.
 
