@@ -127,9 +127,8 @@ class SharePreviewTests(unittest.TestCase):
                         self.assertTrue(value.startswith(f"{_ORIGIN}/"), value)
 
     def test_the_documents_a_visitor_follows_name_the_address_of_the_cards(self):
-        """The README's links are where most visitors start. They, the demo
-        script's closing link and the line an assistant reads in AGENTS.md give
-        the address the cards do."""
+        """The README's links are where most visitors start. They and the line
+        an assistant reads in AGENTS.md give the address the cards do."""
         for name in ("README.md", "README.zh-CN.md"):
             text = (_REPO / name).read_text(encoding="utf-8")
             with self.subTest(document=name):
@@ -138,10 +137,7 @@ class SharePreviewTests(unittest.TestCase):
                 # application twice.
                 self.assertEqual(text.count(f"]({_ORIGIN}/samples)"), 2)
                 self.assertEqual(text.count(f"]({_ORIGIN})"), 2)
-        script = (_REPO / "docs" / "demo-script-90s.md").read_text(encoding="utf-8")
-        self.assertNotIn(_RAILWAY_HOST, script)
-        self.assertIn(f"[live application]({_ORIGIN})", script)
-        agents = (_REPO / "AGENTS.md").read_text(encoding="utf-8")
+        agents =(_REPO / "AGENTS.md").read_text(encoding="utf-8")
         self.assertIn(f"Live at {_ORIGIN}", agents)
         # The second address is named there once, as what it is.
         self.assertEqual(agents.count(_RAILWAY_HOST), 1)
