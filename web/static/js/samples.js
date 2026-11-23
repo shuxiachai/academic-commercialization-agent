@@ -175,10 +175,12 @@ function contentsFor(article) {
   const headings = [...article.querySelectorAll("h2")];
   if (!headings.length) return null;
   const list = el("ol");
+  const links = [];
   headings.forEach((heading, index) => {
     heading.id = `section-${index + 1}`;
     const link = el("a", null, heading.textContent);
     link.href = `#${heading.id}`;
+    links.push(link);
     const item = el("li");
     item.append(link);
     list.append(item);
@@ -190,7 +192,39 @@ function contentsFor(article) {
   nav.setAttribute("aria-label", t("samples_contents"));
   nav.append(block);
   contents = block;
+  watchHeadings(headings, links);
   return { nav, headings };
+}
+
+/** Mark the contents link of the section being read, so a reader in a long
+ * report can tell where they are. The observer watches a band near the top
+ * of the viewport, and the section marked is the last heading in the
+ * report's order that is inside it: as the reader scrolls down, each
+ * heading passes the band in turn, and between headings the mark stays on
+ * the section still on screen. Marking sets an attribute only — it never
+ * scrolls the page or moves focus — and the link's look comes from
+ * samples.css, since the production Content-Security-Policy is
+ * style-src 'self' and forbids style attributes. Where IntersectionObserver
+ * does not exist, there is no marking and nothing else changes. The
+ * observer belongs to the open sample: open() disconnects it before a new
+ * report is built, so it cannot mark links that are gone. */
+let contentsObserver = null;
+function watchHeadings(headings, links) {
+  if (typeof IntersectionObserver === "undefined") return;
+  const onScreen = new Set();
+  contentsObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) onScreen.add(entry.target);
+      else onScreen.delete(entry.target);
+    }
+    let current = null;
+    for (const heading of headings) if (onScreen.has(heading)) current = heading;
+    links.forEach((link, index) => {
+      if (headings[index] === current) link.setAttribute("aria-current", "location");
+      else link.removeAttribute("aria-current");
+    });
+  }, { rootMargin: "-80px 0px -70% 0px" });
+  headings.forEach((heading) => contentsObserver.observe(heading));
 }
 
 /** A plain same-origin link to the committed Markdown, so a visitor can keep
@@ -390,6 +424,10 @@ async function open(slug) {
   current = sample ? slug : null;
   rendered = null;
   contents = null;
+  // The old report is going away, whether this one loads or not: its
+  // observer must not keep marking links that are gone.
+  contentsObserver?.disconnect();
+  contentsObserver = null;
   paintList();
   showTitle(sample);
   if (!sample) { note("samples_missing"); return; }

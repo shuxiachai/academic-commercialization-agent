@@ -326,6 +326,18 @@
   line-height: var(--leading-tight);
 }
 .samples__toc a:hover { color: var(--accent); }
+/* The section being read, as samples.js marks it with aria-current: the
+ * accent, in the card's colour for the same state, on the accent's subtle
+ * wash. The negative margin pays for the added side padding, so the text
+ * stays where it was and the mark does not shift the list when it moves. */
+.samples__toc a[aria-current="location"] {
+  margin: 0 calc(-1 * var(--space-2));
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-weight: 600;
+}
 .samples__reader .prose h2 { scroll-margin-top: var(--space-6); }
 
 /* 1280px leaves 840px for the reader and, beside it, 24px of gap and 176px of
