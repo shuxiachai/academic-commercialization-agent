@@ -110,6 +110,28 @@ def test_theme_toggle_sits_in_the_sidebar_and_loads_after_app_js():
     assert "theme.js" not in (ROOT / "web/static/js/app.js").read_text(encoding="utf-8")
 
 
+def test_theme_toggle_is_in_the_static_pages_headers_too():
+    """#465: the sample reader, the privacy page and the 404 page already load
+    theme.js, but had no button — a visitor who is not signed in reads mostly
+    /samples and could not switch the theme there. Each header carries the
+    same button as the sidebar, next to the language selector, and the
+    button's styles moved to base.css, the sheet every page loads, rather
+    than being copied out of workbench.css."""
+    sidebar = re.search(r'<button[^>]*id="theme-toggle".*?</button>', INDEX, re.S)[0]
+    base = (ROOT / "web/static/css/base.css").read_text(encoding="utf-8")
+    workbench = (ROOT / "web/static/css/workbench.css").read_text(encoding="utf-8")
+    assert re.search(r"^\.icon-btn \{\n  width: 30px; height: 30px;", base, re.M)
+    assert re.search(r'#theme-toggle\[data-theme-now="light"\] \.theme-icon--sun,', base)
+    assert ".icon-btn" not in workbench and "#theme-toggle" not in workbench
+    for name in ("samples.html", "privacy.html", "not_found.html"):
+        html = (ROOT / "web" / name).read_text(encoding="utf-8")
+        nav = re.search(r'<div class="samples__nav">(.*?)</div>', html, re.S)[1]
+        assert nav.index('id="theme-toggle"') > nav.index('id="ui-lang"'), name
+        assert re.search(r'<button[^>]*id="theme-toggle".*?</button>', nav, re.S)[0] == sidebar, name
+        assert '<script type="module" src="/static/js/theme.js"></script>' in html, name
+        assert 'style="' not in html, name
+
+
 def test_every_page_with_the_palette_applies_the_saved_theme():
     """#234: a choice made in the workbench must also reach the pages that share
     tokens.css, or they would show the system theme instead."""
