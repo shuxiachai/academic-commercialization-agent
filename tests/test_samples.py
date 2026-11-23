@@ -522,11 +522,40 @@ class SampleListLayoutTests(unittest.TestCase):
         self.assertIn('aria-busy="true"', listing)
         self.assertEqual(listing.count('class="sample-card sample-card--placeholder" aria-hidden="true"'), 4)
         reader = page[page.index('id="sample-reader"'):]
-        reader = reader[:reader.index("</section>")]
+        reader = reader[:reader.index("</main>")]
         self.assertNotIn("samples_choose", reader)
         self.assertIn('<div class="skeleton"></div>', reader)
         css = (_REPO / "web/static/css/samples.css").read_text(encoding="utf-8")
         self.assertIn(".sample-card--placeholder", css)
+
+    def test_the_reader_is_the_main_landmark_with_a_skip_link(self):
+        # #446: no <main> meant a screen reader could not jump to the report
+        # and a keyboard Tabbed through the header, the language selector and
+        # every sample card first. The privacy page has the same shape: its
+        # two policy articles sit in one <main>.
+        for name in ("web/samples.html", "web/privacy.html"):
+            page = (_REPO / name).read_text(encoding="utf-8")
+            self.assertEqual(page.count("<main"), 1, name)
+            self.assertEqual(page.count("</main>"), 1, name)
+        page = (_REPO / "web/samples.html").read_text(encoding="utf-8")
+        body = page[page.index("<body>") + len("<body>"):]
+        first = re.search(r"<(\w+)[ >]", body).group(1)
+        self.assertEqual(first, "a", "the skip link is the first element in the body")
+        link = re.search(r'<a class="samples__skip"[^>]*>([^<]+)</a>', body)
+        self.assertIsNotNone(link, "no skip link found")
+        self.assertIn('href="#sample-reader"', link.group(0))
+        self.assertIn('data-samples-i18n="samples_skip"', link.group(0))
+        self.assertEqual(link.group(1), "Skip to the report")
+        # Following the link must move focus to the reader: a plain anchor
+        # only scrolls to a target it cannot focus, so the reader carries
+        # tabindex="-1" (focusable, not in the Tab order) and keeps its id
+        # and class.
+        reader = re.search(r'<main class="samples__reader" id="sample-reader"[^>]*>', page)
+        self.assertIsNotNone(reader)
+        self.assertIn('tabindex="-1"', reader.group(0))
+        css = (_REPO / "web/static/css/samples.css").read_text(encoding="utf-8")
+        self.assertIn(".samples__skip", css)
+        self.assertIn(".samples__skip:focus-visible", css)
 
 
 _ALLOWED_TAGS = {
