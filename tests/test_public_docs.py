@@ -14,9 +14,12 @@ from __future__ import annotations
 import ast
 import csv
 import re
+import tempfile
 import tomllib
+import unicodedata
 import unittest
 from pathlib import Path
+from urllib.parse import unquote
 
 import benchmark
 from academic_agent.run_output import _RUN_ID_ENTROPY_BYTES
@@ -227,6 +230,115 @@ class ServingSurfaceDocumentationTests(unittest.TestCase):
 
 class PublicDocumentationNavigationTests(unittest.TestCase):
     """Shorter entry points must keep their local evidence reachable."""
+
+    @staticmethod
+    def _github_anchor(heading: str) -> str:
+        """Return the anchor GitHub generates for one Markdown heading.
+
+        GitHub lowercases the heading, drops punctuation (anything that is
+        not a word character, a space or a hyphen), turns spaces into
+        hyphens, and keeps non-ASCII letters such as Chinese characters.
+        Inline Markdown is rendered first, so code spans, links and
+        emphasis markers never reach the anchor.
+        """
+        text = re.sub(r"`([^`]*)`", r"\1", heading)
+        text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)
+        text = re.sub(r"\[([^\]]*)\]\[[^\]]*\]", r"\1", text)
+        text = re.sub(r"<[^>]+>", "", text)
+        text = text.replace("**", "").replace("__", "")
+        text = re.sub(r"(?<!\w)\*|\*(?!\w)", "", text)
+        text = re.sub(r"(?<!\w)_|_(?!\w)", "", text)
+        slug = []
+        for char in text.lower():
+            if char == " ":
+                slug.append("-")
+            elif char in "-_" or char.isalnum() or unicodedata.category(char).startswith("M"):
+                slug.append(char)
+        return "".join(slug)
+
+    @staticmethod
+    def _anchors_in(document: Path) -> set[str]:
+        """Anchors a Markdown file offers: heading slugs plus explicit ids.
+
+        Headings inside fenced code blocks are not headings, and a repeated
+        heading takes the ``-1`` / ``-2`` suffix GitHub appends. An explicit
+        ``<a id="...">`` counts as well.
+        """
+        text = document.read_text(encoding="utf-8")
+        text = re.sub(r"^```[^\n]*\n.*?^```", "", text, flags=re.MULTILINE | re.DOTALL)
+        text = re.sub(r"^~~~[^\n]*\n.*?^~~~", "", text, flags=re.MULTILINE | re.DOTALL)
+        anchors: set[str] = set()
+        seen: dict[str, int] = {}
+        for match in re.finditer(r"^#{1,6}\s+(.+?)\s*#*\s*$", text, flags=re.MULTILINE):
+            slug = PublicDocumentationNavigationTests._github_anchor(match.group(1))
+            if not slug:
+                continue
+            occurrence = seen.get(slug, 0)
+            seen[slug] = occurrence + 1
+            anchors.add(slug if occurrence == 0 else f"{slug}-{occurrence}")
+        anchors.update(re.findall(r'<a\s+[^>]*\bid\s*=\s*["\']([^"\']+)["\']', text))
+        return anchors
+
+    def test_github_anchor_rules(self):
+        """The anchor rules above must match GitHub, not a local guess.
+
+        Covers the shapes the guides actually use — punctuation dropped,
+        Chinese kept — plus the two the issue names and no guide happens to
+        exercise yet: repeated headings and headings inside code blocks.
+        """
+        self.assertEqual(self._github_anchor("Web, CLI and HTTP API"), "web-cli-and-http-api")
+        self.assertEqual(self._github_anchor("快速启动"), "快速启动")
+        self.assertEqual(self._github_anchor("实测结果"), "实测结果")
+        self.assertEqual(self._github_anchor("Don't (re)do these: v2.0!"), "dont-redo-these-v20")
+        self.assertEqual(self._github_anchor("snake_case stays"), "snake_case-stays")
+        with tempfile.TemporaryDirectory() as directory:
+            document = Path(directory) / "guide.md"
+            document.write_text(
+                "## Setup\n\n```md\n## Setup\n```\n\n## Setup\n\n<a id=\"custom-anchor\"></a>\n",
+                encoding="utf-8",
+            )
+            self.assertEqual(self._anchors_in(document), {"setup", "setup-1", "custom-anchor"})
+
+    def test_current_guide_section_links_point_at_real_headings(self):
+        """Every #section link into a Markdown file must match a heading.
+
+        The file-existence test above drops everything after ``#``, so a
+        renamed heading broke every link to it while the suite stayed
+        green. A link with no fragment, or into a non-Markdown file, is out
+        of scope here; a same-file ``#anchor`` link is checked against its
+        own file. The failure names the file and the link, as the issue asks.
+        """
+        checked = 0
+        anchors_by_file: dict[Path, set[str]] = {}
+        for relative in (
+            "README.md", "README.zh-CN.md", "AGENTS.md", "CONTRIBUTING.md",
+            "docs/README.md", "docs/evidence-status.md", "docs/operating-guide.md",
+            "docs/portfolio-case-study.md", "docs/experiment-index.md",
+        ):
+            document = ROOT / relative
+            for target in re.findall(r"\]\(([^)]+)\)", document.read_text(encoding="utf-8")):
+                if "#" not in target or "://" in target:
+                    continue
+                path, fragment = target.split("#", maxsplit=1)
+                fragment = unquote(fragment)
+                if not fragment:
+                    continue
+                linked = document if not path else document.parent / path
+                if linked.suffix != ".md":
+                    continue
+                if linked not in anchors_by_file:
+                    anchors_by_file[linked] = self._anchors_in(linked)
+                with self.subTest(file=relative, target=target):
+                    self.assertTrue(linked.is_file(), target)
+                    self.assertIn(
+                        fragment, anchors_by_file[linked],
+                        f"{relative}: {target} points at no heading in {linked}",
+                    )
+                    checked += 1
+        # Silence is not a pass: the guides carry dozens of section links,
+        # so a run that checked none of them would be a broken check, not a
+        # green one.
+        self.assertGreater(checked, 0, "no #section links found to check")
 
     def test_current_guide_relative_links_resolve(self):
         # This deliberately checks only repository paths, not remote URLs or
