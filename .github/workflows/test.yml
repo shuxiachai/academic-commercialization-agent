@@ -25,7 +25,7 @@ concurrency:
 # a deprecation warning and is not a stable runtime contract.
 jobs:
   test:
-    name: pytest (${{ matrix.os }}, py${{ matrix.python-version }}, part ${{ matrix.shard }} of 3)
+    name: pytest (${{ matrix.os }}, py${{ matrix.python-version }}, part ${{ matrix.shard }} of 5)
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -35,7 +35,7 @@ jobs:
         # Linux-only matrix would never exercise either path.
         os: [ubuntu-latest, windows-latest]
         python-version: ["3.11", "3.12"]
-        # Each cell's tests are split by file over three runners, and each
+        # Each cell's tests are split by file over five runners, and each
         # part still runs serially on a runner of its own. Measured
         # 2026-11-11: a pull request waited 11 to 13 minutes on the one
         # cell that runs all 8,654 tests under coverage (630 s of pytest),
@@ -43,11 +43,21 @@ jobs:
         # test took 5.8 s and installing 13 to 32 s, so the time is the
         # number of tests, and running them in parallel inside one runner
         # is what #228 tried and withdrew. tests/conftest.py does the
-        # split (ACA_TEST_SHARD); tests/test_ci_sharding.py holds that the
-        # parts are a partition of the cell's tests.
-        shard: [1, 2, 3]
+        # split (ACA_TEST_SHARD) and balances the parts by each file's
+        # measured CI time (tests/ci_test_durations.json);
+        # tests/test_ci_sharding.py holds that the parts are a partition of
+        # the cell's tests.
+        # Five, measured 2026-11-23 on 16 runs: three parts balanced by test
+        # count made the run wait a median 404 s, 15 times out of 16 on a
+        # Windows part. Balanced by time, a Windows cell's 726 s of tests
+        # come to about 145 s a part at five (180 s at four, 120 s at six).
+        # Every part also pays about 30 s of setup and 20-30 s of collection
+        # on Windows, so each part added saves less than the one before;
+        # five keeps a run at 20 test jobs plus five others, inside the
+        # account's 40 concurrent jobs with room for a second run.
+        shard: [1, 2, 3, 4, 5]
     env:
-      ACA_TEST_SHARD: ${{ matrix.shard }}/3
+      ACA_TEST_SHARD: ${{ matrix.shard }}/5
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
@@ -87,8 +97,8 @@ jobs:
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         # The canonical cell measures coverage during its only full-suite run,
         # every test, experiments included, so the metric is unchanged. One
-        # part covers a third of that, so the floor is not applied here: each
-        # part keeps its data and the coverage job below combines the three
+        # part covers a fifth of that, so the floor is not applied here: each
+        # part keeps its data and the coverage job below combines the five
         # and applies the unchanged 85% (a fresh full run measured 87% on
         # 2026-08-24). sys.monitoring (Python 3.12+) measures the same line
         # coverage as the trace-function core at a fraction of its overhead.
@@ -165,7 +175,7 @@ jobs:
     needs: test
     if: ${{ always() }}
     # Requires the whole matrix to have succeeded (failed, cancelled or skipped
-    # dependencies must not become a green check), then combines the three
+    # dependencies must not become a green check), then combines the five
     # parts' coverage data from the canonical cell and applies the floor to
     # the total. No test runs here.
     steps:
@@ -192,11 +202,11 @@ jobs:
           pattern: coverage-data-*
           merge-multiple: true
 
-      - name: Require all three parts
+      - name: Require all five parts
         # A missing part would lower nothing visibly: its files would only
-        # count as never executed. Three or the floor is not measured.
+        # count as never executed. Five or the floor is not measured.
         shell: bash
-        run: test "$(ls .coverage.* | wc -l)" = 3
+        run: test "$(ls .coverage.* | wc -l)" = 5
 
       - name: Combine the parts
         run: uv run --python 3.12 coverage combine
@@ -204,8 +214,16 @@ jobs:
       - name: Apply the measured coverage floor to the total
         run: uv run --python 3.12 coverage report --show-missing --fail-under=85
 
-  browser-smoke:
-    name: browser smoke (Chromium, zero-provider)
+  # The ten browser journeys run in two parts on two runners, each part's
+  # journeys still one after another on its own. Measured 2026-11-23 on 16
+  # runs, the single job took a median 250 s, 208 s of it the journeys, which
+  # made it the longest job once the pytest parts were rebalanced. The parts
+  # are split by those times (the read-only journey alone is 94 s), and each
+  # pays the same 35 s of setup. Every journey is in exactly one part, every
+  # step is unconditional, and the job below keeps the name the branch
+  # ruleset requires, green only when both parts passed.
+  browser-smoke-1:
+    name: browser smoke (Chromium, zero-provider, part 1 of 2)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
@@ -229,6 +247,52 @@ jobs:
       - name: Exercise the zero-provider browser journey
         run: uv run --python 3.12 --group e2e python -m e2e.browser_smoke
 
+      - name: Exercise the isolated saved-source entry with a scripted selector
+        # A separate unmounted app owns this POST journey. Its selector is a
+        # fixture callback, not a provider; existing smoke guards stay intact.
+        run: uv run --python 3.12 --group e2e python -m e2e.saved_source_smoke
+
+      - name: Rehearse the receipt Qwen boundary with intercepted provider responses
+        # Default module mode is fake-key/zero-provider Chromium, never the paid
+        # CLI. It traverses the real selector transport, HTTP app and receipts.
+        run: uv run --python 3.12 --group e2e python -m e2e.saved_source_receipt_qwen_canary
+
+      - name: Verify isolated native usage reaches durable receipts and the browser
+        # Fake-key intercepted HTTP only. The usage page is not mounted in the
+        # public app and this smoke cannot authorize a provider request.
+        run: uv run --python 3.12 --group e2e python -m e2e.saved_source_usage_smoke
+
+      - name: Upload the failure screenshot
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: browser-smoke-failure-1
+          path: output/playwright/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  browser-smoke-2:
+    name: browser smoke (Chromium, zero-provider, part 2 of 2)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+
+      - name: Install uv and Python 3.12
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2  # v10.3.3
+        with:
+          version: "latest"
+          python-version: "3.12"
+
+      # One canonical Linux job owns the real-browser contract. Installing a
+      # browser in every pytest matrix cell would multiply a large download
+      # without adding a new application boundary: this smoke checks the same
+      # production SPA, FastAPI routes and disk-backed run reader each time.
+      - name: Install the opt-in E2E dependency group
+        run: uv sync --python 3.12 --group e2e
+
+      - name: Install Chromium and system dependencies
+        run: uv run --python 3.12 --group e2e playwright install --with-deps chromium
+
       - name: Exercise the composer with intercepted paid-operation responses
         # A static-only server has no paid API routes. Browser-fulfilled POSTs
         # cover submit/upload races without relaxing the read-only journey.
@@ -244,25 +308,10 @@ jobs:
         # deployment answers a visitor who is not signed in. No POST is made.
         run: uv run --python 3.12 --group e2e python -m e2e.language_smoke
 
-      - name: Exercise the isolated saved-source entry with a scripted selector
-        # A separate unmounted app owns this POST journey. Its selector is a
-        # fixture callback, not a provider; existing smoke guards stay intact.
-        run: uv run --python 3.12 --group e2e python -m e2e.saved_source_smoke
-
       - name: Recover isolated saved-source receipts after a lost acknowledgement
         # Real loopback POST/GET traverses the controller and journal; only a
         # scripted selector is injected. This does not mount a production route.
         run: uv run --python 3.12 --group e2e python -m e2e.saved_source_receipt_smoke
-
-      - name: Rehearse the receipt Qwen boundary with intercepted provider responses
-        # Default module mode is fake-key/zero-provider Chromium, never the paid
-        # CLI. It traverses the real selector transport, HTTP app and receipts.
-        run: uv run --python 3.12 --group e2e python -m e2e.saved_source_receipt_qwen_canary
-
-      - name: Verify isolated native usage reaches durable receipts and the browser
-        # Fake-key intercepted HTTP only. The usage page is not mounted in the
-        # public app and this smoke cannot authorize a provider request.
-        run: uv run --python 3.12 --group e2e python -m e2e.saved_source_usage_smoke
 
       - name: Verify default-off production locator consent and receipt recovery
         # The real main application uses synthetic owner data and a fake-key
@@ -278,10 +327,25 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
-          name: browser-smoke-failure
+          name: browser-smoke-failure-2
           path: output/playwright/
           if-no-files-found: ignore
           retention-days: 7
+
+  browser-smoke:
+    name: browser smoke (Chromium, zero-provider)
+    runs-on: ubuntu-latest
+    needs: [browser-smoke-1, browser-smoke-2]
+    if: ${{ always() }}
+    # The name the branch ruleset requires, as it was before the journeys
+    # were split. A failed, cancelled or skipped part must not become a green
+    # check; which journey failed is read from the part that ran it.
+    steps:
+      - name: Require both parts of the browser smoke to pass
+        shell: bash
+        env:
+          PARTS_RESULT: ${{ needs.browser-smoke-1.result }} ${{ needs.browser-smoke-2.result }}
+        run: test "$PARTS_RESULT" = "success success"
 
   docker:
     name: docker build

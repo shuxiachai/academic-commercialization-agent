@@ -32,6 +32,7 @@ by accident, not any test's own setup.
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -263,8 +264,10 @@ def pytest_configure(config):
     # A pull request's cells are split over several runners; see below. The
     # setting is taken out of the environment as it is read: several tests
     # start a pytest of their own, and a child that inherited it would
-    # quietly collect a third of what its test expects.
-    config.pluginmanager.register(_Sharding(parse_shard(os.environ.pop(_SHARD_ENV, None))), "aca-test-sharding")
+    # quietly collect a fraction of what its test expects.
+    shard = parse_shard(os.environ.pop(_SHARD_ENV, None))
+    times = parse_times(os.environ.pop(_TIMES_ENV, None))
+    config.pluginmanager.register(_Sharding(shard, times), "aca-test-sharding")
 
 
 # ── A cell's tests, split over several runners ─────────────────────────────
@@ -277,10 +280,30 @@ def pytest_configure(config):
 # timing-sensitive concurrency test. So a cell is split by test file, and
 # each part still runs serially on a runner of its own.
 #
-# ACA_TEST_SHARD="2/3" keeps the second of three parts and deselects the
+# ACA_TEST_SHARD="2/5" keeps the second of five parts and deselects the
 # rest. Unset, as it is locally and in the weekly workflow, nothing changes.
+#
+# The parts were first balanced by number of tests. Measured on CI on
+# 2026-11-23, tests are nowhere near equal in time: on the coverage cell the
+# closed-experiment canary files take about 0.25 s a test and most files under
+# 0.01 s, so the slowest of three parts ran 280 s against 187 s for the
+# fastest, and the run waited on it. The parts are now balanced by how long
+# each file took on CI, read from ci_test_durations.json (one table per runner
+# OS, rewritten by scripts/ci_test_durations.py from a few green runs). A file
+# the table does not list yet is estimated from its number of tests at the
+# table's average rate. The table decides only which runner runs a file,
+# never whether it runs: a missing, stale or unreadable table leaves the parts
+# a partition, only a less even one, and the run's header says which basis
+# the split used.
+#
+# The runner's OS picks the table, so the same part differs between Linux and
+# Windows. ACA_TEST_SHARD_TIMES=linux (or windows) picks it instead, which is
+# how a part of a Linux cell is reproduced on a Windows machine.
 _SHARD_ENV = "ACA_TEST_SHARD"
+_TIMES_ENV = "ACA_TEST_SHARD_TIMES"
 _MAX_SHARDS = 16
+_DURATIONS = Path(__file__).with_name("ci_test_durations.json")
+_SYSTEMS = ("linux", "windows")
 
 
 def parse_shard(raw: str | None) -> tuple[int, int] | None:
@@ -302,21 +325,71 @@ def parse_shard(raw: str | None) -> tuple[int, int] | None:
     )
 
 
-def shard_assignment(counts: dict[str, int], parts: int) -> dict[str, int]:
+def parse_times(raw: str | None, platform: str = sys.platform) -> str:
+    """Whose measured times balance the parts: this machine's OS unless the variable names one.
+
+    Refused, not guessed, when it names anything else: a typo would silently
+    give a different split from the one being reproduced.
+    """
+    if raw is None or not raw.strip():
+        return "windows" if platform == "win32" else "linux"
+    if raw.strip() in _SYSTEMS:
+        return raw.strip()
+    raise pytest.UsageError(f"{_TIMES_ENV}={raw!r} names no table: write linux or windows, or leave it unset.")
+
+
+def duration_table(system: str, path: Path = _DURATIONS) -> dict[str, float]:
+    """Seconds per test file measured on CI on one OS; empty when there is no usable table.
+
+    Every part of a cell runs on the same OS from the same commit, so every
+    part reads the same table. A table that cannot be read is not an error
+    here (balance is all it affects); tests/test_ci_sharding.py holds that
+    the committed one is readable.
+    """
+    try:
+        table = json.loads(path.read_text(encoding="utf-8"))[system]
+        return {str(name): float(seconds) for name, seconds in table.items() if 0 <= float(seconds) < float("inf")}
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return {}
+
+
+def shard_weights(counts: dict[str, int], table: dict[str, float]) -> dict[str, int]:
+    """How long each file is expected to take, in whole milliseconds, by which the parts are balanced.
+
+    A file the table lists weighs its measured seconds; one it does not yet
+    list weighs its number of tests at the average rate of the listed files
+    in this collection. With no listed file at all, the weight is the number
+    of tests, as before the table existed. Every weight is at least 1, so
+    each of the first files placed opens a part of its own and no part is
+    left empty while there are files enough. Whole numbers, so every runner
+    adds them up to exactly the same loads.
+    """
+    listed = [name for name in counts if name in table]
+    listed_tests = sum(counts[name] for name in listed)
+    if not listed_tests:
+        return dict(counts)
+    rate = sum(table[name] for name in listed) / listed_tests
+    return {
+        name: max(1, round(1000 * (table[name] if name in table else rate * count)))
+        for name, count in counts.items()
+    }
+
+
+def shard_assignment(weights: dict[str, int], parts: int) -> dict[str, int]:
     """Which part (1-based) each test file belongs to.
 
     Whole files, because a file's fixtures and test order are its own.
-    Balanced by the number of tests: the files run from 1 test to several
-    hundred, and time follows tests far more closely than it follows files.
-    The largest file first, each to whichever part is lightest so far; ties,
-    in size or in load, go by name and by the lower part, so every runner
-    that collects the same tests computes the same answer.
+    Balanced by weight (shard_weights: expected milliseconds, or the number
+    of tests without a table). The heaviest file first, each to whichever
+    part is lightest so far; ties, in weight or in load, go by name and by
+    the lower part, so every runner that collects the same tests computes
+    the same answer.
     """
     loads = [0] * parts
     assigned: dict[str, int] = {}
-    for name, count in sorted(counts.items(), key=lambda item: (-item[1], item[0])):
+    for name, weight in sorted(weights.items(), key=lambda item: (-item[1], item[0])):
         lightest = min(range(parts), key=lambda index: (loads[index], index))
-        loads[lightest] += count
+        loads[lightest] += weight
         assigned[name] = lightest + 1
     return assigned
 
@@ -324,8 +397,9 @@ def shard_assignment(counts: dict[str, int], parts: int) -> dict[str, int]:
 class _Sharding:
     """Deselects every test outside this runner's part. Inactive unless the variable is set."""
 
-    def __init__(self, shard: tuple[int, int] | None) -> None:
+    def __init__(self, shard: tuple[int, int] | None, times: str = "linux") -> None:
         self.shard = shard
+        self.times = times
         self.summary: str | None = None
 
     # After every other hook, the `-m` deselection included: the parts are a
@@ -338,7 +412,9 @@ class _Sharding:
         counts: dict[str, int] = {}
         for item in items:
             counts[item.nodeid.split("::", 1)[0]] = counts.get(item.nodeid.split("::", 1)[0], 0) + 1
-        assigned = shard_assignment(counts, parts)
+        table = duration_table(self.times)
+        weights = shard_weights(counts, table)
+        assigned = shard_assignment(weights, parts)
         kept = [item for item in items if assigned[item.nodeid.split("::", 1)[0]] == part]
         dropped = [item for item in items if assigned[item.nodeid.split("::", 1)[0]] != part]
         if not kept:
@@ -348,8 +424,16 @@ class _Sharding:
                 f"{len(items)} test(s) in {len(counts)} file(s) cannot fill {parts} parts."
             )
         files = sum(1 for name in assigned.values() if name == part)
+        timed = sum(1 for name in counts if name in table)
+        if timed:
+            # The estimate is what the split aimed at; the run's own time says how close it came.
+            estimate = sum(weight for name, weight in weights.items() if assigned[name] == part) / 1000
+            basis = (f"about {estimate:.0f} s by the {self.times} times in {_DURATIONS.name}, "
+                     f"{timed} of {len(counts)} files timed")
+        else:
+            basis = f"balanced by number of tests: no file is timed for {self.times} in {_DURATIONS.name}"
         self.summary = (f"part {part} of {parts}: {len(kept)} of {len(items)} tests, "
-                        f"{files} of {len(counts)} files ({_SHARD_ENV})")
+                        f"{files} of {len(counts)} files; {basis} ({_SHARD_ENV})")
         if dropped:
             config.hook.pytest_deselected(items=dropped)
             items[:] = kept

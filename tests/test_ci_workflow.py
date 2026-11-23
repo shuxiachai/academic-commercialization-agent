@@ -23,10 +23,10 @@ _PLAIN_RUN = f'uv run --python {_PYTHON} pytest tests/ -m "not experiment" -v --
 # ACA_TEST_SHARD); a part still runs serially on a runner of its own. The
 # number appears in the matrix, in the variable and in the floor's count of
 # parts, and the contract below holds the three together.
-_SHARDS = 3
+_SHARDS = 5
 _SHARD_ENV = {"ACA_TEST_SHARD": f"${{{{ matrix.shard }}}}/{_SHARDS}"}
 _COVERAGE_DATA = ".coverage.${{ matrix.shard }}"
-# One part covers a third of the suite, so the floor is not applied in the
+# One part covers a fifth of the suite, so the floor is not applied in the
 # cell: each part records its data and the coverage job applies the floor to
 # the combined total. Scope and floor are unchanged.
 _COVERAGE_RUN = f"{_FULL_RUN} --cov=src/academic_agent --cov=api --cov=ui --cov-report="
@@ -66,15 +66,32 @@ _REVIEWED_NODE24_REFS = {
 }
 # The branch ruleset requires eight names: the four cell names, lint, the
 # coverage floor, the browser smoke and the docker build. The split parts
-# carry a name of their own; the `cells` job keeps the four the ruleset knows.
+# carry a name of their own; the `cells` job keeps the four the ruleset knows,
+# and the `browser-smoke` job the name of the smoke.
 _CHECK_NAMES = {
     "test": f"pytest (${{{{ matrix.os }}}}, py${{{{ matrix.python-version }}}}, part ${{{{ matrix.shard }}}} of {_SHARDS})",
     "cells": "pytest (${{ matrix.os }}, py${{ matrix.python-version }})",
     "lint": "lint",
     "coverage": "coverage floor (Ubuntu, py3.12)",
+    "browser-smoke-1": "browser smoke (Chromium, zero-provider, part 1 of 2)",
+    "browser-smoke-2": "browser smoke (Chromium, zero-provider, part 2 of 2)",
     "browser-smoke": "browser smoke (Chromium, zero-provider)",
     "docker": "docker build",
 }
+# Every browser journey, each run exactly once, on one of the two smoke parts.
+# A journey added to the workflow is added here, or this contract fails.
+_JOURNEYS = tuple(f"uv run --python 3.12 --group e2e python -m e2e.{module}" for module in (
+    "browser_smoke", "composer_smoke", "keyboard_smoke", "language_smoke", "saved_source_smoke",
+    "saved_source_receipt_smoke", "saved_source_receipt_qwen_canary", "saved_source_usage_smoke",
+    "source_locator_production_smoke", "source_locator_production_smoke --proxy",
+))
+_SMOKE_PARTS = ("browser-smoke-1", "browser-smoke-2")
+_SMOKE_SETUP = (
+    "uv sync --python 3.12 --group e2e",
+    "uv run --python 3.12 --group e2e playwright install --with-deps chromium",
+)
+_SMOKE_GATE = 'test "$PARTS_RESULT" = "success success"'
+_SMOKE_GATE_ENV = {"PARTS_RESULT": "${{ needs.browser-smoke-1.result }} ${{ needs.browser-smoke-2.result }}"}
 
 
 def _workflow():
@@ -246,21 +263,57 @@ def _assert_coverage_floor(jobs):
         _unconditional(steps[index])
 
 
+def _is_journey(command):
+    return any(flag == "-m" and module.startswith("e2e.") for flag, module in zip(command[:-1], command[1:], strict=True))
+
+
 def _assert_browser(jobs):
-    job = jobs["browser-smoke"]
-    _unconditional(job)
-    commands = (
-        "uv sync --python 3.12 --group e2e",
-        "uv run --python 3.12 --group e2e playwright install --with-deps chromium",
-        "uv run --python 3.12 --group e2e python -m e2e.browser_smoke",
-        "uv run --python 3.12 --group e2e python -m e2e.composer_smoke",
-        "uv run --python 3.12 --group e2e python -m e2e.keyboard_smoke",
-        "uv run --python 3.12 --group e2e python -m e2e.language_smoke",
+    """Each journey runs once, unconditionally, after its part's setup; the required name gates both parts."""
+    # Every step anywhere that starts a browser journey, wherever it is.
+    found = [
+        (owner, _tokens(step.get("run", "")))
+        for owner, job in jobs.items() for step in job["steps"]
+        if _is_journey(_tokens(step.get("run", "")))
+    ]
+    assert sorted(command for _owner, command in found) == sorted(_tokens(c) for c in _JOURNEYS), (
+        "Every browser journey runs exactly once, and none is commented out, echoed or added unlisted"
     )
-    indices = [_run_index(job["steps"], command) for command in commands]
-    assert indices == sorted(indices)
-    for index in indices:
-        _unconditional(job["steps"][index])
+    assert {owner for owner, _command in found} == set(_SMOKE_PARTS), "Journeys run in the two smoke parts only"
+    uploads = []
+    for owner in _SMOKE_PARTS:
+        job = jobs[owner]
+        _unconditional(job)
+        assert job["runs-on"] == "ubuntu-latest"
+        steps = job["steps"]
+        checkout = _uses_index(steps, "actions/checkout")
+        setup = _uses_index(steps, "astral-sh/setup-uv")
+        assert steps[setup]["with"]["python-version"] == "3.12"
+        sync, install = (_run_index(steps, command) for command in _SMOKE_SETUP)
+        assert checkout < setup < sync < install
+        journeys = [index for index, step in enumerate(steps) if _is_journey(_tokens(step.get("run", "")))]
+        assert journeys and install < min(journeys), "Chromium is installed before the part's first journey"
+        for index in (checkout, setup, sync, install, *journeys):
+            _unconditional(steps[index])
+        upload = _uses_index(steps, "actions/upload-artifact")
+        assert max(journeys) < upload
+        uploads.append(steps[upload]["with"]["name"])
+    assert len(set(uploads)) == len(uploads), "Two parts uploading under one name would lose a failure's picture"
+
+    gate = jobs["browser-smoke"]
+    assert gate["runs-on"] == "ubuntu-latest"
+    assert sorted(gate["needs"]) == sorted(_SMOKE_PARTS)
+    assert _condition(gate["if"]) == "always()"
+    assert gate.get("continue-on-error", False) is False
+    assert "strategy" not in gate
+    assert len(gate["steps"]) == 1, "The required smoke name runs no journey of its own"
+    (step,) = gate["steps"]
+    _unconditional(step)
+    assert "uses" not in step
+    assert step["shell"] == "bash"
+    assert step["env"] == _SMOKE_GATE_ENV
+    commands = [line.strip() for line in step["run"].splitlines()
+                if line.strip() and not line.lstrip().startswith("#")]
+    assert commands == [_SMOKE_GATE]
 
 
 def _assert_all(jobs):
@@ -341,10 +394,10 @@ def test_execution_contract_rejects_broken_topology(defect):
     elif defect == "ignored-job":
         job["continue-on-error"] = True
     elif defect == "missing-part":
-        # Two runners told they are parts of three: a third of the tests never run.
-        job["strategy"]["matrix"]["shard"] = [1, 2]
+        # Four runners told they are parts of five: a fifth of the tests never run.
+        job["strategy"]["matrix"]["shard"] = list(range(1, _SHARDS))
     elif defect == "extra-part":
-        job["strategy"]["matrix"]["shard"] = [1, 2, 3, 4]
+        job["strategy"]["matrix"]["shard"] = list(range(1, _SHARDS + 2))
     elif defect == "part-not-told":
         # Without the variable every runner runs the whole suite: correct, and three times the wait.
         del job["env"]
@@ -441,17 +494,87 @@ def test_coverage_floor_rejects_a_floor_that_measures_less(defect):
         _assert_all(jobs)
 
 
+def _journey_step(jobs, command):
+    (found,) = [
+        (owner, index) for owner in _SMOKE_PARTS for index, step in enumerate(jobs[owner]["steps"])
+        if _tokens(step.get("run", "")) == _tokens(command)
+    ]
+    return found
+
+
 @pytest.mark.parametrize("update", [
     {"run": "# python -m e2e.composer_smoke"},
     {"run": "echo python -m e2e.composer_smoke"},
     {"if": False},
+    {"continue-on-error": True},
 ])
-def test_browser_contract_rejects_nonexecuting_journey(update):
-    """A composer name or comment is not execution alongside the read-only path."""
+@pytest.mark.parametrize("journey", [_JOURNEYS[0], _JOURNEYS[1], _JOURNEYS[-1]])
+def test_browser_contract_rejects_nonexecuting_journey(journey, update):
+    """A journey's name or comment is not execution, in either part."""
     jobs = _jobs()
-    steps = jobs["browser-smoke"]["steps"]
-    command = "uv run --python 3.12 --group e2e python -m e2e.composer_smoke"
-    steps[_run_index(steps, command)].update(update)
+    owner, index = _journey_step(jobs, journey)
+    jobs[owner]["steps"][index].update(update)
+    with pytest.raises(AssertionError):
+        _assert_browser(jobs)
+
+
+@pytest.mark.parametrize("defect", [
+    "dropped", "in-both-parts", "twice-in-one-part", "in-the-gate", "in-another-job", "unlisted",
+    "before-install", "part-conditional", "part-optional", "no-install", "one-upload-name",
+])
+def test_browser_contract_rejects_a_journey_lost_or_moved(defect):
+    """Splitting the smoke over two runners must not drop, double or misplace a journey."""
+    jobs = _jobs()
+    owner, index = _journey_step(jobs, _JOURNEYS[0])
+    other = next(part for part in _SMOKE_PARTS if part != owner)
+    steps = jobs[owner]["steps"]
+    step = steps[index]
+    if defect == "dropped":
+        steps.pop(index)
+    elif defect == "in-both-parts":
+        jobs[other]["steps"].insert(-1, dict(step))
+    elif defect == "twice-in-one-part":
+        steps.insert(index, dict(step))
+    elif defect == "in-the-gate":
+        jobs["browser-smoke"]["steps"].append(steps.pop(index))
+    elif defect == "in-another-job":
+        jobs["lint"]["steps"].append(steps.pop(index))
+    elif defect == "unlisted":
+        steps.insert(index, {"run": "uv run --python 3.12 --group e2e python -m e2e.new_smoke"})
+    elif defect == "before-install":
+        steps.insert(0, steps.pop(index))
+    elif defect == "part-conditional":
+        jobs[owner]["if"] = "github.event_name == 'push'"
+    elif defect == "part-optional":
+        jobs[other]["continue-on-error"] = True
+    elif defect == "no-install":
+        steps.pop(_run_index(steps, _SMOKE_SETUP[1]))
+    else:
+        upload = _uses_index(jobs[other]["steps"], "actions/upload-artifact")
+        mine = _uses_index(steps, "actions/upload-artifact")
+        jobs[other]["steps"][upload]["with"]["name"] = steps[mine]["with"]["name"]
+    with pytest.raises(AssertionError):
+        _assert_browser(jobs)
+
+
+@pytest.mark.parametrize(("target", "update"), [
+    ("job", {"needs": "browser-smoke-1"}),
+    ("job", {"needs": ["browser-smoke-1", "lint"]}),
+    ("job", {"if": "success()"}),
+    ("job", {"continue-on-error": True}),
+    ("step", {"if": "success()"}),
+    ("step", {"env": {"PARTS_RESULT": "success success"}}),
+    ("step", {"env": {"PARTS_RESULT": "${{ needs.browser-smoke-1.result }} ${{ needs.browser-smoke-1.result }}"}}),
+    ("step", {"run": 'echo test "$PARTS_RESULT" = "success success"'}),
+    ("step", {"run": "test '$PARTS_RESULT' = 'success success'"}),
+    ("step", {"run": 'test "$PARTS_RESULT" = "success success" || true'}),
+    ("step", {"run": 'test -n "$PARTS_RESULT"'}),
+])
+def test_browser_gate_rejects_false_success(target, update):
+    """The required smoke name is green only when both parts passed."""
+    jobs = _jobs()
+    job = jobs["browser-smoke"]
+    (job if target == "job" else job["steps"][0]).update(update)
     with pytest.raises(AssertionError):
         _assert_browser(jobs)
 
