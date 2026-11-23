@@ -197,6 +197,12 @@ uv run --group e2e python -m e2e.browser_smoke
 uv run --group e2e python -m e2e.composer_smoke
 uv run --group e2e python -m e2e.keyboard_smoke
 uv run --group e2e python -m e2e.language_smoke
+uv run --group e2e python -m e2e.saved_source_smoke
+uv run --group e2e python -m e2e.saved_source_receipt_smoke
+uv run --group e2e python -m e2e.saved_source_receipt_qwen_canary
+uv run --group e2e python -m e2e.saved_source_usage_smoke
+uv run --group e2e python -m e2e.source_locator_production_smoke
+uv run --group e2e python -m e2e.source_locator_production_smoke --proxy
 ```
 
 This uses real Chromium and the real loopback application with fixture runs.
@@ -231,6 +237,7 @@ every smoke that opens the main pages passes `locale=SMOKE_LOCALE`
 (`e2e/browser_language.py`); `tests/test_interface_language.py` fails a
 context that does not.
 
+The saved-source smokes cover the isolated saved-source entry and its receipts: the saved-source smoke exercises the entry with a scripted selector against an isolated app, the receipt smoke recovers receipts after a genuinely lost acknowledgement, the Qwen canary rehearses the receipt boundary with intercepted provider responses, and the usage smoke verifies native usage accounting reaches durable receipts and the browser. The production-locator smoke verifies default-off locator consent and receipt recovery against the real main app with synthetic owner data, and runs a second time with `--proxy` to verify the public HTTPS locator origin over a loopback HTTP backend.
 ### Local UI demo
 
 ```bash

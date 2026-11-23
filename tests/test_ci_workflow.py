@@ -525,3 +525,82 @@ def test_contracts_ignore_step_labels_comments_and_job_order():
             if "run" in step:
                 step["run"] = "# A harmless shell comment\n" + step["run"]
     _assert_all(jobs)
+
+_CONTRIBUTING = Path(__file__).resolve().parents[1] / "CONTRIBUTING.md"
+_SMOKE_SECTION_HEADING = "### Optional real-browser smoke"
+
+
+def _browser_smoke_runs(jobs):
+    """Every `python -m e2e.<module>` the browser-smoke job runs, in order."""
+    runs = []
+    for step in jobs["browser-smoke"]["steps"]:
+        tokens = _tokens(step.get("run", ""))
+        if "python" not in tokens or "-m" not in tokens:
+            continue
+        module = tokens[tokens.index("-m") + 1]
+        assert module.startswith("e2e."), "Browser smoke runs only e2e modules"
+        runs.append((module, tokens[tokens.index("-m") + 2:]))
+    assert runs, "The browser-smoke job must run at least one e2e module"
+    return runs
+
+
+def _contributing_smoke_section():
+    text = _CONTRIBUTING.read_text(encoding="utf-8")
+    start = text.index(_SMOKE_SECTION_HEADING)
+    rest = text[start + len(_SMOKE_SECTION_HEADING):]
+    # The section ends at the next heading of the same or higher level.
+    end = len(rest)
+    for marker in ("\n### ", "\n## ", "\n# "):
+        found = rest.find(marker)
+        if found != -1:
+            end = min(end, found)
+    return rest[:end]
+
+
+def _assert_contributing_names_browser_smokes(jobs, section):
+    for module, extra in _browser_smoke_runs(jobs):
+        command = f"python -m {module}"
+        assert command in section, (
+            f"CONTRIBUTING's browser-smoke section must name {command}, "
+            "which the browser-smoke job runs"
+        )
+        if "--proxy" in extra:
+            assert f"{command} --proxy" in section, (
+                "CONTRIBUTING's browser-smoke section must name the --proxy "
+                f"repeat of {command}"
+            )
+
+
+def test_contributing_names_every_browser_smoke_the_workflow_runs():
+    """A smoke the workflow runs but the guide does not name fails the contract."""
+    _assert_contributing_names_browser_smokes(_jobs(), _contributing_smoke_section())
+
+
+@pytest.mark.parametrize("module", [
+    "e2e.browser_smoke",
+    "e2e.composer_smoke",
+    "e2e.keyboard_smoke",
+    "e2e.language_smoke",
+    "e2e.saved_source_smoke",
+    "e2e.saved_source_receipt_smoke",
+    "e2e.saved_source_receipt_qwen_canary",
+    "e2e.saved_source_usage_smoke",
+    "e2e.source_locator_production_smoke",
+])
+def test_contributing_smoke_section_rejects_an_unnamed_smoke(module):
+    """Deleting one smoke's command from the guide must fail the contract."""
+    section = _contributing_smoke_section()
+    unnamed = "\n".join(
+        line for line in section.splitlines() if f"python -m {module}" not in line
+    )
+    assert unnamed != section, "The guide must name the smoke under test"
+    with pytest.raises(AssertionError):
+        _assert_contributing_names_browser_smokes(_jobs(), unnamed)
+
+
+def test_contributing_smoke_section_rejects_a_missing_proxy_repeat():
+    """The --proxy repeat is a second run, not a repeat of the same line."""
+    section = _contributing_smoke_section()
+    assert " --proxy" in section
+    with pytest.raises(AssertionError):
+        _assert_contributing_names_browser_smokes(_jobs(), section.replace(" --proxy", ""))
