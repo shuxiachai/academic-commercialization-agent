@@ -54,9 +54,9 @@ need no API keys: the test suite and browser smokes make no paid requests.
 Start with [CONTRIBUTING.md](CONTRIBUTING.md).
 
 **Finding your way around:** the application is `src/academic_agent/`, `api/`,
-`web/` and `ui/`; tests are in `tests/` and `e2e/`. The many Python files at the
-root are benchmark commands and frozen experiment runners whose protocols bind
-their paths, so they stay put; none is needed to run the app. See the
+`web/` and `ui/`; tests are in `tests/` and `e2e/`. The root keeps only the four
+`benchmark*.py` command entry points; frozen experiment runners live under
+`experiments/` and none is needed to run the app. See the
 [repository map](docs/README.md#repository-map) for every directory.
 
 <a id="english"></a>
@@ -315,8 +315,9 @@ improve these historical numbers.
 
 ## Repository layout
 
-The application is in a handful of directories. Most of the Python files at
-the repository root are something else: frozen experiment runners.
+The application is in a handful of directories. The repository root keeps only
+the four `benchmark*.py` command entry points; frozen experiment runners live in
+`experiments/`.
 
 | Path | What it is |
 |---|---|

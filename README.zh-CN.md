@@ -45,8 +45,8 @@
 先读 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 **目录速览**：应用代码在 `src/academic_agent/`、`api/`、`web/` 和 `ui/`，测试在
-`tests/` 和 `e2e/`。根目录下的大量 Python 文件是基准测试命令和已冻结的实验运行器，
-其路径被实验协议锁定，因此不搬动；运行应用不需要它们。各目录说明见
+`tests/` 和 `e2e/`。根目录只保留四个 `benchmark*.py` 基准命令入口；已冻结的实验运行器
+位于 `experiments/`，运行应用不需要它们。各目录说明见
 [目录地图](docs/README.md#repository-map)。
 
 ## 可以做什么
@@ -263,8 +263,8 @@ uv run python benchmark.py --dry-run
 
 ## 仓库结构
 
-应用本身集中在少数几个目录里。根目录下的大多数 Python 文件是另一回事：
-已冻结的实验脚本。
+应用本身集中在少数几个目录里。根目录只保留四个 `benchmark*.py` 基准命令入口；
+已冻结的实验脚本位于 `experiments/`。
 
 | 路径 | 内容 |
 |---|---|

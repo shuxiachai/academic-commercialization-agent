@@ -41,7 +41,10 @@ retain their original paths and hashes.
 | `notes/` | Separate private repository for personal project narratives and original review material, when present locally | Local/private only; not part of a public clone |
 
 Configuration and deployment entry files remain at the root: `pyproject.toml`,
-`uv.lock`, `.env.example`, `Dockerfile`, `docker-compose.yml` and `.github/`.
+`uv.lock`, `.env.example`, `Dockerfile`, `docker-compose.yml`, `.devcontainer/`
+(development-container settings), `.github/` (automation), `docker-entrypoint.sh`
+(container startup), `CITATION.cff` (citation metadata), and `SECURITY.md`
+(security policy).
 Use the documented FastAPI or CLI commands, not an arbitrary experiment script.
 The experiment runners bind their paths and source hashes; they moved from the
 root to `experiments/` on 2026-10-31 under a
