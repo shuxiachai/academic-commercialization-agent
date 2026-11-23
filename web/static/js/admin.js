@@ -115,7 +115,10 @@ const CHANNELS = { feishu: { en: "Feishu", zh: "飞书" }, wecom: { en: "WeCom",
 
 const lang = () => (i18n.language() === "Simplified Chinese" ? "zh" : "en");
 const t = (key, ...args) => {
-  const value = TEXT[lang()][key] ?? TEXT.en[key] ?? key;
+  // The console's own strings first; the words it shares with the main page
+  // (what a failed boot says) come from i18n.js, in the reader's language,
+  // rather than a second copy here.
+  const value = TEXT[lang()][key] ?? TEXT.en[key] ?? i18n.t(key);
   return typeof value === "function" ? value(...args) : value;
 };
 
@@ -481,23 +484,45 @@ paintLabels();
 
 /* ── Boot: who is this? ───────────────────────────────────────────────── */
 
+/* The console says which of these it was, as the main page's boot does
+ * (paintBootFailure() in app.js): a 401 is "sign in", a signed-in account
+ * that is not an admin keeps denied_admin, the limiter's 429 asks the page
+ * to wait, an unreachable server says so, and any other answer from the
+ * server says it could not answer just now. Only what api.js reports as
+ * the server's answer or its absence is said this way. An error with no
+ * status came from the page itself; it is thrown, where a console shows
+ * it, not blamed on the server. The same choice applies when api.me()
+ * succeeds but api.adminAccounts() fails. */
 (async () => {
+  let who = null;
   try {
-    const who = await api.me();
+    who = await api.me();
     if (!who.admin) {
       denial = "denied_admin";
       $("#console-who").textContent = t("who", who.email);
-      throw new Error("not an admin");
+      $("#console-denied").textContent = t(denial);
+      $("#console-denied").hidden = false;
+      return;
     }
+    // Named before the account list is asked for: if that request fails,
+    // the visitor is still known, and the line must not keep saying the
+    // page is checking who they are.
+    $("#console-who").textContent = t("who", who.email);
     const accounts = await api.adminAccounts();
     accountList = accounts.accounts;
     me = { email: who.email, id: accountList.find((a) => a.email === who.email)?.id ?? null };
-    $("#console-who").textContent = t("who", who.email);
     $("#console-body").hidden = false;
     await load();
-  } catch {
+  } catch (err) {
+    if (typeof err?.status !== "number") throw err;
+    denial = err.status === 401 ? "denied_signin"
+      : err.status === 429 ? "boot_failure_rate_limited"
+      : err.code === "network_unreachable" ? "msg_network"
+      : "boot_failure_server";
     $("#console-denied").textContent = t(denial);
     $("#console-denied").hidden = false;
-    if (denial === "denied_signin") $("#console-who").textContent = "";
+    // Without an answer about the visitor the "Checking who you are…"
+    // line is stale; with one, it names who could not get in.
+    if (!who) $("#console-who").textContent = "";
   }
 })();
