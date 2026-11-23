@@ -182,6 +182,14 @@ const orderFor = (sample, scored = false) => {
 const cards = () => el("sample-list").children;
 const cardOf = (sample) => cards().find((c) => c.href === pathOf(sample));
 const partsOf = (card) => Object.fromEntries(card.children.map((c) => [c.className, c]));
+/** The date a sample's commit shows, in the reader's language, as run.js
+ * draws one: "20 Nov 2026" in English, "2026年11月20日" in Chinese. A date
+ * that cannot be parsed is shown as it is. */
+const shownDate = (value, lang = "en-GB") => {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value
+    : new Intl.DateTimeFormat(lang, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(parsed);
+};
 /** The block after the report: one sentence and one link. */
 function expectNext(text, label, href) {
   const block = reader().children.at(-1);
@@ -391,15 +399,22 @@ if (scenario === "each_sample") {
     assert.equal(parts["sample-card__verdict"].textContent, `verdict ${sample.overall_score}`);
     assert.equal(parts["sample-card__verdict"].dataset.tone, sample.overall_score >= 70 ? "success" : "warning");
     assert.equal(parts["sample-card__meta"].textContent,
-      `TRL ${sample.trl_score} · in ${sample.language} · Added ${sample.committed}`);
+      `TRL ${sample.trl_score} · in ${sample.language} · Added ${shownDate(sample.committed)}`);
     checks++;
   }
+  // The date is drawn, not the raw "2026-11-20" the list carries.
+  const dated = samples.find((sample) => sample.committed === "2026-11-20");
+  assert(dated, "One committed sample is dated 2026-11-20");
+  assert.match(partsOf(cardOf(dated))["sample-card__meta"].textContent, /Added 20 Nov 2026$/,
+    "The card draws the date as the run page does");
   assert(chinese && chinese.language === "Simplified Chinese", "The Chinese sample is listed as Chinese");
   assert.equal(samples.filter(decidedOf).length, 1, "One committed sample was run with a decision context");
   assert.equal(samples.filter((sample) => sample.language === "English").length, samples.length - 1);
   assert.deepEqual(scoreReads, [opened.slug], "The cards cost no request of their own: only the open sample's scorecard is read");
   await switchLanguage("Simplified Chinese");
   assert.match(partsOf(cardOf(first))["sample-card__meta"].textContent, / · 收录于 /, "The cards follow the language");
+  assert.match(partsOf(cardOf(dated))["sample-card__meta"].textContent, /收录于 2026年11月20日$/,
+    "...and the date follows with it");
 } else if (scenario === "cards_without_scores") {
   // A deployment without a sample's scorecard lists it with nulls; a list
   // from before these fields has no such keys at all. Either way the card
@@ -412,11 +427,11 @@ if (scenario === "each_sample") {
   await start(pathOf(first));
   const [none, older, half] = cards();
   assert.deepEqual(none.children.map((c) => c.className), ["sample-card__title", "sample-card__meta"]);
-  assert.equal(partsOf(none)["sample-card__meta"].textContent, `in ${first.language} · Added ${first.committed}`);
+  assert.equal(partsOf(none)["sample-card__meta"].textContent, `in ${first.language} · Added ${shownDate(first.committed)}`);
   assert.deepEqual(older.children.map((c) => [c.className, c.textContent]),
-    [["sample-card__title", second.title], ["sample-card__meta", `Added ${second.committed}`]]);
+    [["sample-card__title", second.title], ["sample-card__meta", `Added ${shownDate(second.committed)}`]]);
   assert.deepEqual(half.children.map((c) => c.className), ["sample-card__title", "sample-card__verdict", "sample-card__meta"]);
-  assert.equal(partsOf(half)["sample-card__meta"].textContent, `in ${samples[2].language} · Added ${samples[2].committed}`);
+  assert.equal(partsOf(half)["sample-card__meta"].textContent, `in ${samples[2].language} · Added ${shownDate(samples[2].committed)}`);
   expectContents(first);
   await click(second);
   expectContents(second);
@@ -510,7 +525,7 @@ if (scenario === "each_sample") {
   const notice = reader().children.find((c) => c.className === "samples__notice");
   assert.equal(notice.tag, "div");
   const [text, tech] = notice.children;
-  assert.equal(text.textContent, `A run of ${second.committed} with ${second.model}, kept as it was written. `
+  assert.equal(text.textContent, `A run of ${shownDate(second.committed)} with ${second.model}, kept as it was written. `
     + "One report shows the format, not a measure of accuracy or an up-to-date market assessment, and its citations have not been re-verified.");
   assert(!text.textContent.includes(second.commit) && !/pipeline/i.test(text.textContent));
   assert.equal(tech.tag, "details");
@@ -518,9 +533,36 @@ if (scenario === "each_sample") {
     [["summary", "Technical details"], ["p", `Pipeline revision: ${second.commit}`]]);
   await switchLanguage("Simplified Chinese");
   const zh = reader().children.find((c) => c.className === "samples__notice");
-  assert.equal(zh.children[0].textContent, `${second.committed} 用 ${second.model} 跑出的一次运行，保持原样。`
+  assert.equal(zh.children[0].textContent, `${shownDate(second.committed, "zh-CN")} 用 ${second.model} 跑出的一次运行，保持原样。`
     + "单份报告展示的是格式，不代表准确率或最新市场判断，其中引用也未重新核验。");
   assert.deepEqual(zh.children[1].children.map((c) => c.textContent), ["技术细节", `流水线版本：${second.commit}`]);
+  checks++;
+} else if (scenario === "dates") {
+  // The commit date is drawn the way the rest of the site draws one, in the
+  // reader's language, in the list and in the notice; a date that cannot be
+  // parsed is shown as it is. Both follow a language switch.
+  const dated = samples.find((sample) => sample.committed === "2026-11-20");
+  assert(dated, "One committed sample is dated 2026-11-20");
+  const unreadable = { ...second, slug: "undated", committed: "not-a-date" };
+  list = [...samples, unreadable];
+  markdown.undated = markdown[second.slug];
+  await start("/samples");
+  const metaOf = (sample) => partsOf(cardOf(sample))["sample-card__meta"].textContent;
+  const noticeText = () => reader().children.find((c) => c.className === "samples__notice").children[0].textContent;
+  assert.match(metaOf(dated), /Added 20 Nov 2026$/, "The list draws the date as the run page does");
+  assert.match(noticeText(), /^A run of 20 Nov 2026 with /, "The notice does too");
+  await click(unreadable);
+  assert.match(metaOf(unreadable), /Added not-a-date$/, "A date that cannot be parsed is shown as it is");
+  assert.match(noticeText(), /^A run of not-a-date with /, "...in the notice as well");
+  await switchLanguage("Simplified Chinese");
+  assert.match(metaOf(dated), /收录于 2026年11月20日$/, "The list follows the language");
+  assert.match(metaOf(unreadable), /收录于 not-a-date$/, "...and the unparseable date with it");
+  await click(dated);
+  assert.match(noticeText(), /^2026年11月20日 用 /, "The notice follows the language");
+  await click(unreadable);
+  assert.match(noticeText(), /^not-a-date 用 /, "...and the unparseable date with it");
+  await switchLanguage("English");
+  assert.match(metaOf(dated), /Added 20 Nov 2026$/, "Back to English, the date follows");
   checks++;
 } else if (scenario === "neighbours") {
   // At the end of a report, the samples either side of it, named: the only
