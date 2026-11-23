@@ -42,7 +42,9 @@ globalThis.document = {
   querySelectorAll: () => [],
   createElement: (tag) => new Element(tag),
 };
-globalThis.location = { pathname: "/samples" };
+// A reload, as the list failure's retry asks for: recorded, not performed.
+const reloads = [];
+globalThis.location = { pathname: "/samples", reload: () => reloads.push(true) };
 globalThis.history = { pushState(_state, _unused, url) { location.pathname = new URL(url, "https://samples.test").pathname; } };
 globalThis.window = { addEventListener: (name, callback) => (windowListeners[name] ??= []).push(callback) };
 globalThis.localStorage = { getItem: (k) => stored.get(k) ?? null, setItem: (k, v) => stored.set(k, String(v)) };
@@ -158,7 +160,19 @@ if (scenario === "index") {
   listStatus = 500;
   await start(pathOf(first));
   expectTitle(defaultTitle, "No list, no sample to name");
-  assert.equal(el("sample-reader").textContent, "The sample list could not be loaded.");
+  const failed = () => el("sample-reader").children;
+  assert.deepEqual(failed().map((c) => [c.tag, c.className, c.textContent]),
+    [["p", "empty-note", "The sample list could not be loaded."], ["button", "samples__retry", "Try again"]]);
+  assert.equal(failed()[1].type, "button", "A button, so it never submits a form");
+  // The list's way on is a reload, as the main page's boot failure does (#427).
+  failed()[1].fire("click");
+  assert.deepEqual(reloads, [true], "The retry reloads the page");
+  // A language switch redraws the note in the new language: there is no
+  // sample to reopen, so the list failure is the note that follows.
+  await switchLanguage("Simplified Chinese");
+  assert.deepEqual(failed().map((c) => c.textContent), ["示例列表加载失败。", "重试"]);
+  await switchLanguage("English");
+  assert.deepEqual(failed().map((c) => c.textContent), ["The sample list could not be loaded.", "Try again"]);
 } else if (scenario === "empty_list") {
   list = [];
   await start("/samples");

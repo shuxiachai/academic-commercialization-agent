@@ -28,6 +28,10 @@ let rendered = null;
 // A slow response for a sample the visitor has already left must not paint
 // over the one they chose next.
 let generation = 0;
+// Whether the sample list arrived: a list that never came leaves its failure
+// note on screen, and a language switch redraws that note rather than
+// reopening a sample that was never chosen.
+let listFailed = false;
 // From this width the contents sit beside the report and start open; below
 // it they are a block above the report and start closed. samples.css uses
 // the same width.
@@ -63,8 +67,17 @@ function slugFromLocation() {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-function note(key) {
-  reader.replaceChildren(el("p", "empty-note", t(key)));
+/** A note in the reader, with the way on where there is one: a list or a
+ * report that failed to load offers "Try again" under the failure, so the
+ * reader is not left to reload the page by hand. The button is a sibling
+ * of the note, so the print sheet's rule for the note still reaches it. */
+function note(key, retry) {
+  const text = el("p", "empty-note", t(key));
+  if (!retry) { reader.replaceChildren(text); return; }
+  const button = el("button", "samples__retry", t("samples_try_again"));
+  button.type = "button";
+  button.addEventListener("click", retry);
+  reader.replaceChildren(text, button);
 }
 
 /** Where the cards will be, until the list arrives, as the served markup
@@ -383,7 +396,10 @@ async function open(slug) {
     if (!response.ok) throw new Error(String(response.status));
     markdown = await response.text();
   } catch {
-    if (mine === generation) note("samples_read_failed");
+    // The retry reads the same sample again, through open(): the list and
+    // the chosen language stay as they are, and the generation check still
+    // drops a slow answer for a sample the reader has since left.
+    if (mine === generation) note("samples_read_failed", () => open(slug));
     return;
   }
   const scores = await scoresRead;
@@ -429,7 +445,8 @@ langSelect.value = i18n.language();
 langSelect.addEventListener("change", () => {
   i18n.setLanguage(langSelect.value);
   applySamples();
-  if (current) open(current);
+  if (listFailed) note("samples_list_failed", () => location.reload());
+  else if (current) open(current);
   else showTitle(null);
 });
 window.addEventListener("popstate", () => {
@@ -454,5 +471,7 @@ try {
   samples = [];
   listNode.removeAttribute("aria-busy");
   listNode.replaceChildren();
-  note("samples_list_failed");
+  listFailed = true;
+  // The list's way on is a reload, as the main page's boot failure does (#427).
+  note("samples_list_failed", () => location.reload());
 }

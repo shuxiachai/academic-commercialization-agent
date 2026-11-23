@@ -61,7 +61,9 @@ globalThis.document = {
   querySelectorAll: () => [],
   createElement: (tag) => new Element(tag),
 };
-globalThis.location = { pathname: "/samples", hash: "" };
+// A reload, as the list failure's retry asks for: recorded, not performed.
+const reloads = [];
+globalThis.location = { pathname: "/samples", hash: "", reload: () => reloads.push(true) };
 globalThis.history = {
   pushState(_state, _unused, url) {
     const next = new URL(url, "https://samples.test");
@@ -78,6 +80,10 @@ globalThis.window = {
 globalThis.localStorage = { getItem: (k) => stored.get(k) ?? null, setItem: (k, v) => stored.set(k, String(v)) };
 
 let list = samples, failReads = false;
+// A report read held back, as the title contract holds one: the retry's slow
+// answer must not paint over a sample the reader has since left.
+let deferReads = false;
+const pendingReads = [];
 // A promise the list waits for before it is answered: the page before the
 // list arrives (scenario "skeleton").
 let listHold = null;
@@ -136,7 +142,9 @@ globalThis.fetch = async (url, options) => {
   const slug = decodeURIComponent(url.replace(/^\/api\/samples\//, ""));
   reads.push(slug);
   if (failReads) return new Response("", { status: 503 });
-  return new Response(markdown[slug] ?? "", { status: 200, headers: { "Content-Type": "text/markdown" } });
+  const reply = () => new Response(markdown[slug] ?? "", { status: 200, headers: { "Content-Type": "text/markdown" } });
+  if (deferReads) return new Promise((resolve) => pendingReads.push({ slug, release: () => resolve(reply()) }));
+  return reply();
 };
 
 const settle = async () => { for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0)); };
@@ -288,14 +296,50 @@ if (scenario === "each_sample") {
   assert.deepEqual(reads, [second.slug, opened.slug], "A fragment of /samples while it shows the first sample");
   checks++;
 } else if (scenario === "failed_read") {
+  // The failed report names the failure and offers the way on; pressing it
+  // while the server still fails shows the failure again, and once the
+  // server answers the same button loads the report — no reload, no new
+  // list, the language following the switch meanwhile.
   failReads = true;
   await start(pathOf(first));
-  assert.equal(reader().textContent, "This report could not be loaded.");
+  const failed = () => reader().children;
+  assert.deepEqual(failed().map((c) => [c.tag, c.className, c.textContent]),
+    [["p", "empty-note", "This report could not be loaded."], ["button", "samples__retry", "Try again"]]);
+  assert.equal(failed()[1].type, "button", "A button, so it never submits a form");
   assert.equal(tocs().length, 0);
+  failed()[1].fire("click");
+  await settle();
+  assert.deepEqual(reads, [first.slug, first.slug], "The retry reads the same sample again");
+  assert.deepEqual(failed().map((c) => c.textContent), ["This report could not be loaded.", "Try again"]);
+  await switchLanguage("Simplified Chinese");
+  assert.deepEqual(failed().map((c) => c.textContent), ["这份报告加载失败。", "重试"]);
+  await switchLanguage("English");
+  assert.deepEqual(failed().map((c) => c.textContent), ["This report could not be loaded.", "Try again"]);
   failReads = false;
-  await go(pathOf(first));
-  assert.deepEqual(reads, [first.slug, first.slug], "A sample that never rendered is read again");
+  failed()[1].fire("click");
+  await settle();
+  assert.deepEqual(reads, [first.slug, first.slug, first.slug, first.slug, first.slug],
+    "A sample that never rendered is read again");
   expectContents(first);
+} else if (scenario === "failed_read_stale") {
+  // The retry is open() again, so the generation check still applies: a slow
+  // answer for a sample the reader has already left must not paint over the
+  // one they chose next.
+  failReads = true;
+  deferReads = true;
+  await start(pathOf(first));
+  assert.deepEqual(reader().children.map((c) => c.textContent), ["This report could not be loaded.", "Try again"]);
+  failReads = false;
+  reader().children[1].fire("click");
+  await settle();
+  await click(second);
+  assert.deepEqual(reads, [first.slug, first.slug, second.slug], "The retry and the new sample are both read");
+  pendingReads.find((r) => r.slug === first.slug).release();
+  await settle();
+  assert.equal(article(), undefined, "The late answer for the abandoned sample is dropped");
+  pendingReads.find((r) => r.slug === second.slug).release();
+  await settle();
+  expectContents(second);
 } else if (scenario === "deep_link") {
   await start(pathOf(second), "#section-4");
   expectContents(second);
@@ -516,7 +560,19 @@ if (scenario === "each_sample") {
   await start("/samples");
   assert.equal(el("sample-list").attributes["aria-busy"], undefined);
   assert.equal(cards().length, 0, "No placeholder is left standing for a list that will not come");
-  assert.deepEqual(reader().children.map((c) => c.textContent), ["The sample list could not be loaded."]);
+  const failed = () => reader().children;
+  assert.deepEqual(failed().map((c) => [c.tag, c.className, c.textContent]),
+    [["p", "empty-note", "The sample list could not be loaded."], ["button", "samples__retry", "Try again"]]);
+  assert.equal(failed()[1].type, "button", "A button, so it never submits a form");
+  // The list's way on is a reload, as the main page's boot failure does (#427).
+  failed()[1].fire("click");
+  assert.deepEqual(reloads, [true], "The retry reloads the page");
+  // A language switch redraws the note in the new language: there is no
+  // sample to reopen, so the list failure is the note that follows.
+  await switchLanguage("Simplified Chinese");
+  assert.deepEqual(failed().map((c) => c.textContent), ["示例列表加载失败。", "重试"]);
+  await switchLanguage("English");
+  assert.deepEqual(failed().map((c) => c.textContent), ["The sample list could not be loaded.", "Try again"]);
   checks++;
 } else if (scenario === "notice") {
   // The dated notice names the day and the model in words a reader has; the
