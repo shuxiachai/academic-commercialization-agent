@@ -266,9 +266,14 @@ and required evidence are in [Do not redo these](AGENTS.md#do-not-redo-these).
 ## Pull requests and privacy
 
 Keep each PR focused and describe the problem, alternatives, evidence,
-limitations and validation. Commit messages are deliberately substantive and
-in English; do not add Co-Authored-By or tool-signature lines. Preserve
-unrelated worktree changes and raw reviewer files.
+limitations and validation. Keep it to one commit: when you change it after
+a review, amend that commit (`git commit --amend`) and push with
+`git push --force-with-lease` instead of adding another. If the branch
+falls behind `main`, leave it; the maintainer brings it up to date before
+merging. A pull request that arrives with several commits is squashed when
+it is merged. Commit messages are deliberately substantive and in English;
+do not add Co-Authored-By or tool-signature lines. Preserve unrelated
+worktree changes and raw reviewer files.
 
 The project is licensed under the [MIT License](LICENSE). By submitting a
 pull request you agree that your contribution is licensed under the same
