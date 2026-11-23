@@ -327,7 +327,7 @@ function neighbours(sample) {
   const links = [];
   const add = (neighbour, key) => {
     if (!neighbour) return;
-    const link = el("a", "samples__neighbour", `${t(key)}: ${sampleTitle(neighbour)}`);
+    const link = el("a", "samples__neighbour", t(key).replace("{title}", () => sampleTitle(neighbour)));
     link.href = `/samples/${encodeURIComponent(neighbour.slug)}`;
     link.addEventListener("click", (event) => {
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;

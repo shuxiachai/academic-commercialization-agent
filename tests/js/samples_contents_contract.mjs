@@ -578,7 +578,7 @@ if (scenario === "each_sample") {
   await switchLanguage("Simplified Chinese");
   assert.equal(blocks()[0].attributes["aria-label"], "相邻示例");
   assert.deepEqual(linksOf(), [
-    ["a", "samples__neighbour", pathOf(samples[samples.length - 2]), `上一篇: ${zhNameOf(samples[samples.length - 2])}`],
+    ["a", "samples__neighbour", pathOf(samples[samples.length - 2]), `上一份：${zhNameOf(samples[samples.length - 2])}`],
   ], "The neighbour is named in the current language");
   await switchLanguage("English");
   assert.deepEqual(linksOf(), [
