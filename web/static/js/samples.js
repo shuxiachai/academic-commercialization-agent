@@ -81,6 +81,19 @@ function placeholders() {
   reader.replaceChildren(el("div", "skeleton", ""));
 }
 
+/** The sample's commit date, in the reader's language: "20 Nov 2026" in
+ * English, "2026年11月20日" in Chinese — the way a run page writes a date
+ * (run.js), not the raw "2026-11-20" the list carries. Read in UTC: the
+ * commit is a bare date, midnight UTC, and without it a reader west of
+ * Greenwich sees the day before. A date that cannot be parsed is shown as
+ * it is. */
+function committedDate(sample) {
+  const parsed = new Date(sample.committed);
+  if (Number.isNaN(parsed.getTime())) return sample.committed;
+  return new Intl.DateTimeFormat(i18n.locale(), { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
+    .format(parsed);
+}
+
 /* Every card is on the page at every width (samples.css): until 2026-11-21 a
  * screen under 768 px wide showed them as one row that scrolled sideways, and
  * at 717 px two and a half showed. */
@@ -106,7 +119,7 @@ function paintList() {
     card.append(
       // The commit stays in the notice above the report; a visitor reading the
       // list needs only how old the sample is.
-      el("span", "sample-card__meta", [facts.trl, facts.language, t("samples_added").replace("{date}", sample.committed)].filter(Boolean).join(" · ")),
+      el("span", "sample-card__meta", [facts.trl, facts.language, t("samples_added").replace("{date}", committedDate(sample))].filter(Boolean).join(" · ")),
     );
     card.addEventListener("click", (event) => {
       if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
@@ -172,7 +185,7 @@ function downloadLink(sample) {
  * 2026-11-21): it is under "Technical details", one press away. */
 function historicalNotice(sample) {
   const text = t("samples_historical")
-    .replace("{date}", () => sample.committed)
+    .replace("{date}", () => committedDate(sample))
     .replace("{model}", () => sample.model);
   const notice = el("div", "samples__notice");
   const tech = el("details", "samples__tech");
