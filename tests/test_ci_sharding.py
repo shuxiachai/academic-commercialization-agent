@@ -263,12 +263,12 @@ class TestSetting:
             parse_shard(raw)
 
 
-def _collected(shard: str | None, *args: str, times: str | None = None) -> list[str]:
+def _collected(shard: str | None, *args: str) -> list[str]:
+    # Each call is a pytest of its own (a few seconds on a Windows runner), so
+    # these real collections are kept few; the functions above carry the cases.
     env = {key: value for key, value in os.environ.items() if key not in ("ACA_TEST_SHARD", "ACA_TEST_SHARD_TIMES")}
     if shard is not None:
         env["ACA_TEST_SHARD"] = shard
-    if times is not None:
-        env["ACA_TEST_SHARD_TIMES"] = times
     result = subprocess.run(
         [sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:cacheprovider", *args],
         cwd=_ROOT, env=env, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300,
@@ -304,14 +304,6 @@ class TestARealCollection:
         assert sorted(parts[0] + parts[1]) == whole
         assert not any("test_ablation.py" in node for node in whole), "an experiment file, deselected before the split"
         assert parts[0] and parts[1]
-
-    def test_either_os_times_give_a_partition(self):
-        """Linux and Windows split the same files differently; each split is whole."""
-        whole = _collected(None, *_SAMPLE)
-        for system in ("linux", "windows"):
-            parts = [_collected(f"{index}/3", *_SAMPLE, times=system) for index in (1, 2, 3)]
-            assert all(parts), system
-            assert sorted(node for part in parts for node in part) == whole, system
 
     @pytest.mark.parametrize(("name", "value"), [("ACA_TEST_SHARD", "4/3"), ("ACA_TEST_SHARD_TIMES", "ubuntu")])
     def test_a_malformed_setting_stops_the_run(self, name, value):
