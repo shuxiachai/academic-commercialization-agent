@@ -32,6 +32,24 @@ body {
   font-feature-settings: "kern", "liga";
 }
 
+.noscript-notice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: baseline;
+  margin: var(--space-4) auto;
+  max-width: var(--content-width);
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--warning);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  background: var(--warning-subtle);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+.noscript-notice strong { color: var(--text-primary); }
+.noscript-notice a { color: var(--accent); }
+
 /* ── Typography ──
    What is read is set in the serif (display headings, the report); what is
    operated stays in the sans. Lower levels keep the sans so dense panels do
