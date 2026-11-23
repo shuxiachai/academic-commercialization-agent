@@ -12,8 +12,10 @@ changing pipeline, scoring or experiment code.
 Look for issues labelled
 [`good first issue`](https://github.com/shuxiachai/academic-commercialization-agent/labels/good%20first%20issue)
 or [`help wanted`](https://github.com/shuxiachai/academic-commercialization-agent/labels/help%20wanted).
-You need no API keys: the test suite and the browser smokes make no paid
-requests.
+Comment on one before you start, so two people don't take the same issue.
+You can hold up to five at a time, counting the ones whose pull request is
+still open. You need no API keys: the test suite and the browser smokes
+make no paid requests.
 
 | | Where |
 |---|---|
@@ -23,6 +25,30 @@ requests.
 
 If a change you need falls in the last row, open an issue and explain why;
 the frozen material belongs to closed studies whose results depend on it.
+
+### Proposing a change of your own
+
+You can also propose something yourself: a bug you ran into, a gap in a
+guide, a small improvement to a page. Open an issue first, and wait until
+the maintainer accepts it before you write code, so that neither of you
+spends time on a change that won't be merged.
+
+A proposal is likely to be accepted when it
+
+- says what you saw and where: the page, command or file, and how to
+  reproduce or check it;
+- is small enough for one focused pull request;
+- stays out of the "Do not change" row above.
+
+An accepted proposal is assigned to you rather than labelled
+`good first issue`, a label kept for issues anyone can take, and it counts
+towards the five you can hold at once. A change in the "Open an issue
+first" row needs the evidence that row asks for, so it may take longer to
+decide.
+
+Proposals to connect a commercial service, such as a model, search or data
+provider, are outside this process; the maintainer decides those
+separately.
 
 ## Setup
 
