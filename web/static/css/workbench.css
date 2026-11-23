@@ -93,24 +93,6 @@
   text-overflow: ellipsis;
 }
 
-.icon-btn {
-  width: 30px; height: 30px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-md);
-  color: var(--text-tertiary);
-  flex-shrink: 0;
-  transition: background var(--duration-fast) var(--ease),
-              color var(--duration-fast) var(--ease);
-}
-.icon-btn svg { width: 16px; height: 16px; }
-.icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
-
-/* The theme toggle shows the theme it switches to: the moon while the page is
-   light, the sun while it is dark (theme.js sets data-theme-now). */
-#theme-toggle[data-theme-now="light"] .theme-icon--sun,
-#theme-toggle[data-theme-now="dark"] .theme-icon--moon { display: none; }
-
 /* ── New run ── */
 .new-run {
   display: flex;

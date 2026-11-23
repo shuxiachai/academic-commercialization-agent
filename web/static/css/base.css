@@ -143,6 +143,29 @@ textarea {
   }
 }
 
+/* ── Icon buttons ──
+   Moved here from workbench.css (#465): the sample reader, the privacy page
+   and the 404 page carry the same light/dark toggle as the workbench sidebar
+   but do not load that sheet, and every page loads this one. The sidebar's
+   button is unchanged — it is the same rule, in the sheet it already loads. */
+.icon-btn {
+  width: 30px; height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  transition: background var(--duration-fast) var(--ease),
+              color var(--duration-fast) var(--ease);
+}
+.icon-btn svg { width: 16px; height: 16px; }
+.icon-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+/* The theme toggle shows the theme it switches to: the moon while the page is
+   light, the sun while it is dark (theme.js sets data-theme-now). */
+#theme-toggle[data-theme-now="light"] .theme-icon--sun,
+#theme-toggle[data-theme-now="dark"] .theme-icon--moon { display: none; }
+
 /* ── The product's name ────────────────────────────────────────────────
    A page header carries it twice: in full, and as "ACA". One is shown, by
    width: the full name fits a header from a tablet up, and on a phone it

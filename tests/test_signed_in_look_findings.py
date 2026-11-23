@@ -41,6 +41,7 @@ JS = WEB / "static" / "js"
 CSS_DIR = WEB / "static" / "css"
 INDEX = (WEB / "index.html").read_text(encoding="utf-8")
 WORKBENCH = (CSS_DIR / "workbench.css").read_text(encoding="utf-8")
+BASE = (CSS_DIR / "base.css").read_text(encoding="utf-8")
 RESULT = (CSS_DIR / "result.css").read_text(encoding="utf-8")
 
 
@@ -111,9 +112,11 @@ def test_the_run_button_and_the_menu_button_are_thumb_sized_on_touch():
         rule = re.search(rf"{selector} \{{([^}}]*)\}}", rules)
         assert rule, selector
         assert re.search(r"width: 44px; height: 44px;", rule[1]), selector
-    # For a pointer they stay as they were.
+    # For a pointer they stay as they were. The icon button moved to base.css
+    # with the theme toggle (#465): every page loads that sheet, so the size
+    # it pins lives there now, not in workbench.css.
     assert re.search(r"^\.send-btn \{\s*width: 36px; height: 36px;", WORKBENCH, re.M)
-    assert re.search(r"^\.icon-btn \{\s*width: 30px; height: 30px;", WORKBENCH, re.M)
+    assert re.search(r"^\.icon-btn \{\s*width: 30px; height: 30px;", BASE, re.M)
 
 
 def test_the_provider_links_line_stops_as_its_language_does():
