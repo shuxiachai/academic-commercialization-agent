@@ -263,6 +263,66 @@ def _assert_browser(jobs):
         _unconditional(job["steps"][index])
 
 
+_PRE_COMMIT = Path(__file__).resolve().parents[1] / ".pre-commit-config.yaml"
+
+
+def _lint_commands(jobs):
+    """The exact commands the lint job runs, tokenized like the contracts."""
+    return [
+        _tokens(step["run"])
+        for step in jobs["lint"]["steps"]
+        if "run" in step
+    ]
+
+
+def _pre_commit_config():
+    return yaml.safe_load(_PRE_COMMIT.read_text(encoding="utf-8"))
+
+
+def _pre_commit_hooks(config):
+    hooks = []
+    for repo in config["repos"]:
+        assert repo["repo"] == "local", "Pre-commit hooks must be local only"
+        for hook in repo["hooks"]:
+            assert hook["language"] == "system", "Hooks run the CI commands as installed"
+            assert hook["pass_filenames"] is False, "Hooks run once per commit, not per file"
+            hooks.append(_tokens(hook["entry"]))
+    return hooks
+
+
+def _assert_pre_commit_hooks_match_lint_job(jobs, config):
+    assert _pre_commit_hooks(config) == _lint_commands(jobs), (
+        "The pre-commit hooks must run the lint job's exact commands"
+    )
+
+
+def test_pre_commit_hooks_run_the_lint_jobs_exact_commands():
+    """A hook that drifts from CI stops catching what CI catches."""
+    _assert_pre_commit_hooks_match_lint_job(_jobs(), _pre_commit_config())
+
+
+@pytest.mark.parametrize("defect", [
+    "ruff-narrowed", "pylint-flag-dropped", "hook-removed",
+    "filenames-passed", "pinned-language",
+])
+def test_pre_commit_contract_rejects_a_hook_that_drifts_from_ci(defect):
+    """Mutate the config in memory; the contract must reject the drift."""
+    config = _pre_commit_config()
+    hooks = config["repos"][0]["hooks"]
+    if defect == "ruff-narrowed":
+        hooks[0]["entry"] = "uv run --with ruff ruff check src/"
+    elif defect == "pylint-flag-dropped":
+        hooks[1]["entry"] = hooks[1]["entry"].replace(" --score=n", "")
+    elif defect == "hook-removed":
+        hooks.pop()
+    elif defect == "filenames-passed":
+        hooks[0]["pass_filenames"] = True
+    else:
+        hooks[0]["language"] = "python"
+    with pytest.raises(AssertionError):
+        _assert_pre_commit_hooks_match_lint_job(_jobs(), config)
+
+
 def _assert_all(jobs):
     _assert_actions(jobs)
     _assert_test_execution(jobs)
