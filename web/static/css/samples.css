@@ -187,6 +187,23 @@
 }
 .samples__download:hover { color: var(--accent); }
 
+/* The way on from a list or a report that failed to load: the page's
+ * primary action in miniature, under the note that says what failed. The
+ * keyboard ring comes from base.css (:focus-visible), so a Tab reaches it
+ * and shows where it is. */
+.samples__retry {
+  display: block;
+  min-height: 44px;
+  margin: 0 auto;
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+.samples__retry:hover { background: var(--accent-hover); }
+
 /* What the run was asked, where it was given a decision context, and under
  * it the run page's conclusion card (result.css), which brings its own
  * colours and no margin below. */
@@ -361,6 +378,7 @@
   .samples__list,
   .samples__skip,
   .samples__reader > .empty-note,
+  .samples__reader > .samples__retry,
   .samples__reader > .skeleton,
   .samples__toc,
   .samples__download,

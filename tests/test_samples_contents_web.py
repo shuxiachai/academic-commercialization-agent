@@ -80,7 +80,7 @@ export const passageIn = (blocks, _needle, section) => blocks.findIndex((block) 
 
 
 @pytest.mark.parametrize("scenario", [
-    "each_sample", "rebuilt", "fragment", "failed_read", "deep_link", "wide", "narrow", "no_headings",
+    "each_sample", "rebuilt", "fragment", "failed_read", "failed_read_stale", "deep_link", "wide", "narrow", "no_headings",
     "scorecard", "scorecard_missing",
     "cards", "cards_without_scores", "evidence",
     "next_create", "next_sign_in", "next_without_accounts", "next_when_sign_up_is_not_said",
