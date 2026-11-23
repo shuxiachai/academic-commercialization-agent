@@ -5,6 +5,29 @@
 This guide describes the shipped interfaces, not permission to run a paid
 experiment. Frozen experiments have separate identities and authorization gates.
 
+- [Local setup and provider selection](#local-setup-and-provider-selection)
+- [Web, CLI and HTTP API](#web-cli-and-http-api)
+  - [Optional saved-source locator](#optional-saved-source-locator)
+  - [What a search engine is told](#what-a-search-engine-is-told)
+- [Artifacts and recovery](#artifacts-and-recovery)
+- [Deploying publicly](#deploying-publicly)
+  - [Privacy and terms page](#privacy-and-terms-page)
+  - [Accounts](#accounts)
+  - [Email verification](#email-verification)
+  - [Password reset by email](#password-reset-by-email)
+  - [Email when a run ends](#email-when-a-run-ends)
+  - [Run history in the page](#run-history-in-the-page)
+  - [Run links, BYOK and retention](#run-links-byok-and-retention)
+  - [Backing up accounts](#backing-up-accounts)
+  - [Alerts](#alerts)
+  - [Docker and Railway](#docker-and-railway)
+  - [Optional tracing](#optional-tracing)
+  - [CrewAI's own usage reporting](#crewais-own-usage-reporting)
+- [Paid-request receipts](#paid-request-receipts)
+- [Benchmark](#benchmark)
+- [Scoring](#scoring)
+- [Development checks](#development-checks)
+
 ## Local setup and provider selection
 
 Uploaded PDF `candidate_doi` / `candidate_url` fields are unverified locators,

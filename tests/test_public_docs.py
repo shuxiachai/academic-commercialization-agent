@@ -1,11 +1,12 @@
 """Contract tests for public documentation that describes live behaviour.
 
 These assertions are deliberately narrow. Prose in general is not executable,
-but four statements here are interfaces: the benchmark table and measured
+but five statements here are interfaces: the benchmark table and measured
 results are the advertised evaluation contract, run-id entropy is part of the
-capability-URL security model, and the list of serving surfaces tells a new
-contributor which entry points exist. All four have drifted while every runtime
-test stayed green.
+capability-URL security model, the list of serving surfaces tells a new
+contributor which entry points exist, and the operating guide's contents list
+maps its sections. The first four have drifted while every runtime test stayed
+green; the fifth is held to the same standard before it can.
 """
 
 from __future__ import annotations
@@ -287,6 +288,64 @@ class PublicDocumentationNavigationTests(unittest.TestCase):
         ):
             with self.subTest(entry=entry):
                 self.assertIn(entry, docs_readme)
+
+
+class OperatingGuideContentsTests(unittest.TestCase):
+    """The operating guide's contents list must cover every section.
+
+    The guide is about 2,100 lines long; without a list at the top a reader
+    looking for one section has to scroll or search. A section added without
+    a list entry is the same drift in miniature, so the list is held to the
+    headings it claims to cover, in order and at the right depth.
+    """
+
+    GUIDE = ROOT / "docs" / "operating-guide.md"
+
+    @staticmethod
+    def _github_anchor(heading: str) -> str:
+        # The anchor GitHub gives a heading: lowercase, punctuation dropped
+        # except hyphens and underscores, spaces become hyphens.
+        anchor = re.sub(r"[^\w\s-]", "", heading.lower())
+        return re.sub(r"\s+", "-", anchor.strip())
+
+    @staticmethod
+    def _headings_and_contents(text: str) -> tuple[
+        list[tuple[int, str, str]], list[tuple[int, str, str]]
+    ]:
+        headings: list[tuple[int, str, str]] = []
+        contents: list[tuple[int, str, str]] = []
+        in_fence = False
+        first_section = False
+        for line in text.splitlines():
+            if line.strip().startswith("```"):
+                in_fence = not in_fence
+                continue
+            if in_fence:
+                continue
+            match = re.match(r"^(#{2,3}) (.+)$", line)
+            if match:
+                first_section = True
+                level = len(match.group(1))
+                title = match.group(2)
+                headings.append(
+                    (level, title, OperatingGuideContentsTests._github_anchor(title))
+                )
+                continue
+            if not first_section:
+                entry = re.match(r"^( *)- \[(.+)\]\(#(.+)\)$", line)
+                if entry:
+                    level = len(entry.group(1)) // 2 + 2
+                    contents.append((level, entry.group(2), entry.group(3)))
+        return headings, contents
+
+    def test_contents_list_covers_every_section_and_subsection(self):
+        headings, contents = self._headings_and_contents(
+            self.GUIDE.read_text(encoding="utf-8")
+        )
+        # An empty list would pass a "no missing entry" check the same way an
+        # empty guide would; the guide has sections, so the list must too.
+        self.assertGreater(len(headings), 0)
+        self.assertEqual(contents, headings)
 
 
 if __name__ == "__main__":
