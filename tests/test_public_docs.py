@@ -254,6 +254,40 @@ class PublicDocumentationNavigationTests(unittest.TestCase):
                 with self.subTest(file=path.name):
                     self.assertIn(f"]({path.name})", archive)
 
+    def test_current_guides_describe_root_python_files_and_entries_accurately(self):
+        """Current guides must not claim root holds experiment runners, and entries match today's root."""
+        readme_en = (ROOT / "README.md").read_text(encoding="utf-8")
+        readme_zh = (ROOT / "README.zh-CN.md").read_text(encoding="utf-8")
+        docs_readme = (ROOT / "docs" / "README.md").read_text(encoding="utf-8")
+
+        # No current guide should claim the root holds many Python files or experiment runners
+        self.assertNotIn("many Python files at the root", readme_en)
+        self.assertNotIn("Most of the Python files at the repository root", readme_en)
+        self.assertNotIn("根目录下的大量 Python 文件", readme_zh)
+        self.assertNotIn("根目录下的大多数 Python 文件", readme_zh)
+
+        # Both READMEs agree that root holds the four benchmark commands and experiment runners live in experiments/
+        self.assertRegex(
+            readme_en,
+            r"The four Python files at the\s+root are benchmark commands",
+        )
+        self.assertRegex(
+            readme_en,
+            r"frozen experiment runners live in\s+`experiments/`",
+        )
+        self.assertIn("根目录下的 4 个 Python 文件是基准测试命令", readme_zh)
+        self.assertIn("已冻结的实验运行器位于 `experiments/`", readme_zh)
+
+        # docs/README.md lists root entries including newer configuration, entry and metadata files
+        for entry in (
+            ".devcontainer/",
+            "docker-entrypoint.sh",
+            "CITATION.cff",
+            "SECURITY.md",
+        ):
+            with self.subTest(entry=entry):
+                self.assertIn(entry, docs_readme)
+
 
 if __name__ == "__main__":
     unittest.main()
