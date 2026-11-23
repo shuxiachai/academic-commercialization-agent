@@ -11,6 +11,26 @@
   padding: var(--space-6) var(--space-5) var(--space-16);
 }
 
+/* The skip link: out of sight for mouse users, shown at the top of the page
+ * when it has keyboard focus, so a keyboard reader reaches the report
+ * without Tabbing through the header, the language selector and every
+ * sample card. Following it moves focus to the reader (tabindex="-1" on
+ * #sample-reader), so the next Tab lands inside the report. */
+.samples__skip {
+  position: absolute;
+  top: calc(-1 * var(--space-16));
+  left: var(--space-4);
+  z-index: 1;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+.samples__skip:focus-visible {
+  top: var(--space-2);
+}
+
 .samples__head {
   display: flex;
   align-items: center;
@@ -322,6 +342,7 @@
   .samples__head,
   .samples__intro,
   .samples__list,
+  .samples__skip,
   .samples__reader > .empty-note,
   .samples__reader > .skeleton,
   .samples__toc,
