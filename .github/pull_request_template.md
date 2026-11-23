@@ -12,3 +12,4 @@
 - [ ] I ran the relevant checks before and after the change (see [CONTRIBUTING.md](https://github.com/shuxiachai/academic-commercialization-agent/blob/main/CONTRIBUTING.md#checks-before-and-after-a-change)).
 - [ ] No credentials or private files are included.
 - [ ] This PR is focused on one change.
+- [ ] The PR is one commit, and its message has no Co-Authored-By or tool-signature lines.
