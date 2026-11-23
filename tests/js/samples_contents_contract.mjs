@@ -168,8 +168,8 @@ async function switchLanguage(value) {
 }
 let checks = 0;
 const shape = () => reader().children.map((c) => c.className || c.tag);
-const WITHOUT_SCORES = ["samples__notice", "samples__download", "samples__toc", "prose", "samples__next"];
-const WITH_SCORES = ["samples__notice", "samples__download", "brief", "samples__scorecard", "samples__toc", "prose", "samples__next"];
+const WITHOUT_SCORES = ["samples__notice", "samples__download", "samples__toc", "prose", "samples__neighbours", "samples__next"];
+const WITH_SCORES = ["samples__notice", "samples__download", "brief", "samples__scorecard", "samples__toc", "prose", "samples__neighbours", "samples__next"];
 // A sample whose run was given a decision context has what was asked and the
 // conclusion card under the download link.
 const DECIDED = ["samples__context", "verdict-card"];
@@ -372,7 +372,7 @@ if (scenario === "each_sample") {
   markdown.plain = "# Plain\n\nNo sections.";
   await start("/samples/plain");
   assert.equal(tocs().length, 0, "No contents without sections");
-  assert.deepEqual(reader().children.map((c) => c.className), ["samples__notice", "samples__download", "prose", "samples__next"]);
+  assert.deepEqual(reader().children.map((c) => c.className), ["samples__notice", "samples__download", "prose", "samples__neighbours", "samples__next"]);
   checks++;
 } else if (scenario === "cards") {
   // The list as served carries each sample's score, readiness level and
@@ -521,6 +521,69 @@ if (scenario === "each_sample") {
   assert.equal(zh.children[0].textContent, `${second.committed} 用 ${second.model} 跑出的一次运行，保持原样。`
     + "单份报告展示的是格式，不代表准确率或最新市场判断，其中引用也未重新核验。");
   assert.deepEqual(zh.children[1].children.map((c) => c.textContent), ["技术细节", `流水线版本：${second.commit}`]);
+  checks++;
+} else if (scenario === "neighbours") {
+  // At the end of a report, the samples either side of it, named: the only
+  // way on was back up past the whole report to the list.
+  assert(samples.length >= 3, "The scenario needs a first, a middle and a last sample");
+  const blocks = () => reader().children.filter((c) => c.className === "samples__neighbours");
+  const linksOf = () => blocks()[0].children.map((a) => [a.tag, a.className, a.href, a.textContent]);
+  const middle = samples[Math.floor(samples.length / 2)];
+  const last = samples[samples.length - 1];
+  // The stub's sampleTitle, as test_samples_contents_web.py writes it: the
+  // Chinese name in the Chinese interface, the listed title otherwise.
+  const zhNameOf = (sample) => (typeof sample.title_zh === "string" && sample.title_zh.trim()
+    ? sample.title_zh.trim() : sample.title);
+  // The first sample: only a next link, naming the second, after the report.
+  await start(pathOf(opened));
+  assert.equal(blocks().length, 1, "One neighbours block");
+  assert.equal(blocks()[0].tag, "nav");
+  assert.equal(blocks()[0].attributes["aria-label"], "Neighbouring samples");
+  assert.deepEqual(reader().children.map((c) => c.className).slice(-2), ["samples__neighbours", "samples__next"],
+    "Between the report and the sign-up block");
+  assert.deepEqual(linksOf(), [["a", "samples__neighbour", pathOf(samples[1]), `Next: ${samples[1].title}`]]);
+  // A plain click follows it as a card is followed: no reload, the list's
+  // mark moves with it, and the reader is brought back into view.
+  const scrolledBefore = reader().scrolledTo;
+  blocks()[0].children[0].fire("click");
+  await settle();
+  assert.deepEqual(reads, [opened.slug, samples[1].slug], "The next sample is read, the page is not");
+  assert.equal(reader().scrolledTo, scrolledBefore + 1, "The top of the reader, where the new report starts");
+  assert.equal(cardOf(samples[1]).attributes["aria-current"], "page");
+  assert.equal(cardOf(opened).attributes["aria-current"], undefined);
+  assert.deepEqual(linksOf(), [
+    ["a", "samples__neighbour", pathOf(opened), `Previous: ${opened.title}`],
+    ["a", "samples__neighbour", pathOf(samples[2]), `Next: ${samples[2].title}`],
+  ], "The second sample has both, each naming its neighbour");
+  // A modified click is the browser's: it opens nothing here.
+  blocks()[0].children[0].fire("click", { ctrlKey: true });
+  await settle();
+  assert.deepEqual(reads, [opened.slug, samples[1].slug], "A Ctrl-click is left to the browser");
+  // Back returns to the sample before.
+  await go(pathOf(opened));
+  assert.deepEqual(linksOf(), [["a", "samples__neighbour", pathOf(samples[1]), `Next: ${samples[1].title}`]]);
+  // A middle sample: both links, naming the samples either side of it.
+  const beforeMiddle = samples[samples.indexOf(middle) - 1];
+  const afterMiddle = samples[samples.indexOf(middle) + 1];
+  await click(middle);
+  assert.deepEqual(linksOf(), [
+    ["a", "samples__neighbour", pathOf(beforeMiddle), `Previous: ${beforeMiddle.title}`],
+    ["a", "samples__neighbour", pathOf(afterMiddle), `Next: ${afterMiddle.title}`],
+  ]);
+  // The last sample: only a previous link, and the names follow a language switch.
+  await click(last);
+  assert.deepEqual(linksOf(), [
+    ["a", "samples__neighbour", pathOf(samples[samples.length - 2]), `Previous: ${samples[samples.length - 2].title}`],
+  ]);
+  await switchLanguage("Simplified Chinese");
+  assert.equal(blocks()[0].attributes["aria-label"], "相邻示例");
+  assert.deepEqual(linksOf(), [
+    ["a", "samples__neighbour", pathOf(samples[samples.length - 2]), `上一篇: ${zhNameOf(samples[samples.length - 2])}`],
+  ], "The neighbour is named in the current language");
+  await switchLanguage("English");
+  assert.deepEqual(linksOf(), [
+    ["a", "samples__neighbour", pathOf(samples[samples.length - 2]), `Previous: ${samples[samples.length - 2].title}`],
+  ]);
   checks++;
 } else if (scenario === "first_card_is_the_decision") {
   // The one sample with a decision conclusion stood seventh, out of sight on a

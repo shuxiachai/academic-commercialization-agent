@@ -233,6 +233,23 @@
 }
 .samples__next-link:hover { background: var(--accent-hover); color: var(--on-accent); }
 
+/* The samples either side of the open one, at the end of its report: the
+ * previous at the left and the next at the right, so a lone next link
+ * still sits where a reader looks for it. */
+.samples__neighbours {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-5);
+  margin-top: var(--space-8);
+}
+.samples__neighbour {
+  color: var(--text-secondary);
+  font-weight: 600;
+  line-height: var(--leading-tight);
+}
+.samples__neighbour:hover { color: var(--accent); }
+
 /* Wide report tables scroll inside their own box, never the page. */
 .samples .table-wrap { overflow-x: auto; }
 /* Nor does a reference's address: an unbroken URL in the reference list ran
@@ -330,6 +347,7 @@
   .samples__reader > .verdict-card,
   .samples__reader > .brief,
   .samples__scorecard,
+  .samples__neighbours,
   .samples__next,
   .cite-card {
     display: none;

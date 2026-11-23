@@ -544,7 +544,8 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
         for selector in (".samples__head", ".samples__intro", ".samples__list",
                          ".samples__reader > .empty-note", ".samples__toc", ".samples__download",
                          ".samples__context", ".samples__reader > .verdict-card",
-                         ".samples__reader > .brief", ".samples__scorecard", ".samples__next"):
+                         ".samples__reader > .brief", ".samples__scorecard", ".samples__next",
+                         ".samples__neighbours"):
             expect(page.locator(selector)).to_be_hidden()
         expect(notice).to_be_visible()
         expect(report).to_be_visible()
@@ -591,13 +592,14 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
         assert printed["reportMaxWidth"] == "none" and printed["reportFillsReader"], (slug, printed)
         # The download link and contents are screen navigation; print hides them like the list.
         # Every committed sample has its run's scorecard, so every one has both blocks.
-        # After the report, the way to one's own: screen navigation too, and not on paper.
+        # After the report, the samples either side of this one, then the way
+        # to one's own: screen navigation too, and not on paper.
         # A sample run with a decision context has two blocks more above the
         # brief, both hidden on paper above.
         decided = ["samples__context", "verdict-card"] if slug in with_decision else []
         assert printed["readerChildren"] == [
             "samples__notice", "samples__download", *decided, "brief", "samples__scorecard", "samples__toc", "prose",
-            "samples__next",
+            "samples__neighbours", "samples__next",
         ], (slug, printed)
         assert not printed["badColors"], (slug, printed["badColors"][:5])
         assert not printed["badBackgrounds"], (slug, printed["badBackgrounds"][:5])

@@ -85,7 +85,7 @@ export const passageIn = (blocks, _needle, section) => blocks.findIndex((block) 
     "cards", "cards_without_scores", "evidence",
     "next_create", "next_sign_in", "next_without_accounts", "next_when_sign_up_is_not_said",
     "decision", "decision_with_scores", "decision_open", "decision_not_asked", "first_card_is_the_decision",
-    "skeleton", "skeleton_empty", "skeleton_failed", "notice",
+    "skeleton", "skeleton_empty", "skeleton_failed", "notice", "neighbours",
     *(f"decision_unread:{number}" for number in range(3)),
     *(f"next_when_the_question_fails:{number}" for number in range(6)),
 ])
