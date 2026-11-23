@@ -344,9 +344,12 @@ New tools go under `scripts/`.
 Open gaps: qualitative source entailment, independently measured decision
 utility, multilingual/short/non-technical benchmark coverage, legacy metadata
 read-state clarity, and single-replica scale. More agents, a vector database
-or Kubernetes would not by themselves resolve these. Accounts cannot yet reset
-their own password; a deployment without an email service also verifies no
-address, and should keep sign-up invite-only.
+or Kubernetes would not by themselves resolve these. With mail configured,
+accounts can reset their own password by email
+([password reset](docs/operating-guide.md#password-reset-by-email)); a
+deployment without an email service verifies no address, has no self-service
+reset — the operator resets passwords there — and should keep sign-up
+invite-only.
 
 **Market scoring.** Market scorecards disclose
 [unverified estimate comparability](docs/results-2026-09-11-market-score-delivery-disclosure.md):
