@@ -313,6 +313,40 @@ function nextStep() {
   return block;
 }
 
+/** The samples either side of the open one, named as links, between the
+ * report and the sign-up block: at the end of a report the only way to
+ * another sample was back up past the whole report to the list, many
+ * screens on a phone. The order is the list's — the order /api/samples
+ * returned — never one of this block's own. A link is followed as a card
+ * is, so Back returns to the sample the reader came from; and the reader
+ * is brought back into view, because the link sits at the foot of the old
+ * report, which is not where the new one starts. The first sample has no
+ * previous and the last no next; a list of one gets no block. */
+function neighbours(sample) {
+  const index = samples.findIndex((item) => item.slug === sample.slug);
+  const links = [];
+  const add = (neighbour, key) => {
+    if (!neighbour) return;
+    const link = el("a", "samples__neighbour", t(key).replace("{title}", () => sampleTitle(neighbour)));
+    link.href = `/samples/${encodeURIComponent(neighbour.slug)}`;
+    link.addEventListener("click", (event) => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+      event.preventDefault();
+      try { history.pushState({}, "", link.href); } catch { /* still render */ }
+      open(neighbour.slug);
+      reader.scrollIntoView();
+    });
+    links.push(link);
+  };
+  add(samples[index - 1], "samples_previous");
+  add(samples[index + 1], "samples_next_sample");
+  if (!links.length) return null;
+  const block = el("nav", "samples__neighbours");
+  block.setAttribute("aria-label", t("samples_neighbours"));
+  block.append(...links);
+  return block;
+}
+
 async function open(slug) {
   const sample = samples.find((item) => item.slug === slug);
   current = sample ? slug : null;
@@ -354,11 +388,12 @@ async function open(slug) {
   // Under the notice, in a run page's order: what was asked, the conclusion
   // the report states, then the brief and the scorecard.
   const verdict = given ? decisionCard(decision, article, index) : null;
+  const beside = neighbours(sample);
   reader.replaceChildren(
     historicalNotice(sample), downloadLink(sample),
     ...(given ? [decisionContext(given)] : []), ...(verdict ? [verdict] : []),
     ...scoreBlocks(scores, markdown, index, given),
-    ...(toc ? [toc.nav] : []), article, nextStep(),
+    ...(toc ? [toc.nav] : []), article, ...(beside ? [beside] : []), nextStep(),
   );
   rendered = slug;
   // The browser looked for a #section-N target before the report existed:
