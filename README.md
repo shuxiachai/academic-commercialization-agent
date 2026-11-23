@@ -242,12 +242,16 @@ files, Docker, access codes, BYOK, tracing and recovery.
 Three ways in, chosen per deployment: no gate (local use), operator access
 codes billed to the deployment, or email-and-password accounts that pay with
 the keys they add after signing in ([how](docs/operating-guide.md#accounts)).
-An account's keys stay in its browser and are never stored by the server.
+An account's keys are saved with it as one encrypted record, with nothing
+readable in the account database; with "Save these keys to my account"
+unticked, they stay in the browser tab and travel with each request.
 Each account may have one paid operation going at a time and ten a day by
 default, so one account cannot hold the host's capacity
 ([settings](docs/operating-guide.md#what-one-account-may-do-at-once-and-in-a-day)).
 Every deployment serves a [privacy and terms page](web/privacy.html) at
 `/privacy` that says what is stored and who else sees a topic.
+[SECURITY.md](SECURITY.md) says what a deployment holds and how to report
+a vulnerability privately.
 
 The operator has a [console](docs/operating-guide.md#the-console) at `/admin`,
 open only to admin accounts, for the service's state, every account, password

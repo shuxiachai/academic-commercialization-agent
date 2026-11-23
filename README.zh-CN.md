@@ -203,10 +203,11 @@ uv run academic_agent --topic "solid-state batteries for electric vehicles"
 ## 安全与部署
 
 进入方式按部署选择：不设门禁（本地使用）、由运营者发放并计费的访问口令，或邮箱加密码的账号。
-账号登录后自行添加 API Key 来支付运行费用（[说明](docs/operating-guide.md#accounts)），密钥只留在用户的浏览器里，服务器不会保存。
+账号登录后自行添加 API Key 来支付运行费用（[说明](docs/operating-guide.md#accounts)），密钥默认以一条加密记录保存在账号里，账号数据库中没有任何可读的密钥内容；取消勾选“把这些密钥保存到我的账号”时，密钥只留在浏览器标签页里，随每次请求发送。
 每个账号默认同时只能有一个付费操作、每天最多十次，单个账号占不满主机的容量
 （[设置](docs/operating-guide.md#what-one-account-may-do-at-once-and-in-a-day)）。
 每个部署都在 `/privacy` 提供[隐私与条款页](web/privacy.html)，说明保存了什么、还有谁会看到主题。
+[SECURITY.md](SECURITY.md) 说明部署保存了哪些数据，以及如何私下报告安全漏洞。
 
 运营者有一个只对管理员账号开放的[管理后台](docs/operating-guide.md#the-console)（`/admin`）：
 查看服务状态和全部账号，重置密码、停用账号，查看账号备份。服务每天[自动备份账号数据库](docs/operating-guide.md#backing-up-accounts)并保留最新十四份；
