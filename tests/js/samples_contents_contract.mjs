@@ -94,10 +94,14 @@ class IntersectionObserverStub {
   observe(target) { if (!this.disconnected) this.targets.push(target); }
   unobserve(target) { this.targets = this.targets.filter((t) => t !== target); }
   disconnect() { this.disconnected = true; this.targets = []; }
-  // Drive the callback with entries as a browser would: { target, isIntersecting }.
+  // Drive the callback with entries as a browser would: { target, isIntersecting },
+  // plus the geometry a leave-direction read needs: a heading that leaves
+  // upwards has boundingClientRect.top above rootBounds.top, one that leaves
+  // downwards has it below the viewport's top instead.
   fire(entries) {
     if (this.disconnected) return;
-    this.callback(entries.map((entry) => ({ target: entry.target, isIntersecting: entry.isIntersecting ?? true })));
+    this.callback(entries.map((entry) => ({ target: entry.target, isIntersecting: entry.isIntersecting ?? true,
+      boundingClientRect: entry.boundingClientRect, rootBounds: entry.rootBounds })));
   }
 }
 globalThis.IntersectionObserver = IntersectionObserverStub;
@@ -835,6 +839,29 @@ if (scenario === "each_sample") {
   observer().fire([{ target: headings()[1], isIntersecting: false }]);
   assert.deepEqual(marked(), ["location", ...headings().slice(1).map(() => null)],
     "Leaving a section moves the mark back to the one still on screen");
+  checks++;
+  // A long section: its heading has scrolled above the band and the next one
+  // has not reached it, so nothing is in the band — the mark must stay on
+  // the section still on screen, not drop off every link.
+  observer().fire([{ target: headings()[0], isIntersecting: false,
+    boundingClientRect: { top: -10 }, rootBounds: { top: 0 } }]);
+  assert.deepEqual(marked(), ["location", ...headings().slice(1).map(() => null)],
+    "The first heading leaves upwards with nothing else in the band, and section 1 stays marked");
+  checks++;
+  // Scrolling back up: the next heading leaves downwards, so the mark moves
+  // back to the section before it.
+  observer().fire([{ target: headings()[1], isIntersecting: true }]);
+  assert.deepEqual(marked(), [null, "location", ...headings().slice(2).map(() => null)],
+    "The mark moves on to the next section as its heading enters");
+  checks++;
+  observer().fire([{ target: headings()[1], isIntersecting: false,
+    boundingClientRect: { top: 500 }, rootBounds: { top: 0 } }]);
+  assert.deepEqual(marked(), ["location", ...headings().slice(1).map(() => null)],
+    "Scrolling back up above a heading moves the mark back to the section before it");
+  checks++;
+  observer().fire([{ target: headings()[0], isIntersecting: true }]);
+  assert.deepEqual(marked(), ["location", ...headings().slice(1).map(() => null)],
+    "The first section is still marked when its heading comes back into the band");
   checks++;
   const old = observer();
   const oldHeadings = headings();
