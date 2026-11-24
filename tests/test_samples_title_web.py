@@ -73,7 +73,8 @@ export function sampleFacts(sample) {
 
 
 @pytest.mark.parametrize("scenario", [
-    "index", "each_sample", "history", "language", "unknown_slug",
+    "index", "each_sample", "history", "language", "article_lang",
+    "article_lang_unknown", "unknown_slug",
     "stale_response", "list_failed", "empty_list",
 ])
 def test_tab_title_follows_the_open_sample(scenario):

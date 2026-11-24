@@ -107,6 +107,18 @@ function committedDate(sample) {
     .format(parsed);
 }
 
+/** The report's own language, as a BCP 47 tag for the article's `lang`:
+ * "en" for an English report, "zh-CN" for the one Simplified Chinese
+ * report. The catalog names the language the way the interface selector
+ * does ("English" / "Simplified Chinese"), so the map is by that name —
+ * the same names `result.js` `sampleFacts` reads for the card. An entry
+ * with no recognized language has none, so the article inherits the
+ * page's: the interface language, the best guess there is. */
+const REPORT_LANGUAGES = { English: "en", "Simplified Chinese": "zh-CN" };
+function reportLang(sample) {
+  return REPORT_LANGUAGES[sample?.language] ?? null;
+}
+
 /* Every card is on the page at every width (samples.css): until 2026-11-21 a
  * screen under 768 px wide showed them as one row that scrolled sideways, and
  * at 717 px two and a half showed. */
@@ -408,6 +420,12 @@ async function open(slug) {
   if (mine !== generation) return;
 
   const article = el("article", "prose");
+  // The report's own language, not the interface's: a screen reader
+  // otherwise pronounces a Chinese report by English rules, and the
+  // reverse. Set when the catalog names it; without one the article
+  // inherits the page root, which follows the interface selector.
+  const lang = reportLang(sample);
+  if (lang) article.lang = lang;
   article.innerHTML = renderMarkdown(markdown);
   // The sample's own reference list feeds the citation cards; there is no
   // source registry behind a sample, so there is no "show in Sources" either.

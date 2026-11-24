@@ -82,6 +82,9 @@ const titleOf = (sample, lang = "English") => (lang === "English"
 const defaultTitleZh = "示例报告 · 学术成果商业化评估";
 // The stub renderer returns its input, so the article names the sample on screen.
 const shown = () => el("sample-reader").children.find((c) => c.tag === "article")?.html ?? null;
+// The article itself, for its lang: the reader's language is the interface's,
+// the report's is the catalog's.
+const articleOf = () => el("sample-reader").children.find((c) => c.tag === "article") ?? null;
 async function click(sample) {
   const card = el("sample-list").children.find((c) => c.href === pathOf(sample));
   assert(card, `No card for ${sample.slug}`);
@@ -133,6 +136,43 @@ if (scenario === "index") {
   expectTitle(titleOf(second, "Simplified Chinese"), "A language switch gives the Chinese name and suffix");
   await switchLanguage("English");
   expectTitle(titleOf(second), "And back");
+} else if (scenario === "article_lang") {
+  // The catalog's one Chinese report and an English one: each keeps its own
+  // language whatever the interface says, and a switch of the interface
+  // moves the page root but not the open report.
+  const chinese = samples.find((s) => s.language === "Simplified Chinese");
+  const english = samples.find((s) => s.language === "English");
+  assert(chinese, "The catalog has a Chinese report");
+  assert(english, "The catalog has an English report");
+  const expectArticleLang = (expected, why) => {
+    const article = articleOf();
+    assert(article, "An article is on screen");
+    assert.equal(article.lang, expected, why);
+    checks++;
+  };
+  await start(pathOf(chinese));
+  assert.equal(document.documentElement.lang, "en", "The page root starts in the interface language");
+  expectArticleLang("zh-CN", "A Chinese report has lang=\"zh-CN\" in the English interface");
+  await click(english);
+  expectArticleLang("en", "An English report has lang=\"en\" in the English interface");
+  await switchLanguage("Simplified Chinese");
+  assert.equal(document.documentElement.lang, "zh-CN", "The switch moves the page root");
+  expectArticleLang("en", "The switch keeps the open English report's language");
+  expectTitle(titleOf(english, "Simplified Chinese"), "And the tab still follows the switch");
+  await click(chinese);
+  expectArticleLang("zh-CN", "A Chinese report has lang=\"zh-CN\" in the Chinese interface");
+  await switchLanguage("English");
+  assert.equal(document.documentElement.lang, "en", "Switching back moves the page root");
+  expectArticleLang("zh-CN", "Switching back keeps the open Chinese report's language");
+} else if (scenario === "article_lang_unknown") {
+  // A catalog entry with no recognized language: the article carries none
+  // of its own and inherits the page's, which follows the interface.
+  list = samples.map((s) => ({ ...s, language: "Klingon" }));
+  await start("/samples");
+  const article = articleOf();
+  assert(article, "An article is on screen");
+  assert(!article.lang, "No recognized language leaves the article without a lang of its own");
+  assert.equal(document.documentElement.lang, "en", "The page root still follows the interface");
 } else if (scenario === "unknown_slug") {
   await start("/samples/no-such-sample");
   expectTitle(defaultTitle, "An unknown slug shows the page's own title");
@@ -179,4 +219,4 @@ if (scenario === "index") {
   expectTitle(defaultTitle, "Nothing to open");
   assert.equal(el("sample-reader").textContent, "Choose a report above.");
 } else throw Error(`Unknown scenario ${scenario}`);
-console.log(`PASS ${scenario} (${checks} title checks)`);
+console.log(`PASS ${scenario} (${checks} checks)`);
