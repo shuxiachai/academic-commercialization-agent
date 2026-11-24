@@ -21,8 +21,9 @@ included.
 | Way in | What you need | |
 |---|---|---|
 | **Read sample reports** | Nothing. Seven finished assessments, one in Chinese and one with a decision context and its stated conclusion; opening one makes no model or search request | [Open samples](https://academic-agent.cc/samples) |
+| **Try the local UI demo** | Python 3.11 or 3.12 and [uv](https://docs.astral.sh/uv/), no keys: a read-only demo serving three finished fixture reports | [Local UI demo](#try-the-local-ui-demo-no-keys) |
 | **Run a new analysis online** | A free account (email and password; sign-up is open) with your own LLM API key and model plus a Tavily or Serper search key, which your runs are billed to. Incurs provider usage | [Open the app](https://academic-agent.cc) |
-| **Run it on your machine** | Python 3.11 or 3.12, [uv](https://docs.astral.sh/uv/) and your own keys | [Quick start](#quick-start) |
+| **Run it on your machine** | Python 3.11 or 3.12, [uv](https://docs.astral.sh/uv/) and your own keys | [New analysis setup](#run-a-new-analysis) |
 
 The samples are also in [examples/](examples/README.md): five runs of
 2026-11-08 on the current pipeline with `deepseek-v4-pro`, such as
@@ -208,7 +209,24 @@ cd academic-commercialization-agent
 uv sync
 ```
 
-Copy [.env.example](.env.example) to `.env`. For Qwen, set these values and
+### Try the local UI demo (no keys)
+
+To see the interface without any API keys, start the read-only demo. It serves
+three finished fixture runs from your machine; it makes no provider request and
+writes nothing under `outputs/`:
+
+```bash
+uv run python -m scripts.demos.ui_demo
+```
+
+Open the URL it prints and enter the access code it prints alongside it to
+browse the fixture reports. Press Ctrl+C to stop the demo. The
+[contribution guide](CONTRIBUTING.md#local-ui-demo) has the details.
+
+### Run a new analysis
+
+This path is separate from the fixture demo: it starts real provider work. Copy
+[.env.example](.env.example) to `.env`. For Qwen, set these values and
 replace the placeholders locally; do not commit or share keys:
 
 ```dotenv

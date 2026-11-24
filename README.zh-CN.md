@@ -19,8 +19,9 @@
 | 方式 | 需要什么 | |
 |---|---|---|
 | **阅读示例报告** | 什么都不需要。七份完整评估（其中一份为中文，一份填写了决策场景并给出结论），打开时不发起任何模型或检索请求 | [打开示例](https://academic-agent.cc/samples) |
+| **体验本地 UI 演示** | Python 3.11 或 3.12 与 [uv](https://docs.astral.sh/uv/)，无需任何 key：只读演示，在本机展示三份已完成的 fixture 报告 | [本地 UI 演示](#免-key-的本地-ui-演示) |
 | **在线发起新分析** | 免费注册账号（邮箱加密码，开放注册），用自己的模型 API key 与模型 + Tavily 或 Serper 检索 key 付费运行。会产生供应商用量 | [打开应用](https://academic-agent.cc) |
-| **在本机运行** | Python 3.11 或 3.12、[uv](https://docs.astral.sh/uv/) 和自己的 key | [快速启动](#快速启动) |
+| **在本机运行** | Python 3.11 或 3.12、[uv](https://docs.astral.sh/uv/) 和自己的 key | [新分析配置](#发起新分析) |
 
 示例报告也在 [examples/](examples/README.md) 中：五份是 2026-11-08 在当前流水线上用
 `deepseek-v4-pro` 跑出的运行，例如中文报告
@@ -174,6 +175,21 @@ cd academic-commercialization-agent
 uv sync
 ```
 
+### 免 key 的本地 UI 演示
+
+不用任何 API key 也能看到界面：启动只读演示，它在本机展示三份已完成的
+fixture 运行，不发起供应商请求，也不向 `outputs/` 写入任何内容：
+
+```bash
+uv run python -m scripts.demos.ui_demo
+```
+
+打开它打印的 URL，输入同时打印的访问口令，即可浏览 fixture 报告；按 Ctrl+C
+停止演示。细节见[贡献指南](CONTRIBUTING.md#local-ui-demo)。
+
+### 发起新分析
+
+这一步与 fixture 演示分开，会发起真实的供应商工作。
 将 [.env.example](.env.example) 复制为 `.env`。使用 Qwen 时填写：
 
 ```dotenv
