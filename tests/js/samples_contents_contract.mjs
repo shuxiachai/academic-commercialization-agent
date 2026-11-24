@@ -78,6 +78,33 @@ globalThis.window = {
   },
 };
 globalThis.localStorage = { getItem: (k) => stored.get(k) ?? null, setItem: (k, v) => stored.set(k, String(v)) };
+// Where IntersectionObserver exists, the reader watches the report's headings
+// and marks the contents link of the section on screen; where it does not,
+// the marking is skipped and nothing else changes. The stub records what it
+// watches and lets a scenario drive its callback, as a browser would on scroll.
+class IntersectionObserverStub {
+  static instances = [];
+  constructor(callback, options = {}) {
+    this.callback = callback;
+    this.options = options;
+    this.targets = [];
+    this.disconnected = false;
+    IntersectionObserverStub.instances.push(this);
+  }
+  observe(target) { if (!this.disconnected) this.targets.push(target); }
+  unobserve(target) { this.targets = this.targets.filter((t) => t !== target); }
+  disconnect() { this.disconnected = true; this.targets = []; }
+  // Drive the callback with entries as a browser would: { target, isIntersecting },
+  // plus the geometry a leave-direction read needs: a heading that leaves
+  // upwards has boundingClientRect.top above rootBounds.top, one that leaves
+  // downwards has it below the viewport's top instead.
+  fire(entries) {
+    if (this.disconnected) return;
+    this.callback(entries.map((entry) => ({ target: entry.target, isIntersecting: entry.isIntersecting ?? true,
+      boundingClientRect: entry.boundingClientRect, rootBounds: entry.rootBounds })));
+  }
+}
+globalThis.IntersectionObserver = IntersectionObserverStub;
 
 let list = samples, failReads = false;
 // A report read held back, as the title contract holds one: the retry's slow
@@ -788,5 +815,78 @@ if (scenario === "each_sample") {
     assert(context(), "What was asked is still said");
     checks++;
   }
+} else if (scenario === "marking") {
+  // Scrolling through a sample marks exactly one contents link at a time: the
+  // one for the section on screen. The mark moves as the reader passes
+  // headings, and opening another sample disconnects the old observer, so it
+  // cannot mark links that are gone.
+  await start(pathOf(first));
+  const details = expectContents(first);
+  const links = () => details.children[1].children.map((item) => item.children[0]);
+  const marked = () => links().map((a) => a.attributes["aria-current"] ?? null);
+  const headings = () => article().querySelectorAll("h2");
+  const observer = () => globalThis.IntersectionObserver.instances.at(-1);
+  assert.equal(globalThis.IntersectionObserver.instances.length, 1, "One observer watches the open sample's headings");
+  assert.equal(observer().targets.length, headings().length, "It watches every heading");
+  assert.deepEqual(marked(), headings().map(() => null), "Nothing is marked before any heading is on screen");
+  observer().fire([{ target: headings()[0], isIntersecting: true }]);
+  assert.deepEqual(marked(), ["location", ...headings().slice(1).map(() => null)], "The first section is marked");
+  checks++;
+  observer().fire([{ target: headings()[1], isIntersecting: true }]);
+  assert.deepEqual(marked(), [null, "location", ...headings().slice(2).map(() => null)],
+    "The mark moves to the section most recently passed");
+  checks++;
+  observer().fire([{ target: headings()[1], isIntersecting: false }]);
+  assert.deepEqual(marked(), ["location", ...headings().slice(1).map(() => null)],
+    "Leaving a section moves the mark back to the one still on screen");
+  checks++;
+  // A long section: its heading has scrolled above the band and the next one
+  // has not reached it, so nothing is in the band — the mark must stay on
+  // the section still on screen, not drop off every link.
+  observer().fire([{ target: headings()[0], isIntersecting: false,
+    boundingClientRect: { top: -10 }, rootBounds: { top: 0 } }]);
+  assert.deepEqual(marked(), ["location", ...headings().slice(1).map(() => null)],
+    "The first heading leaves upwards with nothing else in the band, and section 1 stays marked");
+  checks++;
+  // Scrolling back up: the next heading leaves downwards, so the mark moves
+  // back to the section before it.
+  observer().fire([{ target: headings()[1], isIntersecting: true }]);
+  assert.deepEqual(marked(), [null, "location", ...headings().slice(2).map(() => null)],
+    "The mark moves on to the next section as its heading enters");
+  checks++;
+  observer().fire([{ target: headings()[1], isIntersecting: false,
+    boundingClientRect: { top: 500 }, rootBounds: { top: 0 } }]);
+  assert.deepEqual(marked(), ["location", ...headings().slice(1).map(() => null)],
+    "Scrolling back up above a heading moves the mark back to the section before it");
+  checks++;
+  observer().fire([{ target: headings()[0], isIntersecting: true }]);
+  assert.deepEqual(marked(), ["location", ...headings().slice(1).map(() => null)],
+    "The first section is still marked when its heading comes back into the band");
+  checks++;
+  const old = observer();
+  const oldHeadings = headings();
+  await click(second);
+  const nextDetails = expectContents(second);
+  const nextMarked = () => nextDetails.children[1].children.map((item) => item.children[0].attributes["aria-current"] ?? null);
+  assert.equal(globalThis.IntersectionObserver.instances.length, 2, "A new sample gets its own observer");
+  assert.equal(old.disconnected, true, "The old observer is disconnected when another sample opens");
+  assert.deepEqual(nextMarked(), nextDetails.children[1].children.map(() => null), "The new sample starts unmarked");
+  old.fire([{ target: oldHeadings[0], isIntersecting: true }]);
+  assert.deepEqual(nextMarked(), nextDetails.children[1].children.map(() => null),
+    "A disconnected observer marks nothing");
+  checks++;
+  const nextHeadings = article().querySelectorAll("h2");
+  observer().fire([{ target: nextHeadings[0], isIntersecting: true }]);
+  assert.equal(nextMarked()[0], "location", "The new observer marks the new sample's section");
+  checks++;
+} else if (scenario === "marking_without_observer") {
+  // Where IntersectionObserver does not exist, the marking is skipped and
+  // nothing else changes: the contents still list every section.
+  delete globalThis.IntersectionObserver;
+  await start(pathOf(first));
+  expectContents(first);
+  await click(second);
+  expectContents(second);
+  checks++;
 } else throw Error(`Unknown scenario ${scenario}`);
 console.log(`PASS ${scenario} (${checks} contents checks)`);
