@@ -14,8 +14,11 @@ Look for issues labelled
 or [`help wanted`](https://github.com/shuxiachai/academic-commercialization-agent/labels/help%20wanted).
 Comment on one before you start, so two people don't take the same issue.
 You can hold up to five at a time, counting the ones whose pull request is
-still open. You need no API keys: the test suite and the browser smokes
-make no paid requests.
+still open. If three days pass after your claim without a pull request, or
+after a review that asks for changes without a reply or a push, the issue
+goes back to the pool; a maintainer may also finish an open pull request on
+its branch, keeping you as its author. You need no API keys: the test suite
+and the browser smokes make no paid requests.
 
 | | Where |
 |---|---|
