@@ -103,8 +103,35 @@ class PageMatchesTheCodeTests(unittest.TestCase):
         """It is the deployment's number. The page shows it from /api/site."""
         self.assertEqual(_PAGE.count("data-retention="), 4)          # two per language
         self.assertEqual(_PAGE.count("data-retention-auto"), 2)
+        self.assertEqual(len(re.findall(r"<span data-retention-auto hidden>", _PAGE)), 2)
         self.assertIsNone(re.search(r"\b(30|60|90|180|365) (days|天)", _PAGE))
         self.assertIn('fetch("/api/site")', _SCRIPT)
+        self.assertIn("site.retention_days === null", _SCRIPT)
+
+    def test_privacy_js_retention_wording_in_both_languages(self):
+        """Run privacy.js in Node across loading, error, missing, malformed, integer and null."""
+        import json
+        import shutil
+        import subprocess
+
+        node = shutil.which("node")
+        assert node, "Node is required; missing execution is not a passing seam"
+        contract = Path(__file__).with_name("js") / "privacy_retention_contract.mjs"
+        i18n_js = (_ROOT / "web" / "static" / "js" / "i18n.js").read_text(encoding="utf-8")
+        for scenario in ("loading", "http_503", "missing", "malformed", "days", "null_forever"):
+            with self.subTest(scenario=scenario), TemporaryDirectory() as tmp:
+                work = Path(tmp)
+                (work / "privacy.js").write_text(_SCRIPT, encoding="utf-8")
+                (work / "i18n.js").write_text(i18n_js, encoding="utf-8")
+                (work / "input.json").write_text(
+                    json.dumps({"html": _PAGE}, ensure_ascii=False), encoding="utf-8"
+                )
+                result = subprocess.run(
+                    [node, str(contract), str(work), scenario],
+                    capture_output=True, text=True, encoding="utf-8", timeout=30, check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn(f"PASS {scenario}", result.stdout)
 
     def test_the_24_hour_claims_match_the_constants(self):
         self.assertEqual(papers._MAX_AGE_SECONDS, 24 * 3600)         # unused extractions
