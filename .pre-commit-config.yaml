@@ -1,0 +1,17 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff
+        entry: uv run --with ruff ruff check .
+        language: system
+        pass_filenames: false
+      - id: pylint
+        name: pylint (exception-order checks only)
+        entry: >-
+          uv run --with pylint pylint src/ ui/ api/
+          --disable=all
+          --enable=bad-except-order,unreachable,used-before-assignment,undefined-variable
+          --score=n
+        language: system
+        pass_filenames: false

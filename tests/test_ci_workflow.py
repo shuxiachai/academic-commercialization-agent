@@ -648,3 +648,43 @@ def test_contracts_ignore_step_labels_comments_and_job_order():
             if "run" in step:
                 step["run"] = "# A harmless shell comment\n" + step["run"]
     _assert_all(jobs)
+
+
+_PRE_COMMIT = _WORKFLOW.parents[2] / ".pre-commit-config.yaml"
+
+
+def _assert_pre_commit(config, jobs):
+    (repo,) = config["repos"]
+    assert repo["repo"] == "local"
+    hooks = repo["hooks"]
+    for hook in hooks:
+        assert hook["language"] == "system"
+        assert hook["pass_filenames"] is False
+    lint = [step["run"] for step in jobs["lint"]["steps"] if "run" in step]
+    assert [_tokens(hook["entry"]) + list(hook.get("args", [])) for hook in hooks] == [
+        _tokens(command) for command in lint
+    ]
+
+
+def test_pre_commit_hooks_run_the_lint_job_commands():
+    """The opt-in hooks run what CI's lint job runs, on the whole tree."""
+    _assert_pre_commit(yaml.safe_load(_PRE_COMMIT.read_text(encoding="utf-8")), _jobs())
+
+
+@pytest.mark.parametrize("defect", ["narrower", "pinned", "filenames", "missing", "workflow"])
+def test_pre_commit_contract_rejects_drift_from_the_lint_job(defect):
+    config = yaml.safe_load(_PRE_COMMIT.read_text(encoding="utf-8"))
+    jobs = _jobs()
+    hooks = config["repos"][0]["hooks"]
+    if defect == "narrower":
+        hooks[-1]["entry"] = hooks[-1]["entry"].replace("src/ ui/ api/", "src/")
+    elif defect == "pinned":
+        hooks[0]["entry"] = "ruff check ."
+    elif defect == "filenames":
+        hooks[0]["pass_filenames"] = True
+    elif defect == "missing":
+        hooks.pop()
+    else:
+        jobs["lint"]["steps"].append({"run": "uv run --with mypy mypy src/"})
+    with pytest.raises(AssertionError):
+        _assert_pre_commit(config, jobs)
