@@ -118,17 +118,27 @@ numbers are the point; if you want to revisit one, beat the number.
   evidence registry with a model-written summary when the model is missing
   from its context-window catalogue
   ([result](docs/results-2026-11-05-crewai-1.15.29-comparison.md)). This pin
-  holds five Dependabot alerts unfixed (mcp #71-#73, opentelemetry-api #67
-  and #82). The first four were dismissed as not used on 2026-11-05: the
+  holds six Dependabot alerts unfixed (mcp #71-#73 and #83, opentelemetry-api
+  #67 and #82). The first four were dismissed as not used on 2026-11-05: the
   deployment opens no MCP session, runs no MCP server and never reads trace
   context from a request. #82 (2026-11-16) is the same package and the same
   case: its fix is opentelemetry-api 1.45.2, CrewAI 1.14.7 requires 1.34.x,
   and the function at fault, `TraceContextTextMapPropagator.extract()`, has
   no caller here: no project code calls a propagator, no FastAPI/ASGI/WSGI
   instrumentation is installed, and the MCP SDK does not use OpenTelemetry.
+  #83 (rated high, dismissed 2026-11-24) is mcp's OAuth client
+  (`mcp.client.auth`), which can send credentials to an authorization server
+  the MCP server names. Its fix is mcp 1.30.0 and CrewAI 1.14.7 requires
+  `mcp~=1.26.0`. It needs an HTTP MCP client with an OAuth provider as its
+  `auth` handler, and none exists here: project code imports nothing from
+  mcp, CrewAI's own HTTP transport passes headers and never `auth=`, and its
+  tools adapter is stdio only (its `mcpadapt` dependency is not installed).
+  Forcing mcp to 1.30.0 with a uv override was not done: it would run CrewAI
+  on an mcp it does not declare, to fix code that never runs.
   That was read from the code and the installed packages, not tested by an
-  attack. Look at all five again when CrewAI is upgraded, and sooner if
-  anything starts reading trace context from a request or a message.
+  attack. Look at all six again when CrewAI is upgraded, and sooner if
+  anything starts reading trace context from a request or a message, or
+  connects to an MCP server.
 
 - **Do not merge two market sources because one firm wrote both or their
   titles name one market.** Measured on 132 saved runs on 2026-11-17: 123
