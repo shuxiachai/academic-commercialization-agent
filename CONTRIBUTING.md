@@ -75,6 +75,8 @@ uv run --with ruff ruff check .
 uv run --with pylint pylint src/ ui/ api/ --disable=all --enable=bad-except-order,unreachable,used-before-assignment,undefined-variable --score=n
 ```
 
+To catch a lint failure before pushing, install the opt-in pre-commit hooks once with `uvx pre-commit install`. They run the same two lint commands CI runs, so a failure shows up at commit time instead of after the push. The hooks are opt-in: nothing in the test suite or CI installs or requires pre-commit.
+
 The Ruff invocation is intentional: CI resolves the latest release, while the
 local pin can disagree. The narrow Pylint set catches specific correctness
 failures; do not replace it with a general style cleanup.

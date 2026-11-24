@@ -1,0 +1,16 @@
+# Opt-in local hooks that run the same lint CI runs, before a push shows the
+# failure. Install once with `uvx pre-commit install`; nothing in the test
+# suite or CI installs or requires pre-commit.
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff
+        language: system
+        entry: uv run --with ruff ruff check .
+        pass_filenames: false
+      - id: pylint
+        name: pylint
+        language: system
+        entry: uv run --with pylint pylint src/ ui/ api/ --disable=all --enable=bad-except-order,unreachable,used-before-assignment,undefined-variable --score=n
+        pass_filenames: false
