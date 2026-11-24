@@ -87,16 +87,33 @@ installed packages. CI still runs serially: on a saturated four-core runner
 a few timing-sensitive concurrency tests fail intermittently in parallel, so
 confirm a parallel-only failure with a serial rerun before chasing it.
 
-What CI does instead is split each cell's tests by file over three runners,
-each part serial on a runner of its own (`ACA_TEST_SHARD=2/3`, read by
-`tests/conftest.py`; unset, as it is locally, the whole suite runs). The
-parts are balanced by number of tests, a file's tests stay together, and
-`tests/test_ci_sharding.py` holds that they are a partition. To reproduce
-one part of a failing cell locally, set the variable to the part named in
-the job's title. The coverage floor is applied to the three parts' data
-combined, in the `coverage floor` job, not inside any one part. The four
-check names the branch ruleset requires are kept by a job that is green
-only when every part of every cell passed.
+What CI does instead is split each cell's tests by file over five runners,
+each part serial on a runner of its own (`ACA_TEST_SHARD=2/5`, read by
+`tests/conftest.py`; unset, as it is locally, the whole suite runs). A
+file's tests stay together, and `tests/test_ci_sharding.py` holds that the
+parts are a partition. The parts are balanced by how long each file took on
+CI, from `tests/ci_test_durations.json`, which has one table per runner OS;
+a file it does not list yet is estimated from its number of tests. The
+table only moves files between parts, so a stale one makes the parts
+uneven, never incomplete. When the parts of a cell finish far apart,
+rewrite it from a few green runs of main:
+
+```bash
+uv run python scripts/ci_test_durations.py <run id> [<run id> ...]
+```
+
+To reproduce one part of a failing cell locally, set the variable to the
+part named in the job's title, and on a machine of another OS also name the
+cell's table (`ACA_TEST_SHARD_TIMES=linux` or `windows`): the two tables
+split the same files differently. The coverage floor is applied to the five
+parts' data combined, in the `coverage floor` job, not inside any one part.
+The four check names the branch ruleset requires are kept by a job that is
+green only when every part of every cell passed.
+
+The ten browser journeys run in two parts on two runners, each part's
+journeys in turn. The `browser smoke (Chromium, zero-provider)` check the
+ruleset requires is a job that is green only when both parts passed, and
+`tests/test_ci_workflow.py` holds that every journey runs exactly once.
 
 The guides link to sites this repository does not control (provider docs, the
 live app, commit permalinks). `tests/test_public_docs.py` resolves only
