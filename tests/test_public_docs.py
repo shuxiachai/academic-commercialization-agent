@@ -15,6 +15,7 @@ import ast
 import csv
 import re
 import tempfile
+import subprocess
 import tomllib
 import unicodedata
 import unittest
@@ -366,6 +367,31 @@ class PublicDocumentationNavigationTests(unittest.TestCase):
             if path.name.startswith(("prereg-", "protocol-", "results-", "errata-")):
                 with self.subTest(file=path.name):
                     self.assertIn(f"]({path.name})", archive)
+
+    def test_every_docs_markdown_file_is_linked_from_another_markdown_file(self):
+        # A guide that nothing links to is invisible to a reader of the docs.
+        # Each docs/ page must be the target of a relative link in some other
+        # Markdown file in the repository (the README, the index, a guide).
+        # Only tracked files count: a walk of the working tree also reads
+        # ignored caches and virtualenvs, which made this test the slowest here.
+        listing = subprocess.run(
+            ["git", "ls-files", "-z", "--", "*.md"],
+            cwd=ROOT, capture_output=True, text=True, check=True,
+        )
+        markdown = [ROOT / name for name in listing.stdout.split("\0") if name]
+        linked: set[Path] = set()
+        for source in markdown:
+            text = source.read_text(encoding="utf-8", errors="replace")
+            for target in re.findall(r"\]\(([^)\s]+)\)", text):
+                path = target.split("#", maxsplit=1)[0]
+                if not path or "://" in path:
+                    continue
+                resolved = (source.parent / path).resolve()
+                if resolved.parent == (ROOT / "docs").resolve() and resolved != source.resolve():
+                    linked.add(resolved)
+        for path in sorted((ROOT / "docs").glob("*.md")):
+            with self.subTest(file=path.name):
+                self.assertIn(path.resolve(), linked, f"docs/{path.name} is linked from no other Markdown file")
 
     def test_current_guides_describe_root_python_files_and_entries_accurately(self):
         """Current guides must not claim root holds experiment runners, and entries match today's root."""
