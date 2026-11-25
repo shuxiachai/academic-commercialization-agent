@@ -60,7 +60,7 @@ _REVIEWED_NODE24_REFS = {
     "actions/checkout": "3d3c42e5aac5ba805825da76410c181273ba90b1",            # v7
     "actions/download-artifact": "9000827ccba6bdab643e8b6fd33ac0654aef8333",   # v8.0.2
     "actions/upload-artifact": "cf430e030ddbb5b0abf93d22962f4752f3646cd9",     # v7.0.2
-    "astral-sh/setup-uv": "68559e99cc807c1eb7e9238fd43a15bba460eec2",         # v10.3.3
+    "astral-sh/setup-uv": "1db35dd8eee11c5894872e0b383ae6c406cf738d",         # v10.4.0
     "docker/build-push-action": "c3c9e263c25d99ce0380d002d59b67737d91b0dc",   # v7
     "docker/setup-buildx-action": "f87e5991a6d7451dcb8d9637bfbc97413f497069", # v4
 }
@@ -579,7 +579,7 @@ def test_browser_gate_rejects_false_success(target, update):
         _assert_browser(jobs)
 
 
-@pytest.mark.parametrize("ref", ["actions/checkout@v7", "astral-sh/setup-uv@v10.3.3", "actions/download-artifact@v8"])
+@pytest.mark.parametrize("ref", ["actions/checkout@v7", "astral-sh/setup-uv@v10.4.0", "actions/download-artifact@v8"])
 def test_action_contract_rejects_unreviewed_refs(ref):
     """Inspect actual uses nodes even if another valid ref still exists elsewhere."""
     jobs = _jobs()
