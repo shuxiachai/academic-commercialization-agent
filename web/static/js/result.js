@@ -554,8 +554,13 @@ export function marketEstimates(sources) {
 }
 
 function renderMarketEstimates(sources) {
-  const found = marketEstimates(sources);
   const wrap = el("div", "market-estimates");
+  if (!detailRecord(sources) || !Array.isArray(sources.market_sources)) {
+    wrap.dataset.state = "unavailable";
+    wrap.append(el("p", "market-estimates__lede", t("market_estimates_unavailable")));
+    return wrap;
+  }
+  const found = marketEstimates(sources);
   wrap.dataset.figures = String(found.rows.length);
   wrap.dataset.scopes = String(found.scopes);
   if (!found.rows.length) {
@@ -632,7 +637,7 @@ export function renderScoreSummary(scores) {
   return renderScorecard(scores, null, { summary: true });
 }
 
-export function renderScorecard(scores, sources = null, { summary = false } = {}) {
+export function renderScorecard(scores, sources = null, { summary = false, hasSources = sources !== null } = {}) {
   const wrap = el("section", summary ? "scorecard scorecard--summary" : "scorecard");
   if (!detailRecord(scores)) { wrap.append(detailUnavailable()); return wrap; }
   const overall = scores.overall_score;
@@ -733,7 +738,7 @@ export function renderScorecard(scores, sources = null, { summary = false } = {}
   caveat.append(caveatSummary, el("p", null, t("market_comparison_limit")));
   // The figures themselves, each under the market its source names, so the
   // reader sees what the untyped spread was made of instead of one ratio.
-  if (sources !== null) caveat.append(renderMarketEstimates(sources));
+  if (hasSources || sources !== null) caveat.append(renderMarketEstimates(sources));
   if (cap) {
     const receipt = el("p", "scorecard__cap-receipt",
       t("market_cap_record") + ": " + cap.pre_cap_score + " → " + cap.post_cap_score + " / 5. " +
@@ -2068,7 +2073,7 @@ export async function render(container, runId, progress) {
         const [scores, sources] = await Promise.all([
           scoresOnce(), hasSources ? sourcesOnce().catch(() => null) : null]);
         panel.innerHTML = "";
-        panel.append(renderScorecard(scores, sources));
+        panel.append(renderScorecard(scores, sources, { hasSources }));
         attachCitations(panel, indexOnce, { onShowInSources: hasSources ? showInSources : null });
       } else if (id === "report") {
         const md = await reportOnce();
