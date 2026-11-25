@@ -23,7 +23,9 @@ from urllib.parse import urlsplit
 
 from playwright.sync_api import Page, Response, Route, expect, sync_playwright
 
-from academic_agent.run_output import save_scores, save_source_collection
+from academic_agent.run_spec import DecisionContext, RunSpec
+from academic_agent.run_output import create_run_id, save_scores, save_source_collection
+from academic_agent.run_terminal import TerminalRecord, UsageAccounting, commit_terminal_record
 from api import samples
 from e2e.request_wait import wait_for_count
 from e2e.scroll_wait import COMES_TO_REST
@@ -52,6 +54,46 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 # The model of the production resume of 2026-11-20 (131247Z), which has no price on record.
 UNPRICED_MODEL = "qwen3.8-2.4t-a95b"
 HEADER_UNBROKEN_METADATA = "METADATA_UNBROKEN_TOKEN_" + "x" * 160
+
+
+def _write_retrieval_failed_run(
+    output_root: Path, owner: str, *, context: DecisionContext | None,
+) -> str:
+    """Write a real failed-run shape, optionally retaining its saved request.
+
+    The four variants below distinguish a saved complete request, a partial
+    request, an explicit empty request, and the old no-RunSpec shape.  They
+    stop at retrieval so no report content can accidentally be used as a
+    substitute for the request the visitor originally supplied.
+    """
+    run_id = create_run_id()
+    run_dir = output_root / run_id
+    run_dir.mkdir(parents=True)
+    (run_dir / ".owner").write_text(owner, encoding="utf-8")
+    if context is not None:
+        RunSpec(topic=FIXTURE_TOPIC, decision_context=context).save(run_dir)
+
+    decision_gate = (context or DecisionContext()).gate_snapshot()
+    (run_dir / "status.json").write_text(json.dumps({
+        "done": True,
+        "stage": "Error",
+        "topic": FIXTURE_TOPIC,
+        "output_language": "English",
+        "error": "SourceCollectionError: retrieval produced 0 validated sources",
+        "decision_gate": decision_gate,
+    }, indent=2), encoding="utf-8")
+    ended_at = datetime.now(UTC).replace(microsecond=0)
+    commit_terminal_record(run_dir, TerminalRecord(
+        state="failed", reason_code="worker_exception", termination_method="worker_exit",
+        started_at=ended_at, ended_at=ended_at, elapsed_seconds=0,
+        last_stage="Source Collection & Validation", timeout_seconds=1800,
+        usage={"total_tokens": 0, "cost_usd": None, "cost_complete": False, "agents": []},
+        usage_accounting=UsageAccounting(
+            state="lower_bound", snapshot_at=ended_at, through_stage="Source Collection & Validation",
+            run_complete=False, in_flight_request_may_have_spent=False,
+        ),
+    ))
+    return run_id
 
 
 def _exercise_sources_panel(page: Page, collection: dict, *, chinese: bool) -> None:
@@ -997,6 +1039,7 @@ def _exercise_browser(
     runtime_ids: tuple[str, str, str], cap_run_id: str, foreign_run_id: str,
     decision_run_id: str, resumed_pair: tuple[str, str],
     owned_pair: tuple[str, str], account_pair: tuple[str, str],
+    failed_decision_ids: tuple[str, str, str, str],
 ) -> dict[str, int]:
     external_requests: list[str] = []
     mutation_attempts: list[str] = []
@@ -1453,6 +1496,77 @@ def _exercise_browser(
             expect(outcome).to_have_text("The analysis failed. Retry or contact the operator with the run ID.")
             expect(resume_note).to_be_hidden()
             expect(page.locator("#run-help-id")).to_have_text(bad_resume_id)
+
+            # "Run again" deliberately does not start a new paid operation.
+            # For a failed retrieval, its owner needs the saved decision
+            # request, rather than a blank orientation brief that accidentally
+            # changes the assessment question.  These fixtures are all
+            # owner-owned, so this is not a shared-link disclosure path.
+            complete_failed, partial_failed, empty_failed, legacy_failed = failed_decision_ids
+            full_context = {
+                "asset_description": "Fixture tandem cell results",
+                "target_application": "Fixture modules",
+                "decision_owner": DECISION_OWNER,
+                "decision_type": DECISION_TYPE,
+            }
+
+            page.goto(f"{base_url}/run/{complete_failed}", wait_until="domcontentloaded")
+            expect(page.locator("#run-pill")).to_have_text("failed")
+            expect(page.locator("#run-again")).to_have_class("btn btn--primary")
+            before_again = len(mutation_attempts)
+            page.locator("#run-again").click()
+            expect(page.locator("#pane-compose")).to_be_visible()
+            expect(page.locator("#topic")).to_have_value(FIXTURE_TOPIC)
+            expect(page.locator("#decision-context")).to_have_attribute("open", "")
+            for selector, value in (
+                ("#decision-asset", full_context["asset_description"]),
+                ("#decision-application", full_context["target_application"]),
+                ("#decision-owner", full_context["decision_owner"]),
+                ("#decision-type", full_context["decision_type"]),
+            ):
+                expect(page.locator(selector)).to_have_value(value)
+            page.locator("#topic").fill("Edited topic only; retained decision request")
+            for selector, value in (
+                ("#decision-asset", full_context["asset_description"]),
+                ("#decision-application", full_context["target_application"]),
+                ("#decision-owner", full_context["decision_owner"]),
+                ("#decision-type", full_context["decision_type"]),
+            ):
+                expect(page.locator(selector)).to_have_value(value)
+            # After the topic-only edit, the restored facts outlive an
+            # interface-language change; this checks actual Chinese text.
+            page.locator("#ui-lang").select_option("Simplified Chinese")
+            expect(page.locator("#decision-context-status")).to_have_text(
+                "4 个带 * 的字段都已填写：报告可以针对这个决策给出 GO / NO-GO，但仍以证据为限。")
+            assert len(mutation_attempts) == before_again, "Run again must only prefill; it cannot dispatch paid work."
+
+            # Known absence is an orientation run and must not inherit fields
+            # left in the composer by the preceding complete request.
+            page.goto(f"{base_url}/run/{empty_failed}", wait_until="domcontentloaded")
+            page.locator("#run-again").click()
+            expect(page.locator("#topic")).to_have_value(FIXTURE_TOPIC)
+            for selector in ("#decision-asset", "#decision-application", "#decision-owner", "#decision-type"):
+                expect(page.locator(selector)).to_have_value("")
+            expect(page.locator("#decision-context-status")).to_have_text(
+                "尚未填写：报告将是方向性简报，不给出 GO / NO-GO。")
+            page.locator("#ui-lang").select_option("English")
+
+            # Partial and legacy records must say which core question remains
+            # unknown; collapsing either to the harmless empty-run message
+            # would hide the difference between absence and unreadable history.
+            for fixture_id, missing in (
+                (partial_failed, ("Target application", "Decision to make")),
+                (legacy_failed, ("Asset or research output", "Target application", "Decision owner", "Decision to make")),
+            ):
+                page.goto(f"{base_url}/run/{fixture_id}", wait_until="domcontentloaded")
+                page.locator("#run-again").click()
+                status = page.locator("#decision-context-status")
+                expect(page.locator("#decision-context")).to_have_attribute("open", "")
+                for label in missing:
+                    expect(status).to_contain_text(label)
+                if fixture_id == partial_failed:
+                    expect(page.locator("#decision-asset")).to_have_value("Partial fixture asset")
+                    expect(page.locator("#decision-owner")).to_have_value(DECISION_OWNER)
             # The completed fixture is nobody's to report.
             page.goto(f"{base_url}/run/{run_id}", wait_until="domcontentloaded")
             expect(page.locator("#run-pill")).to_have_text("completed")
@@ -1662,6 +1776,31 @@ def main() -> None:
         # by its owner and by someone who was sent the link.
         owned_pair = _write_resumed_pair(output_root, access.owner_id(ACCESS_CODE), model=UNPRICED_MODEL)
         account_pair = _write_resumed_pair(output_root, "user:4242", model=UNPRICED_MODEL)
+        # Four owner-only retrieval failures cover the saved-request boundary:
+        # full input, incomplete input, explicit orientation, and a run made
+        # before RunSpec existed.  None has a worker/provider behind it.
+        failed_decision_ids = (
+            _write_retrieval_failed_run(
+                output_root, access.owner_id(ACCESS_CODE), context=DecisionContext(
+                    asset_description="Fixture tandem cell results",
+                    target_application="Fixture modules",
+                    decision_owner=DECISION_OWNER,
+                    decision_type=DECISION_TYPE,
+                ),
+            ),
+            _write_retrieval_failed_run(
+                output_root, access.owner_id(ACCESS_CODE), context=DecisionContext(
+                    asset_description="Partial fixture asset",
+                    decision_owner=DECISION_OWNER,
+                ),
+            ),
+            _write_retrieval_failed_run(
+                output_root, access.owner_id(ACCESS_CODE), context=DecisionContext(),
+            ),
+            _write_retrieval_failed_run(
+                output_root, access.owner_id(ACCESS_CODE), context=None,
+            ),
+        )
         cap_scores = json.loads((output_root / run_id / "commercialization_scores.json").read_text(encoding="utf-8"))
         cap_scores["market_cap_audit"] = capture_cap(5, cap_scores)
         save_scores(json.dumps(cap_scores), cap_run_id, output_root)
@@ -1728,7 +1867,7 @@ def main() -> None:
                     api_runs._write_daily_charge(output_root / runtime_id, date.today())
             terminal_path.write_text(json.dumps(record), encoding="utf-8")
         with _serve(app) as base_url:
-            audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id, damaged_audit_id), runtime_ids, cap_run_id, foreign_run_id, decision_run_id, resumed_pair, owned_pair, account_pair)
+            audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id, damaged_audit_id), runtime_ids, cap_run_id, foreign_run_id, decision_run_id, resumed_pair, owned_pair, account_pair, failed_decision_ids)
 
     print(
         json.dumps(

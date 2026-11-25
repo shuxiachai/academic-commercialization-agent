@@ -114,6 +114,7 @@ from api.models import (  # noqa: E402
     RetrievalHealth,
     SavedKeys,
     SavedModelChange,
+    SavedDecisionContext,
     RunAccepted,
     RunList,
     RunProgress,
@@ -1024,6 +1025,32 @@ def _continued_by(run_id: str, state: str, may_modify: bool | None) -> str | Non
         return runs.continued_by(run_id)
     except OSError:
         return None
+
+
+def _saved_decision_context(
+    run_id: str, state: str, may_modify: bool | None,
+) -> SavedDecisionContext | None:
+    """Project only the failed request's saved decision fields to its owner.
+
+    This hangs on the same privileged-read verdict as continued_by, before
+    opening the spec: with identity configured, a shared URL or an ownerless
+    caller is not proof of ownership. With no identity gate, the existing
+    single-tenant read verdict applies. Running polls do no additional spec
+    reads. An omitted legacy field is unknown, unlike the explicit null
+    written by RunSpec.save().
+    Partial valid contexts stay partial; the decision gate is not input prose.
+    """
+    if may_modify is not True or state != "failed":
+        return None
+    try:
+        spec = runs.RunSpec.load(runs.run_dir_for(run_id))
+    except (OSError, ValueError):
+        return SavedDecisionContext(status="unavailable")
+    if "decision_context" not in spec.model_fields_set:
+        return SavedDecisionContext(status="unavailable")
+    if spec.decision_context is None:
+        return SavedDecisionContext(status="empty")
+    return SavedDecisionContext(status="available", context=spec.decision_context)
 
 
 def _authorize_run_mutation(run_id: str, http_request: Request) -> None:
@@ -2734,15 +2761,19 @@ def list_runs(http_request: Request, limit: int = Query(default=50, ge=1, le=200
     tags=["runs"],
     responses={404: {"description": "Unknown run_id"}},
 )
-def get_run(run_id: str, http_request: Request) -> RunStatus:
+def get_run(run_id: str, http_request: Request, response: Response) -> RunStatus:
     """Current stage and state. Poll this while `state` is `running`."""
     try:
         state = runs.get_state(run_id)
     except runs.RunNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    # This body includes caller-specific saved input; a cache must never
+    # reuse the owner's projection for a shared-link reader of the same URL.
+    response.headers["Cache-Control"] = "private, no-store"
     may_modify = _viewer_can_modify(run_id, http_request)
     return RunStatus(**state, viewer_can_modify=may_modify,
-                     continued_by=_continued_by(run_id, state["state"], may_modify))
+                     continued_by=_continued_by(run_id, state["state"], may_modify),
+                     saved_decision_context=_saved_decision_context(run_id, state["state"], may_modify))
 
 
 @app.delete(
@@ -2941,7 +2972,10 @@ def get_decision(run_id: str) -> RunDecision:
     tags=["runs"],
     responses={404: {"description": "Unknown run_id"}},
 )
-def get_progress(run_id: str, http_request: Request, since: int = Query(default=0, ge=0)) -> RunProgress:
+def get_progress(
+    run_id: str, http_request: Request, response: Response,
+    since: int = Query(default=0, ge=0),
+) -> RunProgress:
     """Status plus new step events, for a client polling during a run.
 
     `since` is the physical-line cursor returned as `steps_next_cursor`, not
@@ -2956,12 +2990,14 @@ def get_progress(run_id: str, http_request: Request, since: int = Query(default=
     except runs.RunNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
+    response.headers["Cache-Control"] = "private, no-store"
     may_modify = _viewer_can_modify(run_id, http_request)
     return RunProgress(
         run_id=run_id,
         # About the caller, not the run: computed here, never stored with it.
         viewer_can_modify=may_modify,
         continued_by=_continued_by(run_id, state["state"], may_modify),
+        saved_decision_context=_saved_decision_context(run_id, state["state"], may_modify),
         state=state["state"],
         status_record_state=state.get("status_record_state"),
         audit_metadata_unreadable=state.get("audit_metadata_unreadable", []),

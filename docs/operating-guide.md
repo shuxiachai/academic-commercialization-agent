@@ -1670,8 +1670,13 @@ because a topic in a query string would be written to the access log, and
 the list endpoint takes no search parameter for the same reason. A search
 therefore loads the history first, two hundred runs per request and at most
 a thousand, and says so when a history is longer than that. A finished run
-offers "Run again", which fills the composer with its topic and sends
-nothing, and "Copy link"; a running one offers "Copy link" too. Copying a
+offers "Run again", which returns its topic to the editable form, and "Copy
+link". On a failed run, the form also restores the saved decision fields
+when the server confirms the caller may modify the run. It opens the decision
+context so the user can verify the assessment mode before submitting. An
+explicitly empty context shows an orientation brief. Incomplete or unavailable
+context names the fields to fill for decision support. Starting a new assessment
+still takes a separate submission. A running run offers "Copy link" too. Copying a
 link is sharing a read capability, and the confirmation says that anyone who
 has it can read the run. Where a browser refuses the page's own write to the
 clipboard, as the one inside a chat app often does, the older selection copy
@@ -1706,11 +1711,13 @@ that guards Cancel, Delete and Resume for the caller who asked. A signed-in
 reader of someone else's run (the answer is `false`) is told under the
 header that the assessment was shared and is read-only, is offered "Assess a
 topic of your own", and of the actions keeps the downloads, "Copy link" and
-"Assess this topic yourself", which fills the composer like "Run again";
+"Assess this topic yourself", which copies only the topic;
 such a reader is not asked for feedback either. This is what the page
 offers, not what the server permits: the mutation endpoints apply the rule
 themselves. A keys-only run has no owner on record (`null`), and the page
-offers the owner's actions in the tab that started it.
+offers the owner's actions in the tab that started it. On a gated deployment,
+that tab's local history cannot prove ownership to the server. Its failed-run
+form therefore asks the user to re-enter the decision fields.
 
 Whoever follows such a link reads the run without signing in. On a gated
 deployment a visitor with no identity who opens `/run/<id>` or

@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
 import { createPaidReceipts } from "../../web/static/js/paid_receipts.js";
+import { modelKind } from "../../web/static/js/model_kind.js";
 
 globalThis.localStorage = { getItem: () => null, removeItem: () => {} };
 globalThis.sessionStorage = { getItem: () => null };
@@ -51,7 +52,7 @@ function fixture(receiptStore = new Map()) {
       setItem: (key, value) => receiptStore.set(key, value),
       removeItem: key => receiptStore.delete(key),
     })),
-    api, runView: { ...actualRunView }, compareView,
+    api, runView: { ...actualRunView }, compareView, Event, modelKind,
     sidebar: { refresh: () => Promise.resolve([]) }, result: {}, needsScopeWarning: () => false,
     i18n: { t: (key) => translations[key] || key, language: () => "English", locale: () => "en-GB", apply: () => {},
             pageTitle: (name = "") => (name ? `${name} · brand_full` : "brand_full") },
@@ -1563,6 +1564,35 @@ const scenarios = {
     ] });
     await third;
     assert.deepEqual(f.get('#compare-choices').children.map((item) => item.children[0].dataset.sameTopic ?? null), [null, null]);
+  },
+  async failed_run_context() {
+    // A topic edit must leave the saved decision intact all the way to the new POST.
+    const f = fixture();
+    const context = {
+      asset_description: "Membrane prototype", target_application: "Reclaim process water",
+      decision_owner: "Plant manager", decision_type: "Fund a pilot?",
+      jurisdiction: "Australia", time_horizon: "Next quarter", constraints: "Existing plant",
+      success_criteria: "Meet the discharge target", success_criteria_authority: "owner_approved",
+    };
+    const kind = process.argv[3];
+    const saved = kind === "full" ? context : kind === "partial" ? {decision_owner: context.decision_owner} : null;
+    const status = saved ? "available" : kind === "empty" ? "empty" : "unavailable";
+    f.run(`for (const name of ${JSON.stringify(Object.keys(context))}) {
+      decisionContextInputs.push({dataset: {contextField: name}, value: "unrelated draft", dispatchEvent() {}});
+    }
+    activeRunId = "failed-fixture";
+    paintActions("failed", null, true, {saved_decision_context: ${JSON.stringify({status, context: saved})}});`);
+    f.get("#run-title").textContent = "Narrow membrane topic";
+    f.get("#run-actions").children.find(el => el.id === "run-again").listeners.click();
+    f.topic("Broader membrane topic");
+    assert.equal(f.requests.length, 0, "Editing starts no plan or run");
+    const submitted = f.submit();
+    assert.equal(f.requests.length, 1);
+    const body = JSON.parse(f.requests[0].options.body);
+    assert.deepEqual(body.decision_context, saved);
+    assert.equal(body.topic, "Broader membrane topic");
+    f.respond(0, {run_id: "new-run", topic: body.topic}, 202);
+    await submitted;
   },
   async run_reuse() {
     // A finished run offers its topic again and its address; neither sends anything.

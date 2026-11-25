@@ -475,6 +475,22 @@ _DRAFT_STAGE_DESCRIPTION = (
 )
 
 
+class SavedDecisionContext(BaseModel):
+    """A failed request's saved context, without inventing missing legacy input."""
+
+    status: Literal["available", "empty", "unavailable"]
+    context: DecisionContext | None = None
+
+
+_SAVED_DECISION_CONTEXT_DESCRIPTION = (
+    "Saved Decision Context for a failed run, only when viewer_can_modify is true. "
+    "available includes any validated saved fields, even an incomplete context; "
+    "empty means the saved request explicitly recorded no context; unavailable "
+    "means its context could not be established, including legacy missing fields. "
+    "Null for other states or callers. No paper content or credentials are returned."
+)
+
+
 class RunProgress(BaseModel):
     """Everything a client needs to render live progress in one request.
 
@@ -496,6 +512,9 @@ class RunProgress(BaseModel):
                     "who may modify this run (`viewer_can_modify` true): whoever is told can open that run, and a "
                     "reader holding only this run's link is not given another. Null otherwise, and when no run "
                     "continued this one.",
+    )
+    saved_decision_context: SavedDecisionContext | None = Field(
+        default=None, description=_SAVED_DECISION_CONTEXT_DESCRIPTION,
     )
     auxiliary_usage: dict | None = None
     state: RunState
@@ -711,6 +730,9 @@ class RunStatus(BaseModel):
                     "who may modify this run (`viewer_can_modify` true): whoever is told can open that run, and a "
                     "reader holding only this run's link is not given another. Null otherwise, and when no run "
                     "continued this one.",
+    )
+    saved_decision_context: SavedDecisionContext | None = Field(
+        default=None, description=_SAVED_DECISION_CONTEXT_DESCRIPTION,
     )
     auxiliary_usage: dict | None = None
     state: RunState

@@ -829,9 +829,9 @@ function paintActions(state, checkpointing = null, canModify = true, facts = nul
     paintResumeNote();
   }
 
-  // The same topic, as a new run. It fills the composer and stops there:
-  // starting is a paid step and stays the user's own click. Language, profile
-  // and decision context are not carried over; the page never had them.
+  // A failed assessment can be edited with its original decision question.
+  // Shared readers keep their topic-only action. Starting is a separate click.
+  const retryFailed = state === "failed" && canModify;
   const again = document.createElement("button");
   again.type = "button";
   again.className = main === "again" ? "btn btn--primary" : "btn btn--secondary";
@@ -839,11 +839,20 @@ function paintActions(state, checkpointing = null, canModify = true, facts = nul
   // On someone else's run it is named for what it does: a new assessment of
   // the reader's own, on this topic.
   again.textContent = t(canModify ? "run_again" : "run_again_own");
-  again.title = t("run_again_title");
+  again.title = t(retryFailed ? "run_again_failed_title" : "run_again_title");
   again.addEventListener("click", () => {
     const previous = $("#run-title").textContent.trim();
     showCompose();
     if (previous && previous !== "…") topic.value = previous;
+    if (retryFailed) {
+      hidePlan();
+      const saved = facts?.saved_decision_context;
+      $("#decision-context").open = true;
+      setDecisionContext(saved?.status === "available" ? saved.context : null, saved?.status ?? "unavailable");
+    } else if ($("#decision-context-status").dataset.retryStatus) {
+      // A topic-only action after a retry should not inherit that run's context.
+      setDecisionContext(null);
+    }
     syncComposer();
     topic.focus();
   });
@@ -1313,10 +1322,11 @@ function readDecisionContext() {
   return Object.keys(context).length ? context : null;
 }
 
-function clearDecisionContext() {
+function setDecisionContext(context, retryStatus = "") {
+  $("#decision-context-status").dataset.retryStatus = retryStatus;
   for (const input of decisionContextInputs) {
-    input.value = "";
-    // decision_context.js recounts the starred fields on input.
+    input.value = context?.[input.dataset.contextField] ?? "";
+    // Refresh the gate, quick picks and textarea heights just as typing would.
     input.dispatchEvent(new Event("input"));
   }
 }
@@ -1421,7 +1431,7 @@ async function submitAssessment(submittedTopic, searchPlan) {
       await openRun(accepted.run_id, { known: accepted });
       topic.value = "";
       hidePlan();
-      clearDecisionContext();
+      setDecisionContext(null);
       clearAttachment();
       syncComposer();
     });
@@ -2016,7 +2026,7 @@ async function exitCredentials() {
   const receiptsCleared = api.clearReceiptJournal();
   invalidateSidebar();
   clearAttachment();
-  clearDecisionContext();
+  setDecisionContext(null);
   topic.value = "";
   syncComposer();
   const byokCleared = api.setByok(null);
