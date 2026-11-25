@@ -21,6 +21,7 @@ from scripts.check_external_links import (
     Link,
     check_links,
     collect_links,
+    main as check_links_main,
     report,
 )
 
@@ -225,6 +226,57 @@ class ReportTests(unittest.TestCase):
                     f"FAIL no response ({type(error).__name__}: {error})",
                     stream.getvalue(),
                 )
+
+
+class OnlyOptionTests(unittest.TestCase):
+    def test_only_one_guide_requests_only_that_guides_links(self):
+        expected = {link.url for link in collect_links(ROOT, ("README.md",))}
+        seen: list[str] = []
+
+        def fake_check(links, **_kwargs):
+            seen.extend(link.url for link in links)
+            return [Link(link.url, link.documents) for link in links]
+
+        with (
+            patch("scripts.check_external_links.check_links", side_effect=fake_check),
+            patch("scripts.check_external_links.report", return_value=0),
+            patch("sys.stdout", new_callable=io.StringIO),
+        ):
+            code = check_links_main(["--only", "README.md"])
+
+        self.assertEqual(code, 0)
+        self.assertEqual(set(seen), expected)
+
+    def test_only_two_guides_requests_union_of_both_guides(self):
+        targets = ("README.md", "CONTRIBUTING.md")
+        expected = {link.url for link in collect_links(ROOT, targets)}
+        seen: list[str] = []
+
+        def fake_check(links, **_kwargs):
+            seen.extend(link.url for link in links)
+            return [Link(link.url, link.documents) for link in links]
+
+        with (
+            patch("scripts.check_external_links.check_links", side_effect=fake_check),
+            patch("scripts.check_external_links.report", return_value=0),
+            patch("sys.stdout", new_callable=io.StringIO),
+        ):
+            code = check_links_main(["--only", "README.md", "--only", "CONTRIBUTING.md"])
+
+        self.assertEqual(code, 0)
+        self.assertEqual(set(seen), expected)
+
+    def test_unknown_only_path_errors_and_lists_all_nine_documents(self):
+        stderr = io.StringIO()
+        with patch("sys.stderr", stderr):
+            with self.assertRaises(SystemExit) as ctx:
+                check_links_main(["--only", "docs/does-not-exist.md"])
+
+        self.assertEqual(ctx.exception.code, 2)
+        message = stderr.getvalue()
+        self.assertIn("docs/does-not-exist.md", message)
+        for doc in DOCUMENTS:
+            self.assertIn(doc, message)
 
 
 if __name__ == "__main__":

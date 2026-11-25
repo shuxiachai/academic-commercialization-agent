@@ -179,13 +179,36 @@ def report(results: Sequence[Result], *, stream: TextIO = sys.stdout) -> int:
     return 1 if failures else 0
 
 
+def resolve_documents(only: Sequence[str] | None) -> tuple[str, ...]:
+    """Return the subset of ``DOCUMENTS`` requested via ``--only``, or all of them."""
+    if not only:
+        return DOCUMENTS
+    unknown = [path for path in only if path not in DOCUMENTS]
+    if unknown:
+        valid = ", ".join(DOCUMENTS)
+        raise ValueError(f"unknown guide(s): {', '.join(unknown)}; choose from: {valid}")
+    return tuple(dict.fromkeys(only))
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
     parser.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT, help="seconds per request")
     parser.add_argument("--delay", type=float, default=DEFAULT_DELAY, help="seconds between requests to one host")
+    parser.add_argument(
+        "--only",
+        action="append",
+        dest="only",
+        metavar="PATH",
+        help="check only the named guide (repeatable; one of the nine guides)",
+    )
     args = parser.parse_args(argv)
 
-    links = collect_links(ROOT, DOCUMENTS)
+    try:
+        documents = resolve_documents(args.only)
+    except ValueError as exc:
+        parser.error(str(exc))
+
+    links = collect_links(ROOT, documents)
     started = time.monotonic()
     results = check_links(links, timeout=args.timeout, delay=args.delay)
     exit_code = report(results)
