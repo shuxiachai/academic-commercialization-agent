@@ -30,9 +30,11 @@ function paint() {
   for (const node of $$("[data-legal=back]")) node.textContent = LABELS[current].back;
   if (!site) return;
   const kept = Number.isSafeInteger(site.retention_days) && site.retention_days > 0;
+  const forever = site.retention_days === null;
   for (const node of $$("[data-retention]")) {
     const labels = LABELS[node.dataset.retention];
-    node.textContent = kept ? labels.days(site.retention_days) : labels.forever;
+    if (kept) node.textContent = labels.days(site.retention_days);
+    else if (forever) node.textContent = labels.forever;
   }
   // "Deleted automatically" is only true where the deployment sets a period.
   for (const node of $$("[data-retention-auto]")) node.hidden = !kept;
