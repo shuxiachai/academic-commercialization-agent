@@ -25,12 +25,23 @@ import fs from "node:fs";
 globalThis.localStorage = { getItem: () => null, setItem: () => {} };
 class Node {
   constructor(tag) { Object.assign(this, { tagName: tag.toUpperCase(), children: [], dataset: {}, attributes: {},
-    style: {}, className: "", textContent: "", open: false, title: "", type: "" }); }
+    style: {}, className: "", textContent: "", open: false, title: "", type: "",
+    scrollLeft: 0, scrollWidth: 0, clientWidth: 0,
+    classList: { add() {}, remove() {} } }); }
   append(...items) { for (const item of items) this.children.push(typeof item === "string" ? { text: item } : item); }
   setAttribute(name, value) { this.attributes[name] = value; }
   replaceChildren(...items) { this.children = []; this.append(...items); }
   addEventListener(type, heard) { (this.listeners ??= {})[type] = heard; }
   get childNodes() { return this.children; }
+  set innerHTML(value) { if (value === "") this.children = []; }
+  remove() {}
+  replaceWith() {}
+  querySelector(selector) {
+    const viewMatch = selector.match(/\[data-view="([^"]+)"\]/);
+    if (viewMatch) return flat(this).find(n => n.dataset?.view === viewMatch[1]) ?? null;
+    return null;
+  }
+  querySelectorAll() { return []; }
 }
 const printing = { listeners: {}, notes: [] };
 globalThis.window = { addEventListener: (type, heard) => { (printing.listeners[type] ??= []).push(heard); } };
@@ -296,6 +307,40 @@ if (input.checks) {
   }
   if (c.progress) out.checks.rows = Object.fromEntries(mod.reliabilityRows(c.progress).map(r => [r.id, r.detail]));
 }
+if (input.run_scorecard) {
+  const { progress, scores, sources_reply, sources_error } = input.run_scorecard;
+  globalThis.__stubApi = {
+    getArtifact: async (_runId, kind) => {
+      if (kind === "scores") return scores;
+      if (kind === "sources") {
+        if (sources_error) throw new Error(sources_error);
+        return sources_reply;
+      }
+      throw new Error(`unexpected artifact ${kind}`);
+    },
+    getReport: async () => "",
+    getDecision: async () => undefined,
+  };
+  const root = new Node("div");
+  await mod.render(root, progress.run_id, progress);
+  const scoreTab = flat(root).find(n => n.tagName === "BUTTON" && n.dataset.view === "score");
+  await scoreTab.listeners.click();
+  await new Promise(r => setTimeout(r, 0));
+  const panel = flat(root).find(n => n.className === "panel" && n.dataset.view === "score");
+  const nodes = flat(panel);
+  const caveat = nodes.find(n => (n.className ?? "").includes("scorecard__market-caveat"));
+  const block = caveat ? flat(caveat).find(n => n.className === "market-estimates") : null;
+  out.run_scorecard = {
+    caveat_present: Boolean(caveat),
+    block: block ? {
+      state: block.dataset.state ?? null,
+      figures: block.dataset.figures ?? null,
+      lede: flat(block).find(n => n.className === "market-estimates__lede")?.textContent ?? null,
+      rows: flat(block).filter(n => n.className === "market-estimates__row").length,
+      cites: flat(block).filter(n => n.className === "cite").map(n => n.dataset.cite),
+    } : null,
+  };
+}
 console.log(JSON.stringify(out));
 """
 
@@ -308,7 +353,7 @@ class ResultReadabilityTests(unittest.TestCase):
         cls._tmp = TemporaryDirectory()
         work = Path(cls._tmp.name)
         source = _RESULT_JS.read_text(encoding="utf-8").replace(
-            'import * as api from "./api.js";', "const api = {};")
+            'import * as api from "./api.js";', "const api = new Proxy({}, { get: (_, prop) => globalThis.__stubApi?.[prop] });")
         source += "\nexport const _testRenderScorecard = renderScorecard;\n"
         source += "export const _testRenderDecisionApplicability = renderDecisionApplicability;\n"
         source += "export const _testRenderCitationCard = renderCitationCard;\n"
@@ -2459,6 +2504,94 @@ class DecisionConclusionTests(unittest.TestCase):
         # A heading that happens to contain the words is not the passage.
         self.assertEqual(find("Executive Summary", None), -1)
         self.assertEqual(find(None, None), -1)
+
+
+@unittest.skipUnless(shutil.which("node"), "node not installed")
+class MarketFiguresUnavailableTests(unittest.TestCase):
+    """Offline regression for #487: scorecard market figures when Sources fails or is malformed."""
+
+    @classmethod
+    def setUpClass(cls):
+        ResultReadabilityTests.setUpClass()
+        cls._work = ResultReadabilityTests._work
+
+    @classmethod
+    def tearDownClass(cls):
+        ResultReadabilityTests.tearDownClass()
+
+    @staticmethod
+    def _scores():
+        return {
+            "overall_score": 68,
+            "trl_score": 6,
+            "mrl_score": 5,
+            "patent_strength": 3,
+            "market_accessibility": 4,
+            "evidence_confidence": 3,
+            "market_uncertainty": None,
+        }
+
+    def _run_scorecard(self, *, artifacts, sources_reply=None, sources_error=None, language="en"):
+        progress = {
+            "run_id": "run-487",
+            "state": "completed",
+            "artifacts": artifacts,
+            "viewer_can_modify": False,
+        }
+        return ResultReadabilityTests._run(
+            self,
+            language=language,
+            run_scorecard={
+                "progress": progress,
+                "scores": self._scores(),
+                "sources_reply": sources_reply,
+                "sources_error": sources_error,
+            },
+        )["run_scorecard"]
+
+    def test_sources_http_503_shows_unavailable_message_in_both_languages(self):
+        en = self._run_scorecard(artifacts=["scores", "sources"], sources_error="HTTP 503", language="English")
+        self.assertTrue(en["caveat_present"])
+        self.assertEqual(en["block"]["state"], "unavailable")
+        self.assertEqual(en["block"]["lede"], "The saved market figures could not be read.")
+
+        zh = self._run_scorecard(artifacts=["scores", "sources"], sources_error="HTTP 503", language="Simplified Chinese")
+        self.assertTrue(zh["caveat_present"])
+        self.assertEqual(zh["block"]["state"], "unavailable")
+        self.assertEqual(zh["block"]["lede"], "无法读取已保存的市场规模数字。")
+
+    def test_malformed_market_sources_shows_unavailable_not_empty(self):
+        for bad_reply in ({}, {"market_sources": "not-a-list"}, {"market_sources": None}):
+            res = self._run_scorecard(artifacts=["scores", "sources"], sources_reply=bad_reply)
+            self.assertEqual(res["block"]["state"], "unavailable")
+            self.assertEqual(res["block"]["lede"], "The saved market figures could not be read.")
+
+    def test_valid_empty_and_valid_figures_preserve_existing_display(self):
+        empty = self._run_scorecard(artifacts=["scores", "sources"], sources_reply={"market_sources": []})
+        self.assertIsNone(empty["block"]["state"])
+        self.assertEqual(empty["block"]["figures"], "0")
+        self.assertEqual(empty["block"]["lede"], "The saved market sources state no market-size figure.")
+
+        with_fig = self._run_scorecard(
+            artifacts=["scores", "sources"],
+            sources_reply={
+                "market_sources": [{
+                    "source_id": "M1",
+                    "title": "Solid-State Battery Market",
+                    "publisher": "Acme Research",
+                    "evidence_summary": "Valued at $4.2 billion in 2026.",
+                }],
+            },
+        )
+        self.assertIsNone(with_fig["block"]["state"])
+        self.assertEqual(with_fig["block"]["figures"], "1")
+        self.assertEqual(with_fig["block"]["rows"], 1)
+        self.assertEqual(with_fig["block"]["cites"], ["M1"])
+
+    def test_run_without_sources_artifact_omits_market_figures_block(self):
+        res = self._run_scorecard(artifacts=["scores"])
+        self.assertTrue(res["caveat_present"])
+        self.assertIsNone(res["block"])
 
 
 if __name__ == "__main__":
