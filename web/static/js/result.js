@@ -281,7 +281,13 @@ export function citationIndex(md) {
     const match = raw.trim().match(REFERENCE_LINE);
     if (!match || index.has(match[1])) continue;
     const text = match[2];
-    const url = text.match(/(https?:\/\/\S+)\s*$/)?.[1].replace(/[).,;]+$/, "") ?? null;
+    let url = text.match(/(https?:\/\/\S+)\s*$/)?.[1] ?? null;
+    // The reference text's own punctuation and closing wrappers go; a ")" that
+    // closes a "(" inside the URL is part of the address (".../pilot_(experiment)").
+    while (url && (/[.,;]$/.test(url)
+                   || (url.endsWith(")") && url.split(")").length > url.split("(").length))) {
+      url = url.slice(0, -1);
+    }
     // English as saved, or the Chinese labels report_display.py shows.
     const published = text.match(/Published:\s*([^\s.][^.]*?)\.(?:\s|$)/)?.[1]
       ?? text.match(/发布：\s*([^\s·]+)/)?.[1] ?? null;

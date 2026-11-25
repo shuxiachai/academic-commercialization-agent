@@ -256,6 +256,7 @@ if (input.card) {
   const index = mod.citationIndex(input.card.markdown);
   const nodes = flat(mod._testRenderCitationCard(input.card.ids, index, null));
   out.card_meta = nodes.filter(n => n.className === "cite-card__meta").map(n => n.textContent);
+  out.card_links = nodes.filter(n => n.className === "cite-card__open").map(n => n.href);
 }
 if (input.sources) {
   const rows = mod._testAdmitSavedSources(input.sources).rows;
@@ -401,6 +402,23 @@ class ResultReadabilityTests(unittest.TestCase):
     def test_a_non_http_link_is_not_offered(self):
         index = self._run(markdown="[A1] Title. Published: 2021. javascript:alert(1)")["index"]
         self.assertIsNone(index["A1"]["url"])
+
+    def test_the_card_link_keeps_the_parentheses_that_belong_to_the_url(self):
+        markdown = "\n".join([
+            "[A1] Pilot. Published: 2021. https://example.test/pilot_(experiment)",
+            "[A2] Pilot. Published: 2021. https://example.test/pilot_(experiment).",
+            "[A3] Pilot. Published: 2021. (https://example.test/pilot_(experiment)).",
+            "[A4] Plain. Published: 2021. (https://example.test/plain).",
+            "[A5] Plain. Published: 2021. https://example.test/plain),;",
+        ])
+        shown = self._run(markdown=markdown, card={"ids": ["A1", "A2", "A3", "A4", "A5"], "markdown": markdown})
+        whole, plain = "https://example.test/pilot_(experiment)", "https://example.test/plain"
+        self.assertEqual(shown["card_links"], [whole, whole, whole, plain, plain])
+        self.assertEqual([entry["url"] for entry in shown["index"].values()], shown["card_links"])
+
+    def test_a_url_the_safety_check_refuses_is_not_offered_with_its_parentheses_kept(self):
+        refused = "[A1] Pilot. Published: 2021. https://user:secret@example.test/pilot_(experiment)."
+        self.assertEqual(self._run(card={"ids": ["A1"], "markdown": refused})["card_links"], [])
 
     def test_each_score_says_why_and_on_what(self):
         scores = {"overall_score": 41.9, "trl_score": 4, "mrl_score": 1, "patent_strength": 2,
