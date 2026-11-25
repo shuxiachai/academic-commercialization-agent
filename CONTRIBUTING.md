@@ -82,6 +82,12 @@ The Ruff invocation is intentional: CI resolves the latest release, while the
 local pin can disagree. The narrow Pylint set catches specific correctness
 failures; do not replace it with a general style cleanup.
 
+To run both lint commands before every commit, turn on the optional hooks
+once with `uvx pre-commit install`. `.pre-commit-config.yaml` runs them exactly
+as the `lint` job writes them, over the whole tree rather than the staged
+files, and `tests/test_ci_workflow.py` fails if the two drift apart. Nothing
+else needs pre-commit: the test suite and CI run without it.
+
 Locally you can add `-n auto` (pytest-xdist, in the dev group) to spread the
 suite over your cores: it then takes minutes rather than about ten. Run it
 inside the project environment (`uv run`), not with `uv run --with`: some
