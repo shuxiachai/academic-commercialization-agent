@@ -16,18 +16,27 @@
  * is. Loaded after app.js, so a language change has already been applied when
  * this module's listener rewrites the line. */
 
-import { t } from "./i18n.js";
+import { locale, t } from "./i18n.js";
 
 export const CORE_FIELDS = ["asset_description", "target_application", "decision_owner", "decision_type"];
 
 const filled = (value) => String(value ?? "").trim() !== "";
 
 /** The line for the current field values, mirroring DecisionContext's modes. */
-export function gateLine(values) {
-  const answered = CORE_FIELDS.filter((name) => filled(values[name])).length;
-  if (answered === CORE_FIELDS.length) return t("decision_status_ready");
-  if (answered === 0 && !Object.values(values).some(filled)) return t("decision_status_none");
-  return t("decision_status_partial").replace("{n}", String(answered));
+export function gateLine(values, retryStatus) {
+  const missing = CORE_FIELDS.filter((name) => !filled(values[name]));
+  if (!missing.length) return t("decision_status_ready");
+  const hasContext = Object.values(values).some(filled);
+  const mode = hasContext
+    ? t("decision_status_partial").replace("{n}", String(CORE_FIELDS.length - missing.length))
+    : t("decision_status_none");
+  if (!retryStatus || (retryStatus === "empty" && !hasContext)) return mode;
+
+  const labels = { asset_description: "decision_asset", target_application: "decision_application",
+    decision_owner: "decision_owner", decision_type: "decision_type" };
+  const fields = new Intl.ListFormat(locale()).format(missing.map((name) => t(labels[name]).replace(/\s*\*$/, "")));
+  const hint = t(retryStatus === "unavailable" ? "decision_retry_unavailable" : "decision_retry_missing");
+  return mode + " " + hint.replace("{fields}", fields);
 }
 
 /** Whether a pick is the answer in its field: the same words, whatever surrounds them. */
@@ -57,7 +66,8 @@ function wire() {
   const growing = inputs.filter((input) => input.tagName === "TEXTAREA");
   const refresh = () => {
     if (!line) return;
-    line.textContent = gateLine(Object.fromEntries(inputs.map((input) => [input.dataset.contextField, input.value])));
+    const values = Object.fromEntries(inputs.map((input) => [input.dataset.contextField, input.value]));
+    line.textContent = gateLine(values, line.dataset.retryStatus);
   };
   // A pick is chosen while its field holds its words: the ones it shows now,
   // or the ones it put there before the interface language changed its name.
