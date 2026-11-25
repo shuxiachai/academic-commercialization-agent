@@ -138,6 +138,9 @@ timeout and a short pause per host, prints what is broken, and exits non-zero
 if anything is. A 403 or 429 is a warning, not a failure: those hosts block
 bots, and a bot-blocked page is not a dead page.
 
+Pass `--only PATH` (repeatable) to check only specific guides instead of all
+nine, for example `uv run python scripts/check_external_links.py --only README.md`.
+
 Tests of closed experiments, audits and probes are marked `experiment`
 ([list](tests/experiment_tests.txt)); they take about 80% of suite time for
 code the app and pipeline never import. `uv run pytest -m "not experiment"`
