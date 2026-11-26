@@ -301,15 +301,23 @@ function stopClock() {
   clock = null;
 }
 
-function startClock(fromSeconds, format = runView.formatDuration) {
+function startClock(fromSeconds, format = runView.formatDuration, onTick) {
   stopClock();
-  const anchor = Date.now();
+  const now = () => globalThis.performance?.now() ?? Date.now();
+  const anchor = now();
   const paint = () => {
-    const secs = fromSeconds + Math.floor((Date.now() - anchor) / 1000);
-    $("#run-elapsed").textContent = format(secs);
+    const sincePoll = Math.max(0, Math.floor((now() - anchor) / 1000));
+    $("#run-elapsed").textContent = format(fromSeconds + sincePoll);
+    onTick?.(sincePoll);
   };
   paint();
   clock = setInterval(paint, 1000);
+}
+
+function timingLine(id, text) {
+  const line = $(id);
+  line.textContent = text;
+  line.hidden = !text;
 }
 
 function paintHeader(progress) {
@@ -348,16 +356,27 @@ function paintHeader(progress) {
   const elapsedText = view
     ? (seconds) => (view.seconds === null ? "" : `${lead}${runView.readerTime(view.timeKey, seconds)}`)
     : runView.formatDuration;
+  const live = state === "running" && !reader;
+  const paintDeadline = (sincePoll) => {
+    const { line, note } = runView.deadlineView(progress, sincePoll);
+    timingLine("#run-deadline", line);
+    timingLine("#run-deadline-note", note);
+  };
+  if (!live) {
+    timingLine("#run-deadline", "");
+    timingLine("#run-deadline-note", "");
+  }
   if (state === "running" && view?.seconds !== null) {
-    startClock(view ? view.seconds : elapsed_seconds ?? 0, elapsedText);
+    startClock(view ? view.seconds : elapsed_seconds ?? 0, elapsedText, live ? paintDeadline : null);
   } else {
     stopClock();
     $("#run-elapsed").textContent = elapsedText(view ? view.seconds : elapsed_seconds);
   }
 
   // What recent runs on this model took from this step on, for a run still going.
-  const etaText = state === "running" && !reader ? runView.etaSummary(eta) : "";
-  $("#run-eta").textContent = etaText ? `· ${etaText}` : "";
+  timingLine("#run-current-step", live ? runView.currentStep(progress.stage) : "");
+  const etaText = live ? runView.etaSummary(eta, progress.stage) : "";
+  timingLine("#run-eta", live ? `${runView.headerLabel("eta_heading")} · ${etaText || runView.headerLabel("eta_missing")}` : "");
   $("#run-eta").title = etaText ? runView.etaTitle(eta, llm_model) : "";
   paintNotifyButton(state);
 
@@ -1062,7 +1081,12 @@ async function openRun(runId, { known } = {}) {
       // A run that is not there is said by the page in its place (showGone), not here.
       $("#run-connection").textContent = state === "stale"
         ? t(lastSuccessAt === null ? "run_connection_unconfirmed" : "run_connection_stale") : "";
-      if (state !== "connected") stopClock();
+      if (state !== "connected") {
+        stopClock();
+        // The last read no longer establishes how much time is still available.
+        timingLine("#run-deadline", "");
+        timingLine("#run-deadline-note", "");
+      }
     },
     onUpdate(progress) {
       if (progress.state === "running") watchedActive = true;

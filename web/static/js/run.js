@@ -408,8 +408,25 @@ const HEADER_STRINGS = {
     eta_range: "{low}–{high} min",
     eta_range_one: "{high} min",
     eta_soon: "under a minute left",
-    eta_over: "slower than the last {runs} runs",
-    eta_over_later: "slower at this step than the last {runs} runs; the steps after it took {range}",
+    eta_over: "The remaining time for the current step cannot yet be estimated.",
+    eta_over_later: "In the last {runs} runs, the subsequent steps ({steps}) took {range} in total.",
+    eta_minutes_short: "under a minute",
+    eta_heading: "Historical estimate",
+    eta_missing: "No historical estimate is available yet.",
+    eta_sample_model: "Based on the last {runs} completed runs on {model}.",
+    eta_sample_pool: "Based on {runs} recent completed runs across models. There were too few runs on this model alone.",
+    deadline_stage: "Current step · {stage}",
+    deadline_limit: "Run limit {limit} · up to {left} remaining (min:sec)",
+    deadline_pending: "Run limit {limit} (min:sec) reached. Waiting for the server to confirm the outcome.",
+    deadline_unknown: "Time limit for this run is unavailable.",
+    deadline_cap_only: "Run limit {limit} (min:sec). Remaining time until the limit is unavailable.",
+    deadline_unbounded: "This run has no configured time limit.",
+    deadline_writer: "If the run times out, the saved writer checkpoint may provide a draft.",
+    deadline_reviewer: "If the run times out, the saved review checkpoint may provide a reviewed draft.",
+    deadline_sources: "The saved sources may still be available if the run times out.",
+    deadline_checkpoints: "Completed checkpoints may be reused if the run times out.",
+    deadline_partial: "Some checkpoints were saved. Recovery after a timeout depends on which checkpoints remain usable.",
+    deadline_no_saved: "No completed checkpoint or saved sources have been confirmed yet.",
     eta_title: "What the last {runs} completed runs on {model} here took from this step to the end, fastest to slowest. Not a guarantee.",
     eta_title_others: "{model} has fewer than three completed runs here, so this is what the last {runs} completed runs on other models took from this step to the end, fastest to slowest. Not a guarantee.",
     eta_title_any: "What the last {runs} completed runs here took from this step to the end, fastest to slowest. Not a guarantee.",
@@ -517,8 +534,25 @@ const HEADER_STRINGS = {
     eta_range: "{low}–{high} 分钟",
     eta_range_one: "{high} 分钟",
     eta_soon: "预计不到 1 分钟",
-    eta_over: "比最近 {runs} 次运行都慢",
-    eta_over_later: "这一步比最近 {runs} 次运行都慢；之后的步骤它们用了 {range}",
+    eta_over: "当前阶段剩余时间暂时无法估计。",
+    eta_over_later: "最近 {runs} 次运行中，后续步骤（{steps}）合计用时 {range}。",
+    eta_minutes_short: "不到 1 分钟",
+    eta_heading: "历史耗时估算",
+    eta_missing: "暂时没有可用的历史耗时估算。",
+    eta_sample_model: "参考了最近 {runs} 次使用 {model} 完成的运行。",
+    eta_sample_pool: "当前模型的样本不足，参考了跨模型的 {runs} 次近期已完成运行。",
+    deadline_stage: "当前阶段 · {stage}",
+    deadline_limit: "本次运行时限 {limit} · 最多还可运行 {left}（分:秒）",
+    deadline_pending: "已达到本次运行时限 {limit}（分:秒），正在等待服务器确认结果。",
+    deadline_unknown: "暂未取得本次运行的时限。",
+    deadline_cap_only: "本次运行时限 {limit}（分:秒）。暂未取得距时限的剩余时间。",
+    deadline_unbounded: "本次运行未设置时限。",
+    deadline_writer: "撰写阶段已保存检查点。如果超时，仍可能从中读取报告草稿。",
+    deadline_reviewer: "审查阶段已保存检查点。如果超时，仍可能从中读取已审查的草稿。",
+    deadline_sources: "如果超时，仍可能查看已保存的来源。",
+    deadline_checkpoints: "如果超时，仍可能从已保存的检查点恢复运行。",
+    deadline_partial: "已有部分检查点保存。如果超时，可恢复的内容取决于哪些检查点仍然有效。",
+    deadline_no_saved: "暂未确认有已完成的检查点或已保存的来源。",
     eta_title: "本站最近 {runs} 次用 {model} 完成的运行，从这一步到结束的实际用时（最快到最慢）。仅供参考，不是保证。",
     eta_title_others: "{model} 在本站完成的运行还不到 3 次，所以这是最近 {runs} 次其他模型完成的运行从这一步到结束的实际用时（最快到最慢）。仅供参考，不是保证。",
     eta_title_any: "本站最近 {runs} 次完成的运行，从这一步到结束的实际用时（最快到最慢）。仅供参考，不是保证。",
@@ -656,13 +690,19 @@ function minutesRange(low, high) {
  * answer. A run slower at its step than every run in the pool is told that,
  * with what the later steps took, instead of a countdown that has run out.
  */
-export function etaSummary(eta) {
+export function etaSummary(eta, stage) {
   const low = eta?.low_seconds;
   const high = eta?.high_seconds;
   if (!Number.isFinite(low) || !Number.isFinite(high) || low < 0 || high < low) return "";
   const runs = Number.isFinite(eta.basis_runs) ? eta.basis_runs : "";
   if (eta.overdue) {
-    return high < 60 ? say("eta_over", { runs }) : say("eta_over_later", { runs, range: minutesRange(low, high) });
+    const unknown = headerLabel("eta_over");
+    const current = stageIndex(stage);
+    if (eta.basis !== "stages" || current < 0 || current === STAGES.length - 1) return unknown;
+    const labels = STAGE_SHORT_LABELS[uiLanguage()] ?? STAGE_SHORT_LABELS.English;
+    const steps = STAGES.slice(current + 1).map((s) => labels[s.id]).join(" → ");
+    const range = high < 60 ? headerLabel("eta_minutes_short") : minutesRange(low, high);
+    return unknown + " " + say("eta_over_later", { runs, steps, range });
   }
   if (high < 60) return headerLabel("eta_soon");
   return say(eta.same_model ? "eta_left" : "eta_left_others", { range: minutesRange(low, high) });
@@ -672,8 +712,46 @@ export function etaSummary(eta) {
 export function etaTitle(eta, model = null) {
   if (!Number.isFinite(eta?.basis_runs)) return "";
   const runs = eta.basis_runs;
+  if (eta.overdue) {
+    return eta.same_model && eta.model ? say("eta_sample_model", { runs, model: eta.model })
+      : say("eta_sample_pool", { runs });
+  }
   if (eta.same_model && eta.model) return say("eta_title", { runs, model: eta.model });
   return model ? say("eta_title_others", { runs, model }) : say("eta_title_any", { runs });
+}
+
+export function currentStep(stage) {
+  const known = STAGES[stageIndex(stage)];
+  return known ? say("deadline_stage", { stage: t(known.key) }) : "";
+}
+
+// Only the server can anchor the countdown for this run. Between polls the
+// caller supplies monotonic seconds since that observation, never time spent
+// by a parent run or time inferred from a historical sample.
+export function deadlineView(progress, sincePoll = 0) {
+  const budget = progress.runtime_budget;
+  const limit = budget?.hard_timeout_seconds;
+  const observed = budget?.remaining_seconds;
+  if (budget?.state !== "active" || !Number.isSafeInteger(limit) || limit <= 0) {
+    return { line: headerLabel(budget?.state === "unbounded_cli" ? "deadline_unbounded" : "deadline_unknown"), note: "" };
+  }
+  if (!Number.isSafeInteger(observed) || observed < 0 || observed > limit) {
+    return { line: say("deadline_cap_only", { limit: formatDuration(limit) }), note: "" };
+  }
+  const remaining = Math.max(0, observed - sincePoll);
+  const line = say(remaining ? "deadline_limit" : "deadline_pending", {
+    limit: formatDuration(limit), left: formatDuration(remaining),
+  });
+  if (remaining > Math.min(300, limit / 5)) return { line, note: "" };
+  const nodes = progress.checkpointing?.committed_nodes;
+  const saved = Array.isArray(nodes) ? nodes : [];
+  const notes = [];
+  if (saved.includes("reviewer")) notes.push(headerLabel("deadline_reviewer"));
+  else if (saved.includes("writer")) notes.push(headerLabel("deadline_writer"));
+  else if (saved.includes("retrieval")) notes.push(headerLabel("deadline_checkpoints"));
+  else if (saved.length) notes.push(headerLabel("deadline_partial"));
+  if (progress.artifacts?.includes("sources")) notes.push(headerLabel("deadline_sources"));
+  return { line, note: notes.join(" ") || headerLabel("deadline_no_saved") };
 }
 
 /* A token count as a reader says it: 105,500 is "105.5k" in English and

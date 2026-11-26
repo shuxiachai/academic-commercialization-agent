@@ -1012,11 +1012,22 @@ only what its parent had not finished. Nor is a resumed run given an estimate
 while it is still in its first stage: until its worker has read the
 checkpoints, an estimate would be for a whole run. Only runs whose current stage lasted
 at least as long as this run's already has are asked about the rest of it;
-when none did, `overdue` is true and the range is what the later stages
-alone took, which the header shows as "slower at this step than the last N
-runs" instead of a countdown past zero. The history is read newest first up
+when none did, `overdue` is true. The header says the remaining time for the
+current stage cannot be estimated and names the later stages covered by the
+historical range. During review that range covers scoring alone. The history is read newest first up
 to thirty completed runs and cached for ten minutes; `eta` is `null` with
-fewer than three. `/health` carries `run_minutes`, the fastest and slowest
+fewer than three.
+
+The owner's live progress header separately shows the current stage and this
+worker's configured time limit. The API reports the seconds left in the
+current launch's watchdog window, including for a resumed run. The page
+counts down between successful reads and waits for the server to confirm
+the outcome when the window reaches zero. In the last fifth of the window
+(up to five minutes), the page describes any recorded writer or reviewer
+checkpoint, saved sources, or recovery information available at that point.
+A readable checkpoint can supply a draft after a timeout.
+
+`/health` carries `run_minutes`, the fastest and slowest
 whole run of the newest ten in minutes with their count, which is the
 sentence the landing and the sign-in card show about how long a run takes
 (nothing is shown with fewer than three). Before 2026-11-19 the estimate was

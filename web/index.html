@@ -719,7 +719,6 @@
             <span id="run-assessed" hidden></span>
             <span id="run-model" hidden></span>
             <span class="tabular" id="run-elapsed">0:00</span>
-            <span id="run-eta"></span>
             <button type="button" class="run-notify" id="run-notify" hidden>· Notify me when done</button>
             <span id="run-sources"></span>
             <details class="run-usage" id="run-usage-details" hidden>
@@ -749,6 +748,10 @@
             <span id="run-connection" role="status" aria-live="polite"></span>
             <span id="run-recovery"></span>
           </div>
+          <p class="run-outcome" id="run-current-step" hidden></p>
+          <p class="run-outcome tabular" id="run-deadline" hidden></p>
+          <p class="run-outcome" id="run-eta" hidden></p>
+          <p class="run-outcome" id="run-deadline-note" hidden></p>
           <!-- A resumed run: what it took from the run it continues, and
                what the two took together (run.js lineageSummary). Directly
                under the header line, where "6 checkpoint stages reused" used

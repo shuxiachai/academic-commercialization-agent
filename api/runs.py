@@ -424,6 +424,9 @@ class _Handle:
     #: The owner tag the run is recorded under; an account's runs are counted
     #: against that account's own concurrency cap.
     owner: str | None = None
+    #: The duration passed to this worker at launch. A pending reservation
+    #: has no watchdog yet; never infer its countdown from a saved status.
+    hard_timeout_seconds: int | None = None
 
     @property
     def elapsed(self) -> int:
@@ -1143,13 +1146,14 @@ def _start_run_from_spec(
         # converted once by the child so clock changes cannot extend it.
         worker_started = time.monotonic()
         worker_started_at = datetime.now(UTC)
-        hard_deadline_epoch = time.time() + TIMEOUT_SECONDS
+        hard_timeout_seconds = TIMEOUT_SECONDS
+        hard_deadline_epoch = time.time() + hard_timeout_seconds
         cmd = [
             sys.executable, "-m", "academic_agent.pipeline_worker",
             run_id, spec.topic, "--run-spec", str(spec_path),
             "--auxiliary-handoff", auxiliary_handoff,
             "--hard-deadline-epoch", repr(hard_deadline_epoch),
-            "--hard-timeout-seconds", str(TIMEOUT_SECONDS),
+            "--hard-timeout-seconds", str(hard_timeout_seconds),
         ]
         # Keep the explicit flags for CLI/process introspection and backwards
         # compatibility, while RunSpec remains the worker's authoritative
@@ -1207,6 +1211,7 @@ def _start_run_from_spec(
             started=worker_started,
             started_at=worker_started_at,
             byok=byok is not None, owner=owner,
+            hard_timeout_seconds=hard_timeout_seconds,
         )
     return run_id, run_dir
 
@@ -1386,7 +1391,7 @@ def cancel_run(run_id: str) -> None:
                 state="cancelled",
                 reason_code="user_cancelled",
                 termination_method=method,
-                timeout_seconds=TIMEOUT_SECONDS,
+                timeout_seconds=_watchdog_timeout_seconds(handle),
             )
         except (OSError, ValueError) as exc:
             # Keep the historical best-effort audit boundary separate from
@@ -1420,6 +1425,12 @@ def delete_run(run_id: str) -> None:
     shutil.rmtree(run_dir)
 
 
+def _watchdog_timeout_seconds(handle: _Handle) -> int:
+    """Use the launch duration; older/manual handles retain the old policy."""
+    timeout = getattr(handle, "hard_timeout_seconds", None)
+    return timeout if type(timeout) is int and timeout > 0 else TIMEOUT_SECONDS
+
+
 def reap_timeouts() -> list[str]:
     """Kill runs past the deadline. Returns the run_ids that were killed."""
     killed: list[str] = []
@@ -1431,7 +1442,8 @@ def reap_timeouts() -> list[str]:
             # A launch thread can replace an old reservation with a fresh
             # process before claim. Never carry the reservation's age into
             # the new worker's deadline merely because their run id matches.
-            if not isinstance(h.proc, _PendingProcess) and h.alive() and h.elapsed > TIMEOUT_SECONDS
+            if not isinstance(h.proc, _PendingProcess) and h.alive()
+            and h.elapsed > _watchdog_timeout_seconds(h)
         ]
 
     failures = []
@@ -1441,9 +1453,10 @@ def reap_timeouts() -> list[str]:
                 if method == "already_exited":
                     # It won the race with the watchdog; do not relabel it.
                     continue
+                timeout_seconds = _watchdog_timeout_seconds(handle)
                 try:
                     (run_dir_for(run_id) / "error.log").write_text(
-                        f"Analysis timed out after {TIMEOUT_SECONDS // 60} minutes.",
+                        f"Analysis timed out after {timeout_seconds // 60} minutes.",
                         encoding="utf-8",
                     )
                 except OSError:
@@ -1456,7 +1469,7 @@ def reap_timeouts() -> list[str]:
                         state="timeout",
                         reason_code="hard_timeout",
                         termination_method=method,
-                        timeout_seconds=TIMEOUT_SECONDS,
+                        timeout_seconds=timeout_seconds,
                     )
                 except (OSError, ValueError) as exc:
                     print(f"[api] terminal record failed for {run_id}: {exc}", file=sys.stderr)
@@ -2265,6 +2278,37 @@ def run_model(status: dict, usage: object) -> str | None:
     return None
 
 
+def _runtime_budget_projection(
+    saved: object, handle: _Handle | None, *, running: bool, elapsed_seconds: int | None,
+) -> dict | None:
+    """Add a live countdown from the same monotonic origin as elapsed time.
+
+    Saved wall deadlines cannot establish how much time a live process has
+    left after a clock correction, and a resume owns a new launch budget.
+    A terminal, pending or untracked run therefore has no live countdown.
+    Reaching zero says the watchdog window elapsed, not that process exit or
+    terminal publication has already completed.
+    """
+    budget = dict(saved) if isinstance(saved, dict) else None
+    if budget is not None:
+        # A countdown is a current observation, never a persisted fact that
+        # can survive process loss or be resurrected from stale status bytes.
+        budget["remaining_seconds"] = None
+    timeout = getattr(handle, "hard_timeout_seconds", None)
+    if (
+        running and handle is not None and type(timeout) is int and timeout > 0
+        and not isinstance(handle.proc, _PendingProcess)
+        and type(elapsed_seconds) is int and elapsed_seconds >= 0
+    ):
+        budget = budget or {}
+        budget.update(
+            state="active",
+            hard_timeout_seconds=timeout,
+            remaining_seconds=max(0, timeout - elapsed_seconds),
+        )
+    return budget
+
+
 def get_state(run_id: str, *, _depth: int = _LINEAGE_DEPTH) -> dict:
     """Derive the full state of a run from disk plus the live registry."""
     if not _is_valid_run_id(run_id):
@@ -2476,7 +2520,10 @@ def get_state(run_id: str, *, _depth: int = _LINEAGE_DEPTH) -> dict:
         # Temporal completeness is independent of price completeness. A
         # lower-bound token total can still have a complete price table.
         "usage_accounting": runtime["usage_accounting"],
-        "runtime_budget": status.get("runtime_budget"),
+        "runtime_budget": _runtime_budget_projection(
+            status.get("runtime_budget"), handle,
+            running=state == "running", elapsed_seconds=elapsed,
+        ),
         "terminal": terminal_projection,
         # Counts from the claim-grounding screen: how many quantitative claims
         # could be checked against the text of the sources they cite, how many

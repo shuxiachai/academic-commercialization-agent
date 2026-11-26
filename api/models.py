@@ -642,9 +642,10 @@ class RunProgress(BaseModel):
     )
     runtime_budget: dict | None = Field(
         default=None,
-        description="Code-owned request timeout and finalization reserves "
-                    "applied by this worker. None means the run predates "
-                    "deadline persistence.",
+        description="Code-owned worker deadline policy and, for a tracked active run, "
+                    "remaining_seconds measured from its launch on the server's monotonic clock. "
+                    "A null countdown is unknown or inactive; zero means the watchdog window "
+                    "elapsed, not that termination has finished. None means no budget is known.",
     )
     terminal: dict | None = Field(
         default=None,
@@ -863,9 +864,10 @@ class RunStatus(BaseModel):
     )
     runtime_budget: dict | None = Field(
         default=None,
-        description="Code-owned request timeout and finalization reserves "
-                    "applied by this worker. None means the run predates "
-                    "deadline persistence.",
+        description="Code-owned worker deadline policy and, for a tracked active run, "
+                    "remaining_seconds measured from its launch on the server's monotonic clock. "
+                    "A null countdown is unknown or inactive; zero means the watchdog window "
+                    "elapsed, not that termination has finished. None means no budget is known.",
     )
     terminal: dict | None = Field(
         default=None,
