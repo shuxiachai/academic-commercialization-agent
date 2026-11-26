@@ -660,7 +660,7 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
         # The sample reader updates both responsive folds when its width
         # media query changes. Chromium can deliver that event after the
         # screen media switch returns from a PDF print.
-        folds = [page.locator(".samples__scorecard"), page.locator(".samples__toc")]
+        folds = [page.locator("details.samples__scorecard"), page.locator(".samples__toc details")]
         screen_open = [fold.evaluate("el => el.open") for fold in folds]
         # The citation card is a screen-only popover; printing must not put it
         # on the page. Check it on the first sample that has a citation chip.
