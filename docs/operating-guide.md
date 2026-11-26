@@ -1675,8 +1675,11 @@ link". On a failed run, the form also restores the saved decision fields
 when the server confirms the caller may modify the run. It opens the decision
 context so the user can verify the assessment mode before submitting. An
 explicitly empty context shows an orientation brief. Incomplete or unavailable
-context names the fields to fill for decision support. Starting a new assessment
-still takes a separate submission. A running run offers "Copy link" too. Copying a
+context names the fields to fill for decision support. After an academic-source
+shortfall, the header shows the saved count and minimum when available. The
+owner can choose "Edit topic and retry" to open the form. Individual searches
+and rejections are under "Query audit" in the retrieval diagnostics. Starting
+a new assessment still takes a separate submission. A running run offers "Copy link" too. Copying a
 link is sharing a read capability, and the confirmation says that anyone who
 has it can read the run. Where a browser refuses the page's own write to the
 clipboard, as the one inside a chat app often does, the older selection copy

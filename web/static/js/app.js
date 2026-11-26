@@ -312,12 +312,13 @@ function startClock(fromSeconds, format = runView.formatDuration) {
   clock = setInterval(paint, 1000);
 }
 
-function paintHeader({
-  topic, state, elapsed_seconds, source_counts, usage, usage_accounting, auxiliary_usage,
-  terminal, status_record_state, checkpointing, recovery, runtime_metadata_unreadable, steps_read_state,
-  stage_timings, eta, pipeline_revision, error, error_code, funded_by, daily_charge, daily_charge_reason,
-  llm_model, lineage, run_id, continued_by,
-}) {
+function paintHeader(progress) {
+  const {
+    topic, state, elapsed_seconds, source_counts, usage, usage_accounting, auxiliary_usage,
+    terminal, status_record_state, checkpointing, recovery, runtime_metadata_unreadable, steps_read_state,
+    stage_timings, eta, pipeline_revision, error_code, funded_by, daily_charge,
+    llm_model, lineage, run_id, continued_by,
+  } = progress;
   if (topic) $("#run-title").textContent = topic;
 
   // Whoever may not change this run reads it: someone it was shared with.
@@ -327,8 +328,8 @@ function paintHeader({
   // reader is told when it was assessed, on which model, and how long it
   // took in all (run.js readerHeader); the owner's header is unchanged.
   // What the reads return is not changed either: only what is drawn.
-  const reader = viewerMode || !mayModify(arguments[0]);
-  const view = reader ? runView.readerHeader(arguments[0]) : null;
+  const reader = viewerMode || !mayModify(progress);
+  const view = reader ? runView.readerHeader(progress) : null;
 
   const pill = $("#run-pill");
   pill.className = `pill pill--${state}`;
@@ -425,8 +426,7 @@ function paintHeader({
   // rather than in a toast that is gone before the page is read again.
   const outcomeEl = $("#run-outcome");
   // Whether it spent a daily run is said to the owner whose run it was.
-  const outcome = runView.outcomeSummary({ state, error, error_code, funded_by, daily_charge: reader ? null : daily_charge,
-    daily_charge_reason, checkpointing });
+  const outcome = runView.outcomeSummary({ ...progress, daily_charge: reader ? null : daily_charge });
   outcomeEl.textContent = outcome;
   outcomeEl.hidden = !outcome;
   paintRunHelp({ state, error_code, funded_by, run_id });
@@ -436,7 +436,7 @@ function paintHeader({
 
   // A run takes minutes and does not need the page. Said to whoever started
   // it; an account that has not asked for the finish email is offered it.
-  const leaving = state === "running" && !viewerMode && mayModify(arguments[0]);
+  const leaving = state === "running" && !reader;
   $("#run-leave").hidden = !leaving;
   $("#run-leave-text").textContent = leaving ? runView.headerLabel("leave_note") : "";
   const offer = $("#run-leave-notify");
@@ -838,7 +838,8 @@ function paintActions(state, checkpointing = null, canModify = true, facts = nul
   again.id = "run-again";
   // On someone else's run it is named for what it does: a new assessment of
   // the reader's own, on this topic.
-  again.textContent = t(canModify ? "run_again" : "run_again_own");
+  const againLabel = retryFailed && facts?.error_code === "insufficient_evidence" ? "run_again_edit_topic" : "run_again";
+  again.textContent = t(canModify ? againLabel : "run_again_own");
   again.title = t(retryFailed ? "run_again_failed_title" : "run_again_title");
   again.addEventListener("click", () => {
     const previous = $("#run-title").textContent.trim();

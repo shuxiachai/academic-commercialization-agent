@@ -470,6 +470,10 @@ const HEADER_STRINGS = {
     // Beside a failed run's reason: a code holder has three runs a day and
     // should not have to guess whether a failure spent one of them.
     outcome_charged: "This run counted toward today's quota.",
+    shortage_validation: "Academic sources fell short after validation ({accepted} passed, minimum {required}).",
+    shortage_relevance: "Academic sources fell short after final filtering ({accepted} retained, minimum {required}).",
+    shortage_before_report: "The assessment stopped before a report was written.",
+    shortage_no_report: "No report is available.",
     // Under a run that did not finish: what the model's own record suggests (failureGuide).
     advice_model_kind: "The model this run used, {model}, does not look like a general chat model. Change to a model this project has measured before trying again: resuming repeats the same step on the model that is saved now.",
     advice_model_short: "Each answer {model} gave in the evidence step was under {limit} tokens, where every run this project has saved wrote more. Change to a model this project has measured before trying again: resuming repeats the same step on the model that is saved now.",
@@ -568,6 +572,10 @@ const HEADER_STRINGS = {
     source_locator_title: "实验功能：针对报告中的问题，找出对应的已保存来源并显示其原文",
     identity_title: "本次运行各阶段请求的模型，以及产出它的流水线代码版本。本站会不定期更换模型；两者都不是质量指标。",
     outcome_charged: "本次运行已计入今日额度。",
+    shortage_validation: "有 {accepted} 条学术来源通过验证，至少需要 {required} 条。",
+    shortage_relevance: "最终筛选后保留了 {accepted} 条学术来源，至少需要 {required} 条。",
+    shortage_before_report: "评估在写报告前停止。",
+    shortage_no_report: "没有可查看的报告。",
     advice_model_kind: "这次运行用的模型 {model} 看起来不是通用对话模型。请先换成本项目实测过的模型再试：续跑会在当前保存的模型上重做同一步。",
     advice_model_short: "{model} 在证据分析这一步的每次回答都不到 {limit} token，而本项目保存的每一次运行都比这长。请先换成本项目实测过的模型再试：续跑会在当前保存的模型上重做同一步。",
     resume_note_quota: "续跑会再用 1 次今日额度。",
@@ -1041,8 +1049,8 @@ export function runtimeMetadataSummary(fields = []) {
  */
 /* Why a run stopped, in the reader's language.
  *
- * English is the API's own sentence, shown as sent: it is the one the server
- * allowlists, and a second English copy here could only drift from it. For
+ * The fallback in English is the API's own allowlisted sentence. A saved
+ * academic shortfall supplies the counts for a more specific reason. For
  * another language the API's `error_code` names the cause and `funded_by`
  * says who can act on it, and this table words the pair. A code this table
  * does not know, or a reply without one, keeps the API's sentence rather
@@ -1090,13 +1098,23 @@ const FAILURE_STRINGS = {
 };
 
 /** The sentence to show for why a run stopped; "" when there is nothing to say. */
-export function failureText({ error, error_code, funded_by } = {}) {
+export function failureText({ state, error, error_code, funded_by, retrieval_shortfall, artifacts } = {}) {
   const table = FAILURE_STRINGS[uiLanguage()];
-  if (table && typeof error_code === "string" && error_code) {
-    const worded = table[`${error_code}:${funded_by}`] ?? table[error_code];
-    if (worded) return worded;
+  const localized = table?.[`${error_code}:${funded_by}`] ?? table?.[error_code];
+  const reason = typeof localized === "string" ? localized : typeof error === "string" ? error : "";
+  if (state !== "failed" || error_code !== "insufficient_evidence") return reason;
+
+  const { stage, accepted_sources: accepted, required_sources: required } = retrieval_shortfall ?? {};
+  const hasCounts = (stage === "academic_validation" || stage === "academic_relevance_filter")
+    && Number.isSafeInteger(accepted) && Number.isSafeInteger(required) && accepted >= 0 && accepted < required;
+  const sentences = [hasCounts
+    ? headerLabel(stage === "academic_validation" ? "shortage_validation" : "shortage_relevance")
+      .replace("{accepted}", accepted).replace("{required}", required)
+    : reason];
+  if (Array.isArray(artifacts) && !artifacts.includes("report") && !artifacts.includes("draft")) {
+    sentences.push(headerLabel(hasCounts ? "shortage_before_report" : "shortage_no_report"));
   }
-  return typeof error === "string" ? error : "";
+  return sentences.filter(Boolean).join(uiLanguage() === "Simplified Chinese" ? "" : " ");
 }
 
 /* What to do next, cause by cause: the page's one table for it.
@@ -1250,12 +1268,11 @@ export function runModel(usage) {
  * only from the API's launch-time record: an old run without one, or a
  * damaged one, gets the reason alone rather than a guess.
  */
-export function outcomeSummary({
-  state, error, error_code, funded_by, daily_charge, daily_charge_reason, checkpointing,
-} = {}) {
+export function outcomeSummary(progress = {}) {
+  const { state, daily_charge, daily_charge_reason } = progress;
   if (!["failed", "timeout", "cancelled"].includes(state)) return "";
   const parts = [];
-  const reason = failureText({ error, error_code, funded_by });
+  const reason = failureText(progress);
   if (reason) parts.push(reason);
   if (daily_charge === "charged") {
     // What resuming would cost is said beside the button that does it (resumeNote).

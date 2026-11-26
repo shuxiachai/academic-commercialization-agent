@@ -425,6 +425,28 @@ class UsageSummaryTests(unittest.TestCase):
             self._outcome_line(language="Simplified Chinese", state="cancelled", error="Cancelled by request.",
                                error_code="cancelled"), "已按请求取消。")
 
+    def test_academic_shortfall_reaches_the_outcome_before_retry(self):
+        """The earlier header hid the saved 2-of-3 shortfall behind generic retry advice."""
+        failure = dict(state="failed", error_code="insufficient_evidence", error="Generic failure.",
+                       artifacts=["retrieval"], daily_charge="charged")
+        shortfall = dict(stage="academic_relevance_filter", accepted_sources=2, required_sources=3)
+        self.assertEqual(
+            self._outcome_line(language="Simplified Chinese", **failure, retrieval_shortfall=shortfall),
+            "最终筛选后保留了 2 条学术来源，至少需要 3 条。评估在写报告前停止。 本次运行已计入今日额度。")
+        early = dict(shortfall, stage="academic_validation", accepted_sources=0, required_sources=5)
+        self.assertEqual(
+            self._outcome_line(**{**failure, "daily_charge": None}, retrieval_shortfall=early),
+            "Academic sources fell short after validation (0 passed, minimum 5). "
+            "The assessment stopped before a report was written.")
+        # A known draft means the writer got further. Missing counts or a planning
+        # record must never be presented as the results of final validation.
+        self.assertNotIn("before a report", self._outcome_line(
+            **{**failure, "artifacts": ["draft", "retrieval"]}, retrieval_shortfall=shortfall))
+        for bad in (None, dict(shortfall, stage="topic_planning"), dict(shortfall, accepted_sources=None)):
+            text = self._outcome_line(**failure, retrieval_shortfall=bad)
+            self.assertNotIn("minimum", text)
+            self.assertIn("No report is available", text)
+
     def test_english_and_unknown_causes_keep_the_apis_own_sentence(self):
         # English is the sentence the server allowlists; the page holds no second copy.
         self.assertEqual(
@@ -485,8 +507,7 @@ class UsageSummaryTests(unittest.TestCase):
         source = _APP_JS.read_text(encoding="utf-8")
         markup = _INDEX_HTML.read_text(encoding="utf-8")
         # Whether the run spent a daily run is said to its owner; a reader of a shared link is told the reason only.
-        self.assertIn("outcomeSummary({ state, error, error_code, funded_by, daily_charge: reader ? null : daily_charge,\n"
-                      "    daily_charge_reason, checkpointing })", source)
+        self.assertIn("outcomeSummary({ ...progress, daily_charge: reader ? null : daily_charge })", source)
         self.assertIn('id="run-outcome"', markup)
 
 

@@ -2772,6 +2772,7 @@ def get_run(run_id: str, http_request: Request, response: Response) -> RunStatus
     response.headers["Cache-Control"] = "private, no-store"
     may_modify = _viewer_can_modify(run_id, http_request)
     return RunStatus(**state, viewer_can_modify=may_modify,
+                     retrieval_shortfall=runs.read_retrieval_shortfall(run_id, state),
                      continued_by=_continued_by(run_id, state["state"], may_modify),
                      saved_decision_context=_saved_decision_context(run_id, state["state"], may_modify))
 
@@ -3009,6 +3010,7 @@ def get_progress(
         done=state["state"] in {"completed", "failed", "cancelled", "timeout"},
         error=state.get("error"),
         error_code=state.get("error_code"),
+        retrieval_shortfall=runs.read_retrieval_shortfall(run_id, state),
         funded_by=state.get("funded_by"),
         daily_charge=state.get("daily_charge", "not_recorded"),
         daily_charge_reason=state.get("daily_charge_reason"),

@@ -51,7 +51,7 @@ from academic_agent.run_terminal import (
 from api import accounts
 from api.audit_projection import project_audit_metadata
 from api.cleanup import CleanupAudit
-from api.models import StepEvent
+from api.models import RetrievalShortfall, StepEvent
 from api.runtime_projection import project_runtime_metadata
 
 # A run is killed after this long. The bound belongs to the worker contract,
@@ -2095,6 +2095,27 @@ def artifact_path(run_id: str, name: str) -> Path | None:
         return None
     path = run_dir_for(run_id) / fname
     return path if path.exists() else None
+
+
+def read_retrieval_shortfall(run_id: str, state: dict) -> RetrievalShortfall | None:
+    """Read only saved shortage counts, without turning a missing audit into zero.
+
+    Called at the detail/progress boundary, not by get_state(): listing old
+    runs must not read their full retrieval audits. The earlier validation
+    gate precedes final relevance filtering, so its stage travels with the
+    counts. Topic-planning failures have not searched and are excluded.
+    """
+    if (not _is_valid_run_id(run_id) or state.get("state") != "failed"
+            or state.get("error_code") != "insufficient_evidence"):
+        return None
+    try:
+        data = json.loads((run_dir_for(run_id) / _ARTIFACTS["retrieval"]).read_text(encoding="utf-8"))
+        # The public model admits only the two observed academic gates and
+        # strict shortfall integers. Queries, aliases and audit text stay in
+        # the existing artifact rather than becoming UI facts by inference.
+        return RetrievalShortfall.model_validate(data)
+    except (OSError, UnicodeError, ValueError, RecursionError):
+        return None
 
 
 #: How many earlier runs a resumed run's totals look back through. A resume

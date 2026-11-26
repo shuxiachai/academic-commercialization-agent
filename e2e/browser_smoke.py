@@ -24,8 +24,14 @@ from urllib.parse import urlsplit
 from playwright.sync_api import Page, Response, Route, expect, sync_playwright
 
 from academic_agent.run_spec import DecisionContext, RunSpec
-from academic_agent.run_output import create_run_id, save_scores, save_source_collection
+from academic_agent.run_output import (
+    create_run_id,
+    save_retrieval_diagnostics,
+    save_scores,
+    save_source_collection,
+)
 from academic_agent.run_terminal import TerminalRecord, UsageAccounting, commit_terminal_record
+from academic_agent.source_pipeline import SearchAudit
 from api import samples
 from e2e.request_wait import wait_for_count
 from e2e.scroll_wait import COMES_TO_REST
@@ -1513,7 +1519,33 @@ def _exercise_browser(
             page.goto(f"{base_url}/run/{complete_failed}", wait_until="domcontentloaded")
             expect(page.locator("#run-pill")).to_have_text("failed")
             expect(page.locator("#run-again")).to_have_class("btn btn--primary")
+            # A failed final relevance filter says what it retained, where it
+            # stopped, and whether the launch counted before inviting an edit.
+            # The browser must not make the owner open a second tab to learn
+            # that the report writer never ran.
+            expect(page.locator("#run-outcome")).to_have_text(
+                "Academic sources fell short after final filtering (2 retained, minimum 3). "
+                "The assessment stopped before a report was written. This run counted toward "
+                "today's quota.")
+            expect(page.locator("#run-again")).to_have_text("Edit topic and retry")
             before_again = len(mutation_attempts)
+
+            # The persisted final-filter record is folded, not hidden behind
+            # the generic failure. Opening it is read-only and reveals the
+            # actual query/audit row that made the shortfall inspectable.
+            page.locator('button.tab[data-view="retrieval"]').click()
+            retrieval = page.locator('.panel[data-view="retrieval"]')
+            query_audit = retrieval.locator("details")
+            query_summary = query_audit.locator("summary")
+            expect(query_summary).to_have_text("Query audit")
+            expect(query_audit).not_to_have_attribute("open", "")
+            query_summary.click()
+            expect(query_audit).to_have_attribute("open", "")
+            expect(retrieval).to_contain_text("[Relevance-Filter]")
+            expect(retrieval).to_contain_text(
+                "score=2 (min=3) — removed 'Fixture final-filter near-match'")
+            assert len(mutation_attempts) == before_again, "Inspecting retrieval diagnostics must not dispatch paid work."
+
             page.locator("#run-again").click()
             expect(page.locator("#pane-compose")).to_be_visible()
             expect(page.locator("#topic")).to_have_value(FIXTURE_TOPIC)
@@ -1801,6 +1833,30 @@ def main() -> None:
                 output_root, access.owner_id(ACCESS_CODE), context=None,
             ),
         )
+        # The first retry fixture stopped at source collection's real final
+        # relevance-filter stage.  Persist the actual diagnostic shape (and
+        # its query audit) through the production writer: a hand-made file
+        # would not prove the failed-run browser path reads the same artifact.
+        save_retrieval_diagnostics({
+            "version": 1,
+            "stage": "academic_relevance_filter",
+            "input_topic": FIXTURE_TOPIC,
+            "search_topic": FIXTURE_TOPIC,
+            "aliases": [],
+            "accepted_sources": 2,
+            "required_sources": 3,
+            "audit": [SearchAudit(
+                domain="academic",
+                query="[Relevance-Filter]",
+                result_count=0,
+                rejected_reasons=[
+                    "score=2 (min=3) — removed 'Fixture final-filter near-match'",
+                ],
+            ).model_dump(mode="json")],
+        }, failed_decision_ids[0], output_root)
+        # Mark the fixture through the API's marker writer so the outcome's
+        # quota statement follows a durable launch fact, not fixture prose.
+        api_runs._write_daily_charge(output_root / failed_decision_ids[0], date.today())
         cap_scores = json.loads((output_root / run_id / "commercialization_scores.json").read_text(encoding="utf-8"))
         cap_scores["market_cap_audit"] = capture_cap(5, cap_scores)
         save_scores(json.dumps(cap_scores), cap_run_id, output_root)
