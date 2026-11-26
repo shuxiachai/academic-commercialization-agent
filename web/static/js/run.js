@@ -416,6 +416,7 @@ const HEADER_STRINGS = {
     eta_sample_model: "Based on the last {runs} completed runs on {model}.",
     eta_sample_pool: "Based on {runs} recent completed runs across models. There were too few runs on this model alone.",
     deadline_stage: "Current step · {stage}",
+    deadline_last_stage: "Last confirmed step · {stage}",
     deadline_limit: "Run limit {limit} · up to {left} remaining (min:sec)",
     deadline_pending: "Run limit {limit} (min:sec) reached. Waiting for the server to confirm the outcome.",
     deadline_unknown: "Time limit for this run is unavailable.",
@@ -542,6 +543,7 @@ const HEADER_STRINGS = {
     eta_sample_model: "参考了最近 {runs} 次使用 {model} 完成的运行。",
     eta_sample_pool: "当前模型的样本不足，参考了跨模型的 {runs} 次近期已完成运行。",
     deadline_stage: "当前阶段 · {stage}",
+    deadline_last_stage: "上次确认的阶段 · {stage}",
     deadline_limit: "本次运行时限 {limit} · 最多还可运行 {left}（分:秒）",
     deadline_pending: "已达到本次运行时限 {limit}（分:秒），正在等待服务器确认结果。",
     deadline_unknown: "暂未取得本次运行的时限。",
@@ -720,14 +722,15 @@ export function etaTitle(eta, model = null) {
   return model ? say("eta_title_others", { runs, model }) : say("eta_title_any", { runs });
 }
 
-export function currentStep(stage) {
+export function currentStep(stage, { lastConfirmed = false } = {}) {
   const known = STAGES[stageIndex(stage)];
-  return known ? say("deadline_stage", { stage: t(known.key) }) : "";
+  return known ? say(lastConfirmed ? "deadline_last_stage" : "deadline_stage", { stage: t(known.key) }) : "";
 }
 
 // Only the server can anchor the countdown for this run. Between polls the
 // caller supplies monotonic seconds since that observation, never time spent
-// by a parent run or time inferred from a historical sample.
+// by a parent run or time inferred from a historical sample. A null offset
+// means the observation is stale: only the configured limit still applies.
 export function deadlineView(progress, sincePoll = 0) {
   const budget = progress.runtime_budget;
   const limit = budget?.hard_timeout_seconds;
@@ -735,7 +738,7 @@ export function deadlineView(progress, sincePoll = 0) {
   if (budget?.state !== "active" || !Number.isSafeInteger(limit) || limit <= 0) {
     return { line: headerLabel(budget?.state === "unbounded_cli" ? "deadline_unbounded" : "deadline_unknown"), note: "" };
   }
-  if (!Number.isSafeInteger(observed) || observed < 0 || observed > limit) {
+  if (sincePoll === null || !Number.isSafeInteger(observed) || observed < 0 || observed > limit) {
     return { line: say("deadline_cap_only", { limit: formatDuration(limit) }), note: "" };
   }
   const remaining = Math.max(0, observed - sincePoll);

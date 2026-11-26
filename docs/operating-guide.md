@@ -1022,7 +1022,9 @@ The owner's live progress header separately shows the current stage and this
 worker's configured time limit. The API reports the seconds left in the
 current launch's watchdog window, including for a resumed run. The page
 counts down between successful reads and waits for the server to confirm
-the outcome when the window reaches zero. In the last fifth of the window
+the outcome when the window reaches zero. If a progress read fails, the
+header keeps the known limit and labels the last confirmed stage. The countdown
+and historical estimate return after a successful read. In the last fifth of the window
 (up to five minutes), the page describes any recorded writer or reviewer
 checkpoint, saved sources, or recovery information available at that point.
 A readable checkpoint can supply a draft after a timeout.

@@ -1074,6 +1074,7 @@ async function openRun(runId, { known } = {}) {
   // A run first seen already finished is history, not news: announce only a
   // completion this page watched happen. (Errors are still always shown.)
   let watchedActive = false;
+  let lastProgress = null;
   follower = runView.follow(runId, {
     onConnection({ state, lastSuccessAt }) {
       // Connectivity is a fact about our read, not a new worker state. Stop
@@ -1083,13 +1084,18 @@ async function openRun(runId, { known } = {}) {
         ? t(lastSuccessAt === null ? "run_connection_unconfirmed" : "run_connection_stale") : "";
       if (state !== "connected") {
         stopClock();
-        // The last read no longer establishes how much time is still available.
-        timingLine("#run-deadline", "");
+        const last = state === "stale" && lastProgress?.state === "running" && !viewerMode && mayModify(lastProgress)
+          ? lastProgress : null;
+        timingLine("#run-current-step", last ? runView.currentStep(last.stage, { lastConfirmed: true }) : "");
+        timingLine("#run-deadline", last ? runView.deadlineView(last, null).line : "");
         timingLine("#run-deadline-note", "");
+        timingLine("#run-eta", "");
+        $("#run-eta").title = "";
       }
     },
     onUpdate(progress) {
       if (progress.state === "running") watchedActive = true;
+      lastProgress = progress;
       paintHeader(progress);
       paintActions(progress.state, progress.checkpointing, mayModify(progress), progress);
       runView.renderStages(body, runView.stageStates(
