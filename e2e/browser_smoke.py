@@ -657,6 +657,11 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
             }""")
 
         before = screen_state()
+        # The sample reader updates both responsive folds when its width
+        # media query changes. Chromium can deliver that event after the
+        # screen media switch returns from a PDF print.
+        folds = [page.locator(".samples__scorecard"), page.locator(".samples__toc")]
+        screen_open = [fold.evaluate("el => el.open") for fold in folds]
         # The citation card is a screen-only popover; printing must not put it
         # on the page. Check it on the first sample that has a citation chip.
         citation = page.locator("#sample-reader .cite[data-cite]").first
@@ -759,6 +764,8 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
                 "() => Object.keys(document.querySelector('details.reviewer-notes').dataset)"
             ) == [], (slug, "The print left a mark on the notes.")
         page.emulate_media(media="screen", color_scheme="dark")
+        for fold, was_open in zip(folds, screen_open, strict=True):
+            expect(fold).to_have_js_property("open", was_open)
         if citation_open:
             citation.click()
             expect(page.locator("body > .cite-card")).to_have_count(0)

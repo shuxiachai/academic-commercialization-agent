@@ -598,7 +598,7 @@ def _waiting_journey(browser, base: str) -> int:
         _wait_requests(page, posts, 1)
         assert "search_plan" not in posts[0].request.post_data_json
         _json(posts[0], {"run_id": run_id, "topic": progress["topic"], "state": "running"}, status=202)
-        expect(page.locator("#run-eta")).to_have_text("· about 4–12 min left")
+        expect(page.locator("#run-eta")).to_have_text("Historical estimate · about 4–12 min left")
         expect(page.locator("#run-eta")).to_have_attribute(
             "title", re.compile("last 12 completed runs on fixture-model here"))
 
