@@ -16,16 +16,25 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import UTC, date, datetime
+import time
+from contextlib import contextmanager
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from urllib.parse import urlsplit
 
 from playwright.sync_api import Page, Response, Route, expect, sync_playwright
 
+from academic_agent.checkpoints import CheckpointIdentity, CheckpointStore, hash_text
 from academic_agent.run_spec import DecisionContext, RunSpec
-from academic_agent.run_output import create_run_id, save_scores, save_source_collection
+from academic_agent.run_output import (
+    create_run_id,
+    save_retrieval_diagnostics,
+    save_scores,
+    save_source_collection,
+)
 from academic_agent.run_terminal import TerminalRecord, UsageAccounting, commit_terminal_record
+from academic_agent.source_pipeline import SearchAudit
 from api import samples
 from e2e.request_wait import wait_for_count
 from e2e.scroll_wait import COMES_TO_REST
@@ -54,6 +63,83 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 # The model of the production resume of 2026-11-20 (131247Z), which has no price on record.
 UNPRICED_MODEL = "qwen3.8-2.4t-a95b"
 HEADER_UNBROKEN_METADATA = "METADATA_UNBROKEN_TOKEN_" + "x" * 160
+
+
+class _SmokeLiveProcess:
+    """A live-process shape for the API projection, never a child process."""
+
+    def poll(self) -> None:
+        return None
+
+
+@contextmanager
+def _live_review_window(run_id: str):
+    from api import runs
+
+    # Register only while this page is being exercised. A slow preceding
+    # journey must not consume the fixture's time before the first read.
+    with runs._registry_lock:
+        runs._registry[run_id] = runs._Handle(
+            run_id, "Near-deadline review fixture", _SmokeLiveProcess(),
+            started=time.monotonic() - 650, started_at=datetime.now(UTC) - timedelta(seconds=650),
+            hard_timeout_seconds=780,
+        )
+    try:
+        yield
+    finally:
+        with runs._registry_lock:
+            runs._registry.pop(run_id, None)
+
+
+def _write_near_deadline_review_run(output_root: Path, owner: str) -> str:
+    """Write a live Review fixture with a real writer checkpoint, but no provider.
+
+    The in-memory handle installed by ``main`` is deliberately close to its
+    non-default watchdog.  That makes the API, rather than a fixture's wall
+    clock, supply the remaining-time observation.  A writer checkpoint is
+    committed through the production store: the material warning must not be
+    proven by merely placing the expected words in status.json.
+    """
+    run_id = create_run_id()
+    run_dir = output_root / run_id
+    run_dir.mkdir(parents=True)
+    (run_dir / ".owner").write_text(owner, encoding="utf-8")
+    started_at = datetime.now(UTC).replace(microsecond=0) - timedelta(seconds=700)
+    CheckpointStore(run_dir).commit(
+        CheckpointIdentity(
+            node_id="writer", input_sha256=hash_text("browser deadline input"),
+            evidence_sha256=hash_text("browser deadline evidence"),
+            config_sha256=hash_text("browser deadline config"), upstream_sha256={},
+            pipeline_revision="browser-smoke", as_of_date=date(2026, 11, 26), model=None,
+        ),
+        "# Saved browser smoke writer checkpoint\n\nNo provider produced this fixture.\n",
+        output_format="markdown",
+    )
+    stage_offsets = (
+        ("Source Collection & Validation", 0),
+        ("Phase 1 — Evidence Collection (Academic · Patent · Market)", 50),
+        ("Agent 4 — Report Writing", 190),
+        ("Agent 5 — Quality Review & Citation Check", 380),
+    )
+    (run_dir / "status.json").write_text(json.dumps({
+        "done": False, "stage": "Agent 5 — Quality Review & Citation Check",
+        "topic": "Near-deadline review fixture", "output_language": "English",
+        "checkpointing": {"state": "partial", "committed_nodes": ["writer"], "errors": []},
+        # This persisted policy does not contain a countdown.  The active
+        # handle below is its sole source, just as it is in production.
+        "runtime_budget": {
+            "state": "active", "hard_timeout_seconds": 780,
+            "hard_deadline_at": (started_at + timedelta(seconds=780)).isoformat(),
+            "request_timeout_seconds": 150, "writer_request_timeout_seconds": 300,
+            "stream_idle_timeout_seconds": 60, "reviewer_reserve_seconds": 240,
+            "finalization_reserve_seconds": 60,
+        },
+        "stage_timings": [
+            {"stage": stage, "started_at": (started_at + timedelta(seconds=offset)).isoformat()}
+            for stage, offset in stage_offsets
+        ],
+    }, indent=2), encoding="utf-8")
+    return run_id
 
 
 def _write_retrieval_failed_run(
@@ -571,6 +657,11 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
             }""")
 
         before = screen_state()
+        # The sample reader updates both responsive folds when its width
+        # media query changes. Chromium can deliver that event after the
+        # screen media switch returns from a PDF print.
+        folds = [page.locator("details.samples__scorecard"), page.locator(".samples__toc details")]
+        screen_open = [fold.evaluate("el => el.open") for fold in folds]
         # The citation card is a screen-only popover; printing must not put it
         # on the page. Check it on the first sample that has a citation chip.
         citation = page.locator("#sample-reader .cite[data-cite]").first
@@ -673,6 +764,8 @@ def _exercise_sample_print(page: Page, base_url: str) -> int:
                 "() => Object.keys(document.querySelector('details.reviewer-notes').dataset)"
             ) == [], (slug, "The print left a mark on the notes.")
         page.emulate_media(media="screen", color_scheme="dark")
+        for fold, was_open in zip(folds, screen_open, strict=True):
+            expect(fold).to_have_js_property("open", was_open)
         if citation_open:
             citation.click()
             expect(page.locator("body > .cite-card")).to_have_count(0)
@@ -1039,7 +1132,7 @@ def _exercise_browser(
     runtime_ids: tuple[str, str, str], cap_run_id: str, foreign_run_id: str,
     decision_run_id: str, resumed_pair: tuple[str, str],
     owned_pair: tuple[str, str], account_pair: tuple[str, str],
-    failed_decision_ids: tuple[str, str, str, str],
+    failed_decision_ids: tuple[str, str, str, str], near_deadline_id: str,
 ) -> dict[str, int]:
     external_requests: list[str] = []
     mutation_attempts: list[str] = []
@@ -1051,13 +1144,14 @@ def _exercise_browser(
     page: Page | None = None
     held_progress: list[Route] = []
     faults = {"hold_progress": False, "history_503": False}
+    deadline_api_payload: dict | None = None
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         context = browser.new_context(locale=SMOKE_LOCALE)
 
         def guard_route(route: Route) -> None:
-            nonlocal source_requests
+            nonlocal source_requests, deadline_api_payload
             request = route.request
             parsed = urlsplit(request.url)
             if parsed.hostname not in {"127.0.0.1", "localhost"}:
@@ -1075,6 +1169,22 @@ def _exercise_browser(
                 return
             if parsed.path == f"/api/runs/{run_id}/sources":
                 source_requests += 1
+            if parsed.path == f"/api/runs/{near_deadline_id}/progress":
+                # The active handle supplies the deadline data below.  This
+                # historical ETA is intercepted because constructing a full
+                # six-run record here would obscure the browser seam; api.eta
+                # has its own data-driven coverage.  In particular, this must
+                # not replace the current run's API-owned remaining seconds.
+                response = route.fetch()
+                deadline_api_payload = response.json()
+                body = dict(deadline_api_payload)
+                body["eta"] = {
+                    "remaining_seconds": 150, "low_seconds": 60, "high_seconds": 240,
+                    "basis_runs": 6, "basis": "stages", "model": None,
+                    "same_model": False, "overdue": True,
+                }
+                route.fulfill(response=response, json=body)
+                return
             if faults["hold_progress"] and parsed.path == f"/api/runs/{run_id}/progress":
                 held_progress.append(route)
                 return
@@ -1141,6 +1251,42 @@ def _exercise_browser(
             )
             expect(run_button).to_be_enabled()
 
+            # A live Review close to its non-default runtime limit has an
+            # actual API countdown and a saved Writer checkpoint.  The ETA
+            # payload is intentionally a separate historical observation: it
+            # cannot make the current Review's remaining time known.
+            with _live_review_window(near_deadline_id):
+                deadline_item = page.locator(f'button.runitem[data-run-id="{near_deadline_id}"]')
+                expect(deadline_item).to_be_visible()
+                deadline_item.click()
+                expect(page).to_have_url(f"{base_url}/run/{near_deadline_id}")
+                expect(page.locator("#run-current-step")).to_contain_text("Review")
+                expect(page.locator("#run-deadline")).to_have_text(
+                    re.compile(r"Run limit 13:00 · up to [0-2]:[0-5][0-9] remaining"),
+                )
+                expect(page.locator("#run-deadline-note")).to_contain_text(
+                    "If the run times out, the saved writer checkpoint may provide a draft.",
+                )
+                expect(page.locator("#run-eta")).to_contain_text(
+                    "The remaining time for the current step cannot yet be estimated.",
+                )
+                expect(page.locator("#run-eta")).to_contain_text(
+                    "subsequent steps (Scoring) took 1–4 min in total.",
+                )
+                assert deadline_api_payload is not None, "The live deadline header never read progress."
+                budget = deadline_api_payload.get("runtime_budget")
+                assert isinstance(budget, dict), deadline_api_payload
+                assert budget.get("hard_timeout_seconds") == 780, budget
+                remaining = budget.get("remaining_seconds")
+                assert isinstance(remaining, int) and 0 <= remaining <= 130, budget
+                page.locator("#ui-lang").select_option("Simplified Chinese")
+                expect(page.locator("#run-current-step")).to_contain_text("审查引用与论断")
+                expect(page.locator("#run-eta")).to_contain_text("后续步骤（评分）合计用时 1–4 分钟")
+                expect(page.locator("#run-deadline")).to_contain_text("本次运行时限 13:00")
+                for selector in ("#run-current-step", "#run-eta", "#run-deadline", "#run-deadline-note"):
+                    expect(page.locator(selector)).to_be_in_viewport(ratio=1)
+                page.locator("#ui-lang").select_option("English")
+
             # Delay the first state response, not the page or the real worker.
             # Before it arrives the old client invented running and offered a
             # Cancel action which could delete an already completed report.
@@ -1166,6 +1312,7 @@ def _exercise_browser(
                 "title",
                 "Reason: worker_completed\nTermination: worker_exit",
             )
+
             # With scores present the first visible tab is the scorecard.
             # Select the report explicitly rather than weakening its assertion.
             page.locator('button.tab[data-view="report"]').click()
@@ -1513,7 +1660,33 @@ def _exercise_browser(
             page.goto(f"{base_url}/run/{complete_failed}", wait_until="domcontentloaded")
             expect(page.locator("#run-pill")).to_have_text("failed")
             expect(page.locator("#run-again")).to_have_class("btn btn--primary")
+            # A failed final relevance filter says what it retained, where it
+            # stopped, and whether the launch counted before inviting an edit.
+            # The browser must not make the owner open a second tab to learn
+            # that the report writer never ran.
+            expect(page.locator("#run-outcome")).to_have_text(
+                "Academic sources fell short after final filtering (2 retained, minimum 3). "
+                "The assessment stopped before a report was written. This run counted toward "
+                "today's quota.")
+            expect(page.locator("#run-again")).to_have_text("Edit topic and retry")
             before_again = len(mutation_attempts)
+
+            # The persisted final-filter record is folded, not hidden behind
+            # the generic failure. Opening it is read-only and reveals the
+            # actual query/audit row that made the shortfall inspectable.
+            page.locator('button.tab[data-view="retrieval"]').click()
+            retrieval = page.locator('.panel[data-view="retrieval"]')
+            query_audit = retrieval.locator("details")
+            query_summary = query_audit.locator("summary")
+            expect(query_summary).to_have_text("Query audit")
+            expect(query_audit).not_to_have_attribute("open", "")
+            query_summary.click()
+            expect(query_audit).to_have_attribute("open", "")
+            expect(retrieval).to_contain_text("[Relevance-Filter]")
+            expect(retrieval).to_contain_text(
+                "score=2 (min=3) — removed 'Fixture final-filter near-match'")
+            assert len(mutation_attempts) == before_again, "Inspecting retrieval diagnostics must not dispatch paid work."
+
             page.locator("#run-again").click()
             expect(page.locator("#pane-compose")).to_be_visible()
             expect(page.locator("#topic")).to_have_value(FIXTURE_TOPIC)
@@ -1749,6 +1922,7 @@ def main() -> None:
         app, access = _configure_isolated_app(output_root)
         from api import runs as api_runs  # configured by the call above
         run_id = _write_completed_run(output_root, access.owner_id(ACCESS_CODE))
+        near_deadline_id = _write_near_deadline_review_run(output_root, access.owner_id(ACCESS_CODE))
         save_source_collection(
             json.dumps(_saved_source_fixture(), ensure_ascii=False), run_id, output_root,
         )
@@ -1801,6 +1975,30 @@ def main() -> None:
                 output_root, access.owner_id(ACCESS_CODE), context=None,
             ),
         )
+        # The first retry fixture stopped at source collection's real final
+        # relevance-filter stage.  Persist the actual diagnostic shape (and
+        # its query audit) through the production writer: a hand-made file
+        # would not prove the failed-run browser path reads the same artifact.
+        save_retrieval_diagnostics({
+            "version": 1,
+            "stage": "academic_relevance_filter",
+            "input_topic": FIXTURE_TOPIC,
+            "search_topic": FIXTURE_TOPIC,
+            "aliases": [],
+            "accepted_sources": 2,
+            "required_sources": 3,
+            "audit": [SearchAudit(
+                domain="academic",
+                query="[Relevance-Filter]",
+                result_count=0,
+                rejected_reasons=[
+                    "score=2 (min=3) — removed 'Fixture final-filter near-match'",
+                ],
+            ).model_dump(mode="json")],
+        }, failed_decision_ids[0], output_root)
+        # Mark the fixture through the API's marker writer so the outcome's
+        # quota statement follows a durable launch fact, not fixture prose.
+        api_runs._write_daily_charge(output_root / failed_decision_ids[0], date.today())
         cap_scores = json.loads((output_root / run_id / "commercialization_scores.json").read_text(encoding="utf-8"))
         cap_scores["market_cap_audit"] = capture_cap(5, cap_scores)
         save_scores(json.dumps(cap_scores), cap_run_id, output_root)
@@ -1867,7 +2065,7 @@ def main() -> None:
                     api_runs._write_daily_charge(output_root / runtime_id, date.today())
             terminal_path.write_text(json.dumps(record), encoding="utf-8")
         with _serve(app) as base_url:
-            audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id, damaged_audit_id), runtime_ids, cap_run_id, foreign_run_id, decision_run_id, resumed_pair, owned_pair, account_pair, failed_decision_ids)
+            audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id, damaged_audit_id), runtime_ids, cap_run_id, foreign_run_id, decision_run_id, resumed_pair, owned_pair, account_pair, failed_decision_ids, near_deadline_id)
 
     print(
         json.dumps(

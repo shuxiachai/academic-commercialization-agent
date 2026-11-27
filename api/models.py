@@ -491,6 +491,28 @@ _SAVED_DECISION_CONTEXT_DESCRIPTION = (
 )
 
 
+class RetrievalShortfall(BaseModel):
+    """Saved academic counts at the specific gate that stopped retrieval."""
+
+    stage: Literal["academic_validation", "academic_relevance_filter"]
+    accepted_sources: int = Field(strict=True, ge=0)
+    required_sources: int = Field(strict=True, gt=0)
+
+    @model_validator(mode="after")
+    def _is_shortfall(self) -> RetrievalShortfall:
+        if self.accepted_sources >= self.required_sources:
+            raise ValueError("Accepted sources must be below the required minimum")
+        return self
+
+
+_RETRIEVAL_SHORTFALL_DESCRIPTION = (
+    "Saved academic-source counts for an insufficient_evidence failure. "
+    "academic_validation is the earlier retrieval gate, before final relevance filtering; "
+    "academic_relevance_filter is after that filtering. Null when no usable shortage "
+    "diagnostics exist or the run has another outcome. Not a count of all published research."
+)
+
+
 class RunProgress(BaseModel):
     """Everything a client needs to render live progress in one request.
 
@@ -542,6 +564,9 @@ class RunProgress(BaseModel):
     )
     done: bool = False
     error: str | None = None
+    retrieval_shortfall: RetrievalShortfall | None = Field(
+        default=None, description=_RETRIEVAL_SHORTFALL_DESCRIPTION,
+    )
     error_code: str | None = Field(
         default=None,
         description="The recognised cause behind `error`, the same for every reader: timeout, "
@@ -617,9 +642,10 @@ class RunProgress(BaseModel):
     )
     runtime_budget: dict | None = Field(
         default=None,
-        description="Code-owned request timeout and finalization reserves "
-                    "applied by this worker. None means the run predates "
-                    "deadline persistence.",
+        description="Code-owned worker deadline policy and, for a tracked active run, "
+                    "remaining_seconds measured from its launch on the server's monotonic clock. "
+                    "A null countdown is unknown or inactive; zero means the watchdog window "
+                    "elapsed, not that termination has finished. None means no budget is known.",
     )
     terminal: dict | None = Field(
         default=None,
@@ -760,6 +786,9 @@ class RunStatus(BaseModel):
     )
     output_language: str = "English"
     error: str | None = None
+    retrieval_shortfall: RetrievalShortfall | None = Field(
+        default=None, description=_RETRIEVAL_SHORTFALL_DESCRIPTION,
+    )
     error_code: str | None = Field(
         default=None,
         description="The recognised cause behind `error`, the same for every reader: timeout, "
@@ -835,9 +864,10 @@ class RunStatus(BaseModel):
     )
     runtime_budget: dict | None = Field(
         default=None,
-        description="Code-owned request timeout and finalization reserves "
-                    "applied by this worker. None means the run predates "
-                    "deadline persistence.",
+        description="Code-owned worker deadline policy and, for a tracked active run, "
+                    "remaining_seconds measured from its launch on the server's monotonic clock. "
+                    "A null countdown is unknown or inactive; zero means the watchdog window "
+                    "elapsed, not that termination has finished. None means no budget is known.",
     )
     terminal: dict | None = Field(
         default=None,

@@ -1012,11 +1012,24 @@ only what its parent had not finished. Nor is a resumed run given an estimate
 while it is still in its first stage: until its worker has read the
 checkpoints, an estimate would be for a whole run. Only runs whose current stage lasted
 at least as long as this run's already has are asked about the rest of it;
-when none did, `overdue` is true and the range is what the later stages
-alone took, which the header shows as "slower at this step than the last N
-runs" instead of a countdown past zero. The history is read newest first up
+when none did, `overdue` is true. The header says the remaining time for the
+current stage cannot be estimated and names the later stages covered by the
+historical range. During review that range covers scoring alone. The history is read newest first up
 to thirty completed runs and cached for ten minutes; `eta` is `null` with
-fewer than three. `/health` carries `run_minutes`, the fastest and slowest
+fewer than three.
+
+The owner's live progress header separately shows the current stage and this
+worker's configured time limit. The API reports the seconds left in the
+current launch's watchdog window, including for a resumed run. The page
+counts down between successful reads and waits for the server to confirm
+the outcome when the window reaches zero. If a progress read fails, the
+header keeps the known limit and labels the last confirmed stage. The countdown
+and historical estimate return after a successful read. In the last fifth of the window
+(up to five minutes), the page describes any recorded writer or reviewer
+checkpoint, saved sources, or recovery information available at that point.
+A readable checkpoint can supply a draft after a timeout.
+
+`/health` carries `run_minutes`, the fastest and slowest
 whole run of the newest ten in minutes with their count, which is the
 sentence the landing and the sign-in card show about how long a run takes
 (nothing is shown with fewer than three). Before 2026-11-19 the estimate was
@@ -1675,8 +1688,11 @@ link". On a failed run, the form also restores the saved decision fields
 when the server confirms the caller may modify the run. It opens the decision
 context so the user can verify the assessment mode before submitting. An
 explicitly empty context shows an orientation brief. Incomplete or unavailable
-context names the fields to fill for decision support. Starting a new assessment
-still takes a separate submission. A running run offers "Copy link" too. Copying a
+context names the fields to fill for decision support. After an academic-source
+shortfall, the header shows the saved count and minimum when available. The
+owner can choose "Edit topic and retry" to open the form. Individual searches
+and rejections are under "Query audit" in the retrieval diagnostics. Starting
+a new assessment still takes a separate submission. A running run offers "Copy link" too. Copying a
 link is sharing a read capability, and the confirmation says that anyone who
 has it can read the run. Where a browser refuses the page's own write to the
 clipboard, as the one inside a chat app often does, the older selection copy

@@ -116,13 +116,28 @@ def test_a_range_from_other_models_runs_is_said_to_be_one(page):
 
 
 def test_a_run_slower_than_every_recent_one_is_told_so_not_counted_down(page):
-    later = eta(240, 280, overdue=True)
+    later = eta(60, 240, overdue=True)
     last = eta(0, 0, overdue=True)
-    assert page([EN, "etaSummary", [later]], [ZH, "etaSummary", [later]], [EN, "etaSummary", [last]],
-                [ZH, "etaSummary", [last]]) == [
-        "slower at this step than the last 6 runs; the steps after it took 4–5 min",
-        "这一步比最近 6 次运行都慢；之后的步骤它们用了 4–5 分钟",
-        "slower than the last 6 runs", "比最近 6 次运行都慢"]
+    english, chinese, final, total = page(
+        [EN, "etaSummary", [later, REVIEW]], [ZH, "etaSummary", [later, REVIEW]],
+        [ZH, "etaSummary", [last, SCORING]], [ZH, "etaSummary", [{**later, "basis": "total"}, REVIEW]])
+    assert "cannot yet be estimated" in english and "(Scoring) took 1–4 min" in english
+    assert "当前阶段剩余时间暂时无法估计" in chinese and "后续步骤（评分）合计用时 1–4 分钟" in chinese
+    assert final == total == "当前阶段剩余时间暂时无法估计。"
+
+
+def test_countdown_uses_this_runs_observed_budget_and_saved_checkpoints(page):
+    live = {"runtime_budget": {"state": "active", "hard_timeout_seconds": 900, "remaining_seconds": 130},
+            "checkpointing": {"committed_nodes": ["writer"]}, "artifacts": ["sources"]}
+    near, at_limit, unknown, cap_only = page(
+        [ZH, "deadlineView", [live, 5]], [ZH, "deadlineView", [live, 133]],
+        [ZH, "deadlineView", [{}]], [ZH, "deadlineView", [{"runtime_budget": {
+            "state": "active", "hard_timeout_seconds": 65}}]])
+    assert "15:00" in near["line"] and "2:05" in near["line"]
+    assert "报告草稿" in near["note"] and "来源" in near["note"]
+    assert "等待服务器确认结果" in at_limit["line"]
+    assert unknown == {"line": "暂未取得本次运行的时限。", "note": ""}
+    assert "1:05" in cap_only["line"] and "暂未取得" in cap_only["line"]
 
 
 def test_no_estimate_is_no_text(page):
@@ -143,13 +158,14 @@ def test_the_tooltip_says_whose_runs_and_how_many(page):
     assert unnamed.startswith("What the last 10 completed runs here took")
     assert page([ZH, "etaTitle", [eta(700, 1480), "qwen3.8-max"]])[0].startswith("本站最近 6 次用 qwen3.8-max 完成的运行")
     assert page([EN, "etaTitle", [None, "m"]])[0] == ""
+    assert "跨模型" in page([ZH, "etaTitle", [eta(60, 240, same_model=False, overdue=True), "new-model"]])[0]
     # A model's name is text: a "$&" in it is not a replacement pattern.
     assert "a$&b" in page([EN, "etaTitle", [eta(1, 2, model="a$&b"), "a$&b"]])[0]
 
 
 def test_the_header_gives_the_estimate_the_runs_own_model():
     assert "runView.etaTitle(eta, llm_model)" in APP_JS
-    assert re.search(r"paintHeader\(\{[^}]*\bllm_model, lineage, run_id, continued_by,", APP_JS, re.S)
+    assert re.search(r"function paintHeader\(progress\)\s*\{\s*const \{[^}]*\bllm_model, lineage, run_id, continued_by,", APP_JS)
 
 
 # ── A resumed run's stage list ──────────────────────────────────────────────
@@ -299,7 +315,7 @@ def test_a_run_that_was_resumed_later_says_so_with_the_way_there(page):
     assert "line.hidden = !known;" in body
     assert "open.onclick = known ? () => openRun(runId) : null;" in body
     assert "paintContinued(continued_by);" in APP_JS
-    assert re.search(r"paintHeader\(\{[^}]*\bllm_model, lineage, run_id, continued_by,", APP_JS, re.S)
+    assert "llm_model, lineage, run_id, continued_by," in APP_JS
 
 
 def test_the_page_hands_the_stage_list_the_runs_recovery_record():

@@ -1104,7 +1104,7 @@ const scenarios = {
 
     // Its owner: the header as it was, every word of it.
     paint({ ...resumed, viewer_can_modify: true });
-    assert.deepEqual(line(), [null, null, "3:57", "", "· 29 sources · 12 academic · 8 patent · 9 market"]);
+    assert.deepEqual(line(), [null, null, "3:57", null, "· 29 sources · 12 academic · 8 patent · 9 market"]);
     assert.deepEqual(folds(), [true, true, true, true]);
     assert.match(f.get("#run-usage-label").textContent, /see your provider's console for the exact amount$/);
     assert.match(f.get("#run-lineage").children.join(""), /In all: 29:28 \(3:57 here \+ 25:31 before\)/);
@@ -1112,7 +1112,7 @@ const scenarios = {
     // Anyone else: when, on what, how long in all; nothing about tokens, money, stages or resuming.
     for (const reader of [{ viewer_can_modify: false }, { viewer_can_modify: null }]) {
       paint({ ...resumed, ...reader });
-      assert.deepEqual(line(), ["Assessed 20 Nov 2026", `· Model: ${MODEL}`, "· took 29:28 in all", "", ""], JSON.stringify(reader));
+      assert.deepEqual(line(), ["Assessed 20 Nov 2026", `· Model: ${MODEL}`, "· took 29:28 in all", null, ""], JSON.stringify(reader));
       assert.deepEqual(folds(), [false, false, false, false], "No token count, no cost, no stage times, no resume paragraph");
       assert.equal(f.get("#run-assessed").title, "Dates are in UTC.");
       // Not hidden with the words still in them: a hidden fold is still in the page's text.
@@ -1129,7 +1129,7 @@ const scenarios = {
 
     // The owner again: nothing of the reader's header is left behind.
     paint({ ...resumed, viewer_can_modify: true });
-    assert.deepEqual(line(), [null, null, "3:57", "", "· 29 sources · 12 academic · 8 patent · 9 market"]);
+    assert.deepEqual(line(), [null, null, "3:57", null, "· 29 sources · 12 academic · 8 patent · 9 market"]);
 
     const reader = (body) => { paint({ ...resumed, viewer_can_modify: false, ...body }); return line().slice(0, 3); };
     // A run that is not a resume: its own time, said as what it took.
@@ -1148,7 +1148,10 @@ const scenarios = {
     // Still going: the time so far, and a run that did not finish says it ran.
     assert.deepEqual(reader({ state: "running", recovery: null, lineage: null, elapsed_seconds: 120,
       eta: { low_seconds: 300, high_seconds: 900, basis_runs: 5, same_model: true, model: MODEL } }).slice(2), ["· running for 2:00"]);
-    assert.equal(shown("#run-eta"), "", "How long recent runs took is for whoever is waiting on their own");
+    for (const id of ["#run-eta", "#run-deadline", "#run-current-step", "#run-deadline-note"]) {
+      assert.equal(shown(id), null, "Live timing details are for the person running this assessment");
+      assert.equal(f.get(id).textContent, "");
+    }
     assert.deepEqual(reader({ state: "running", elapsed_seconds: 120,
       lineage: { ...resumed.lineage, combined: { ...resumed.lineage.combined, elapsed_seconds: 1651 } } }).slice(2),
       ["· running for 27:31 in all"]);

@@ -301,23 +301,32 @@ function stopClock() {
   clock = null;
 }
 
-function startClock(fromSeconds, format = runView.formatDuration) {
+function startClock(fromSeconds, format = runView.formatDuration, onTick) {
   stopClock();
-  const anchor = Date.now();
+  const now = () => globalThis.performance?.now() ?? Date.now();
+  const anchor = now();
   const paint = () => {
-    const secs = fromSeconds + Math.floor((Date.now() - anchor) / 1000);
-    $("#run-elapsed").textContent = format(secs);
+    const sincePoll = Math.max(0, Math.floor((now() - anchor) / 1000));
+    $("#run-elapsed").textContent = format(fromSeconds + sincePoll);
+    onTick?.(sincePoll);
   };
   paint();
   clock = setInterval(paint, 1000);
 }
 
-function paintHeader({
-  topic, state, elapsed_seconds, source_counts, usage, usage_accounting, auxiliary_usage,
-  terminal, status_record_state, checkpointing, recovery, runtime_metadata_unreadable, steps_read_state,
-  stage_timings, eta, pipeline_revision, error, error_code, funded_by, daily_charge, daily_charge_reason,
-  llm_model, lineage, run_id, continued_by,
-}) {
+function timingLine(id, text) {
+  const line = $(id);
+  line.textContent = text;
+  line.hidden = !text;
+}
+
+function paintHeader(progress) {
+  const {
+    topic, state, elapsed_seconds, source_counts, usage, usage_accounting, auxiliary_usage,
+    terminal, status_record_state, checkpointing, recovery, runtime_metadata_unreadable, steps_read_state,
+    stage_timings, eta, pipeline_revision, error_code, funded_by, daily_charge,
+    llm_model, lineage, run_id, continued_by,
+  } = progress;
   if (topic) $("#run-title").textContent = topic;
 
   // Whoever may not change this run reads it: someone it was shared with.
@@ -327,8 +336,8 @@ function paintHeader({
   // reader is told when it was assessed, on which model, and how long it
   // took in all (run.js readerHeader); the owner's header is unchanged.
   // What the reads return is not changed either: only what is drawn.
-  const reader = viewerMode || !mayModify(arguments[0]);
-  const view = reader ? runView.readerHeader(arguments[0]) : null;
+  const reader = viewerMode || !mayModify(progress);
+  const view = reader ? runView.readerHeader(progress) : null;
 
   const pill = $("#run-pill");
   pill.className = `pill pill--${state}`;
@@ -347,16 +356,27 @@ function paintHeader({
   const elapsedText = view
     ? (seconds) => (view.seconds === null ? "" : `${lead}${runView.readerTime(view.timeKey, seconds)}`)
     : runView.formatDuration;
+  const live = state === "running" && !reader;
+  const paintDeadline = (sincePoll) => {
+    const { line, note } = runView.deadlineView(progress, sincePoll);
+    timingLine("#run-deadline", line);
+    timingLine("#run-deadline-note", note);
+  };
+  if (!live) {
+    timingLine("#run-deadline", "");
+    timingLine("#run-deadline-note", "");
+  }
   if (state === "running" && view?.seconds !== null) {
-    startClock(view ? view.seconds : elapsed_seconds ?? 0, elapsedText);
+    startClock(view ? view.seconds : elapsed_seconds ?? 0, elapsedText, live ? paintDeadline : null);
   } else {
     stopClock();
     $("#run-elapsed").textContent = elapsedText(view ? view.seconds : elapsed_seconds);
   }
 
   // What recent runs on this model took from this step on, for a run still going.
-  const etaText = state === "running" && !reader ? runView.etaSummary(eta) : "";
-  $("#run-eta").textContent = etaText ? `· ${etaText}` : "";
+  timingLine("#run-current-step", live ? runView.currentStep(progress.stage) : "");
+  const etaText = live ? runView.etaSummary(eta, progress.stage) : "";
+  timingLine("#run-eta", live ? `${runView.headerLabel("eta_heading")} · ${etaText || runView.headerLabel("eta_missing")}` : "");
   $("#run-eta").title = etaText ? runView.etaTitle(eta, llm_model) : "";
   paintNotifyButton(state);
 
@@ -425,8 +445,7 @@ function paintHeader({
   // rather than in a toast that is gone before the page is read again.
   const outcomeEl = $("#run-outcome");
   // Whether it spent a daily run is said to the owner whose run it was.
-  const outcome = runView.outcomeSummary({ state, error, error_code, funded_by, daily_charge: reader ? null : daily_charge,
-    daily_charge_reason, checkpointing });
+  const outcome = runView.outcomeSummary({ ...progress, daily_charge: reader ? null : daily_charge });
   outcomeEl.textContent = outcome;
   outcomeEl.hidden = !outcome;
   paintRunHelp({ state, error_code, funded_by, run_id });
@@ -436,7 +455,7 @@ function paintHeader({
 
   // A run takes minutes and does not need the page. Said to whoever started
   // it; an account that has not asked for the finish email is offered it.
-  const leaving = state === "running" && !viewerMode && mayModify(arguments[0]);
+  const leaving = state === "running" && !reader;
   $("#run-leave").hidden = !leaving;
   $("#run-leave-text").textContent = leaving ? runView.headerLabel("leave_note") : "";
   const offer = $("#run-leave-notify");
@@ -838,7 +857,8 @@ function paintActions(state, checkpointing = null, canModify = true, facts = nul
   again.id = "run-again";
   // On someone else's run it is named for what it does: a new assessment of
   // the reader's own, on this topic.
-  again.textContent = t(canModify ? "run_again" : "run_again_own");
+  const againLabel = retryFailed && facts?.error_code === "insufficient_evidence" ? "run_again_edit_topic" : "run_again";
+  again.textContent = t(canModify ? againLabel : "run_again_own");
   again.title = t(retryFailed ? "run_again_failed_title" : "run_again_title");
   again.addEventListener("click", () => {
     const previous = $("#run-title").textContent.trim();
@@ -1054,6 +1074,7 @@ async function openRun(runId, { known } = {}) {
   // A run first seen already finished is history, not news: announce only a
   // completion this page watched happen. (Errors are still always shown.)
   let watchedActive = false;
+  let lastProgress = null;
   follower = runView.follow(runId, {
     onConnection({ state, lastSuccessAt }) {
       // Connectivity is a fact about our read, not a new worker state. Stop
@@ -1061,10 +1082,20 @@ async function openRun(runId, { known } = {}) {
       // A run that is not there is said by the page in its place (showGone), not here.
       $("#run-connection").textContent = state === "stale"
         ? t(lastSuccessAt === null ? "run_connection_unconfirmed" : "run_connection_stale") : "";
-      if (state !== "connected") stopClock();
+      if (state !== "connected") {
+        stopClock();
+        const last = state === "stale" && lastProgress?.state === "running" && !viewerMode && mayModify(lastProgress)
+          ? lastProgress : null;
+        timingLine("#run-current-step", last ? runView.currentStep(last.stage, { lastConfirmed: true }) : "");
+        timingLine("#run-deadline", last ? runView.deadlineView(last, null).line : "");
+        timingLine("#run-deadline-note", "");
+        timingLine("#run-eta", "");
+        $("#run-eta").title = "";
+      }
     },
     onUpdate(progress) {
       if (progress.state === "running") watchedActive = true;
+      lastProgress = progress;
       paintHeader(progress);
       paintActions(progress.state, progress.checkpointing, mayModify(progress), progress);
       runView.renderStages(body, runView.stageStates(

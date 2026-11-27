@@ -511,6 +511,112 @@ class RunStateTests(_ApiTestCase):
 # Artifacts
 # ---------------------------------------------------------------------------
 
+class RetrievalShortfallTests(_ApiTestCase):
+    """Optional saved counts must reach both HTTP seams without changing run truth."""
+
+    def _short_run(self, diagnostics: object = None, *, status: dict | None = None) -> str:
+        rid = self._make_run(status=status or {
+            "done": True, "stage": "Error",
+            "error": "academic retrieval produced 1 validated sources; at least 3 are required.",
+        })
+        if diagnostics is not None:
+            (self.tmp / rid / "retrieval_diagnostics.json").write_text(
+                json.dumps(diagnostics), encoding="utf-8",
+            )
+        return rid
+
+    def _responses(self, rid: str):
+        for suffix in ("", "/progress"):
+            response = self.client.get(f"/api/runs/{rid}{suffix}")
+            self.assertEqual(response.status_code, 200, response.text)
+            yield response.json()
+
+    def test_saved_shortage_counts_reach_both_endpoints_without_raw_queries(self):
+        """A declared model field alone used to hide missing progress wiring."""
+        for stage in ("academic_validation", "academic_relevance_filter"):
+            for accepted in (0, 1, 2):
+                with self.subTest(stage=stage, accepted=accepted):
+                    expected = {"stage": stage, "accepted_sources": accepted, "required_sources": 3}
+                    rid = self._short_run({**expected, "search_topic": "private query", "audit": ["raw audit"]})
+                    directory = self.tmp / rid
+                    before = {p.name: p.read_bytes() for p in directory.iterdir()}
+                    for body in self._responses(rid):
+                        self.assertEqual(body["state"], "failed")
+                        self.assertEqual(body["error_code"], "insufficient_evidence")
+                        self.assertEqual(body["retrieval_shortfall"], expected)
+                        self.assertEqual(body["daily_charge"], "not_recorded")
+                        self.assertNotIn("private query", json.dumps(body))
+                        self.assertNotIn("raw audit", json.dumps(body))
+                    self.assertEqual({p.name: p.read_bytes() for p in directory.iterdir()}, before)
+
+    def test_invalid_or_nonacademic_diagnostics_never_become_counts(self):
+        """Booleans and coercible strings must not manufacture a 0/1 shortage."""
+        valid = {"stage": "academic_validation", "accepted_sources": 1, "required_sources": 3}
+        invalid = [
+            [], "not an object", {},
+            *({**valid, "stage": stage} for stage in (
+                "topic_planning", "academic_retrieval", "academic_minimum", "unknown", None, [],
+            )),
+            *({**valid, "accepted_sources": count} for count in (-1, True, False, "1", 1.0, None, 3, 4)),
+            *({**valid, "required_sources": count} for count in (-1, 0, True, False, "3", 3.0, None)),
+            {key: value for key, value in valid.items() if key != "accepted_sources"},
+            {key: value for key, value in valid.items() if key != "required_sources"},
+        ]
+        for diagnostics in invalid:
+            with self.subTest(diagnostics=diagnostics):
+                rid = self._short_run(diagnostics)
+                for body in self._responses(rid):
+                    self.assertEqual(body["state"], "failed")
+                    self.assertEqual(body["error_code"], "insufficient_evidence")
+                    self.assertIsNone(body["retrieval_shortfall"])
+
+    def test_missing_malformed_or_unreadable_diagnostics_leave_failure_readable(self):
+        """A lost optional diagnostic must not replace the known run outcome."""
+        rid = self._short_run()
+        for body in self._responses(rid):
+            self.assertIsNone(body["retrieval_shortfall"])
+        path = self.tmp / rid / "retrieval_diagnostics.json"
+        for content in (b"{", b"null", b"\xff", b"[" * 1500):
+            with self.subTest(content=content[:10]):
+                path.write_bytes(content)
+                for body in self._responses(rid):
+                    self.assertEqual(body["state"], "failed")
+                    self.assertIsNone(body["retrieval_shortfall"])
+        original_read = Path.read_text
+
+        def unreadable(candidate, *args, **kwargs):
+            if candidate == path:
+                raise OSError("unreadable optional diagnostic")
+            return original_read(candidate, *args, **kwargs)
+
+        with patch.object(Path, "read_text", unreadable):
+            for body in self._responses(rid):
+                self.assertEqual(body["state"], "failed")
+                self.assertIsNone(body["retrieval_shortfall"])
+
+    def test_unrelated_outcomes_and_history_do_not_read_diagnostics(self):
+        """Old history and other failures need no retrieval audit disk reads."""
+        valid = {"stage": "academic_validation", "accepted_sources": 1, "required_sources": 3}
+        original_read = Path.read_text
+
+        def forbid_diagnostic(candidate, *args, **kwargs):
+            if candidate.name == "retrieval_diagnostics.json":
+                raise AssertionError("Unrelated request read retrieval diagnostics")
+            return original_read(candidate, *args, **kwargs)
+
+        for status in ({"done": True}, {"done": True, "error": "authentication failed"}):
+            rid = self._short_run(valid, status=status)
+            with patch.object(Path, "read_text", forbid_diagnostic):
+                for body in self._responses(rid):
+                    self.assertIsNone(body["retrieval_shortfall"])
+        rid = self._short_run(valid)
+        with patch.object(Path, "read_text", forbid_diagnostic):
+            response = self.client.get("/api/runs")
+            self.assertEqual(response.status_code, 200)
+        listed = next(item for item in response.json()["runs"] if item["run_id"] == rid)
+        self.assertNotIn("retrieval_shortfall", listed)
+
+
 class ArtifactTests(_ApiTestCase):
 
     def test_report_returned_as_markdown(self):

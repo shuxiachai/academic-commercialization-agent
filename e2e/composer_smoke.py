@@ -544,8 +544,10 @@ def _waiting_journey(browser, base: str) -> int:
     posts, unexpected, errors = [], [], []
     quota = {"limit": 3, "used": 1, "remaining": 2, "resets_at": "2026-10-22T00:00:00+00:00"}
     run_id = "20261021T000000Z-eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    progress_available = True
     progress = {"run_id": run_id, "topic": "Sodium-ion batteries", "state": "running",
                 "stage": "Agent 4 — Report Writing", "steps": [], "artifacts": [], "elapsed_seconds": 420,
+                "runtime_budget": {"state": "active", "hard_timeout_seconds": 900, "remaining_seconds": 480},
                 # The range twelve runs of this model took from here on (api/eta.py).
                 "eta": {"remaining_seconds": 490, "low_seconds": 280, "high_seconds": 700, "basis_runs": 12,
                         "basis": "stages", "model": "fixture-model", "same_model": True, "overdue": False}}
@@ -572,7 +574,10 @@ def _waiting_journey(browser, base: str) -> int:
         elif url.path == "/api/runs":
             _json(route, {"runs": []})
         elif url.path == f"/api/runs/{run_id}/progress":
-            _json(route, progress)
+            if progress_available:
+                _json(route, progress)
+            else:
+                _json(route, {"detail": "Progress read interrupted"}, status=503)
         elif url.path == "/health":
             _json(route, {"active_runs": 0, "max_concurrent": 5})
         elif answer_landing_read(route):
@@ -598,9 +603,24 @@ def _waiting_journey(browser, base: str) -> int:
         _wait_requests(page, posts, 1)
         assert "search_plan" not in posts[0].request.post_data_json
         _json(posts[0], {"run_id": run_id, "topic": progress["topic"], "state": "running"}, status=202)
-        expect(page.locator("#run-eta")).to_have_text("· about 4–12 min left")
+        expect(page.locator("#run-eta")).to_have_text("Historical estimate · about 4–12 min left")
         expect(page.locator("#run-eta")).to_have_attribute(
             "title", re.compile("last 12 completed runs on fixture-model here"))
+
+        # Losing a progress read cannot change the known 15-minute launch limit.
+        # The estimate and remaining time need a fresh observation to resume.
+        progress_available = False
+        expect(page.locator("#run-connection")).to_contain_text("Connection interrupted")
+        expect(page.locator("#run-deadline")).to_have_text(
+            "Run limit 15:00 (min:sec). Remaining time until the limit is unavailable.")
+        expect(page.locator("#run-current-step")).to_have_text("Last confirmed step · Writing the report")
+        expect(page.locator("#run-eta")).to_be_hidden()
+        progress["runtime_budget"]["remaining_seconds"] = 120
+        progress["stage"] = "Agent 5 — Quality Review & Citation Check"
+        progress_available = True
+        expect(page.locator("#run-current-step")).to_have_text("Current step · Reviewing citations and claims")
+        expect(page.locator("#run-deadline")).to_contain_text(re.compile(r"up to (2:00|1:59) remaining"))
+        expect(page.locator("#run-eta")).to_be_visible()
 
         # Asked only from the button; once granted, the button goes away.
         notify = page.locator("#run-notify")

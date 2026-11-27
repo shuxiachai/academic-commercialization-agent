@@ -2422,12 +2422,12 @@ export function renderRetrievalDiagnostics(data) {
   const wrap = el("div", "sources");
   wrap.append(el("p", "grounding__lede", t("retrieval_lede")));
 
-  const accepted = Number(data.accepted_sources ?? 0);
-  const required = Number(data.required_sources ?? 0);
-  const count = t("retrieval_count")
-    .replace("{accepted}", String(accepted))
-    .replace("{required}", String(required));
-  wrap.append(el("p", "consistency__clear", count));
+  const { accepted_sources: accepted, required_sources: required } = data;
+  if (data.stage !== "topic_planning" && Number.isSafeInteger(accepted) && accepted >= 0
+      && Number.isSafeInteger(required) && required > 0) {
+    const count = t("retrieval_count").replace("{accepted}", accepted).replace("{required}", required);
+    wrap.append(el("p", "consistency__clear", count));
+  }
 
   const aliases = Array.isArray(data.aliases) && data.aliases.length
     ? data.aliases.join(" · ")
@@ -2446,7 +2446,7 @@ export function renderRetrievalDiagnostics(data) {
     );
     plan.append(row);
   }
-  wrap.append(plan, el("h3", "sources__title", t("retrieval_audit")));
+  wrap.append(plan);
 
   const audit = Array.isArray(data.audit) ? data.audit : [];
   if (!audit.length) {
@@ -2477,7 +2477,9 @@ export function renderRetrievalDiagnostics(data) {
     item.append(body);
     auditList.append(item);
   }
-  wrap.append(auditList);
+  const details = el("details", "check__details");
+  details.append(el("summary", null, t("retrieval_audit")), auditList);
+  wrap.append(details);
   return wrap;
 }
 
