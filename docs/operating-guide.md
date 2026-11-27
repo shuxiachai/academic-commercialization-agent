@@ -1148,7 +1148,10 @@ These are example policy values, not a cost/SLO guarantee.
   The three-a-day count lives in memory, so a restart resets it. A provider
   request the transport cut ("Request timed out.") is reported as
   `provider_unreachable`, not as the run's time limit, and a run that ran out
-  of attempts records the transport error that used them up.
+  of attempts records the transport error that used them up. A model call the
+  run's own time budget refused before sending it (less time left than the
+  window one attempt is planned for) is `run_time_limit` and stays charged;
+  until 2026-11-27 it read as `unknown`, "The analysis failed".
 - `PLAN_PREVIEW_DAILY_LIMIT` (default 20, 0 disables) caps `POST /api/plan`
   per code or account and UTC day. A preview is one planner call and does not
   use a paid operation. The browser shows the reading before a code-funded
@@ -1500,8 +1503,10 @@ quota or an unpaid balance is the account's to fix, and the sentence says
 where. A run under an access code is on the deployment's keys
 (`deployment`): the same causes are the operator's, and the sentence says
 that nothing in the request caused them. A run nobody owns keeps the wording
-written for whoever configured the deployment. The sentence is always one of
-a fixed list; provider text, keys and prompts never reach it, and the raw
+written for whoever configured the deployment. A cause that is the server's
+alone (an unreachable provider, the run's time limit, a watchdog timeout with
+a checkpoint) says to every reader that nothing in their topic or keys caused
+it, and leads to the resume. The sentence is always one of a fixed list; provider text, keys and prompts never reach it, and the raw
 reason stays in the run's `error.log`. The page shows the API's English
 sentence as sent and words the same code in Simplified Chinese;
 `tests/test_failure_reasons.py` keeps the two lists complete.
@@ -1512,7 +1517,7 @@ What the page offers next also depends on the cause. One table,
 key form (a refused key, an unpaid balance, a used-up free quota, a model the
 key cannot use, a model that ran out of room), resume from the checkpoint
 (an unreachable or rate-limited provider, an empty answer, a timeout with a
-checkpoint, a cancellation), or start the topic again (a timeout with nothing
+checkpoint, the run's time limit before a step could start, a cancellation), or start the topic again (a timeout with nothing
 saved, too little evidence). On the deployment's keys none of the provider
 causes has a main action, because the model and the key are the operator's.
 The other actions stay in the row; only which one is prominent changes.
@@ -1582,7 +1587,14 @@ stage taken whole from the earlier run reads "reused from the earlier run"
 in place of a time. The worker now records the stage of the first task that
 really runs: before 2026-11-19 a resume with only scoring left read "Phase 1"
 from its first second to its last, and its scoring time was filed under the
-evidence stage. In the history a resumed run keeps its row and the runs it
+evidence stage. Until the worker has said where it starts (`recovery`), both
+run reads carry `resume_expected`: the stages the parent saved, read from the
+snapshot the API copied at launch, kept only while they bear today's date and
+this deployment's revision, as the worker requires. The stage list marks those
+from its first picture; before 2026-11-27 it showed all five stages not
+started for about ten seconds and then four of them reused. The toast once a
+resume has started says what it does again ("only the scoring runs again"),
+in place of a line about fresh credentials nobody had entered. In the history a resumed run keeps its row and the runs it
 continues are folded under it (`resumed_from` on each entry of
 `GET /api/runs`).
 

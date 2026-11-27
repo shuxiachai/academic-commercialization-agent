@@ -3017,6 +3017,7 @@ def get_progress(
         elapsed_seconds=state.get("elapsed_seconds"),
         stage_timings=state.get("stage_timings", []),
         eta=state.get("eta"),
+        resume_expected=state.get("resume_expected"),
         llm_model=state.get("llm_model"),
         lineage=state.get("lineage"),
         source_counts=state.get("source_counts"),

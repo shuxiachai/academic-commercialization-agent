@@ -103,6 +103,7 @@ EXPECTED = {
     "insufficient_evidence": ("again", "again"),
     "timeout": ("again", "again"),
     "timeout_resumable": ("resume", "resume"),
+    "run_time_limit": ("resume", "resume"),
     "cancelled": ("resume", "resume"),
     "unknown": ("resume", "resume"),
 }

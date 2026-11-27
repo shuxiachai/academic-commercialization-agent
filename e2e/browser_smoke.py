@@ -17,10 +17,12 @@ from __future__ import annotations
 import json
 import re
 import time
+import uuid
 from contextlib import contextmanager
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 from urllib.parse import urlsplit
 
 from playwright.sync_api import Page, Response, Route, expect, sync_playwright
@@ -1956,6 +1958,202 @@ def _exercise_browser(
     }
 
 
+# The production run of 2026-11-27 (084855Z): a run on a thinking model that
+# finished its review at 25:27 and was stopped before its scorer by the run's
+# own time limit. Its topic was Chinese; the search topic is what the worker's
+# stage label carries.
+TIME_LIMIT_TOPIC = "Phase change thermal energy storage materials for cold chain insulated containers"
+_SAVED_BEFORE_SCORING = ("retrieval", "academic", "patent", "market", "writer", "reviewer")
+
+
+def _write_stopped_before_scoring(output_root: Path, owner: str) -> str:
+    """A run the time limit stopped before scoring, with six checkpoints a resume reuses.
+
+    The checkpoints are committed through the production store under today's
+    date and this process's pipeline revision, so the API's resume path and
+    its expectation of what a resume reuses accept them as a real run's. The
+    error is the worker's own record of the refusal, made by the code that
+    makes it, with the production numbers: 200.8 s left before the paid-work
+    edge, a 300 s window asked for.
+    """
+    from academic_agent import llm_config, pipeline_worker
+    from academic_agent.checkpoint_runtime import pipeline_revision, retrieval_identity
+
+    started = datetime.now(UTC).replace(microsecond=0) - timedelta(minutes=30)
+    run_id = f"{started.strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex}"
+    run_dir = output_root / run_id
+    run_dir.mkdir(parents=True)
+    (run_dir / ".owner").write_text(owner, encoding="utf-8")
+    spec = RunSpec(topic=TIME_LIMIT_TOPIC)
+    spec.save(run_dir)
+    revision = pipeline_revision()
+    today = datetime.now(UTC).date()
+    store = CheckpointStore(run_dir)
+    store.commit(retrieval_identity(spec, revision=revision, as_of_date=today),
+                 '{"topic": "browser smoke time-limit fixture"}', output_format="json")
+    for node in _SAVED_BEFORE_SCORING[1:]:
+        store.commit(CheckpointIdentity(
+            node_id=node, input_sha256=hash_text("time-limit input"), evidence_sha256=hash_text("time-limit evidence"),
+            config_sha256=hash_text("time-limit config"), upstream_sha256={}, pipeline_revision=revision,
+            as_of_date=today, model=None,
+        ), f"# Browser smoke {node} checkpoint\n\nNo provider produced this fixture.\n", output_format="markdown")
+    budget = llm_config._CallBudget(
+        deadline_monotonic=time.monotonic() + 200.8,
+        stage=f"Commercialization Readiness Scorer for {TIME_LIMIT_TOPIC}", request_timeout_seconds=300.0)
+    try:
+        budget.require_window()
+    except llm_config.RunDeadlineExceeded as exc:
+        error = pipeline_worker._error_text(exc)
+    else:
+        raise AssertionError("The run budget let a 300 s attempt start with 200.8 s left.")
+    checkpointing = {"state": "partial", "committed_nodes": list(_SAVED_BEFORE_SCORING), "errors": []}
+    stage_offsets = (
+        ("Source Collection & Validation", 0),
+        ("Phase 1 — Evidence Collection (Academic · Patent · Market)", 34),
+        ("Agent 4 — Report Writing", 343),
+        ("Agent 5 — Quality Review & Citation Check", 990),
+        ("Agent 6 — Commercialization Scoring", 1527),
+        ("Error", 1538),
+    )
+    (run_dir / "status.json").write_text(json.dumps({
+        "done": True, "stage": "Error", "topic": TIME_LIMIT_TOPIC, "output_language": "English",
+        "error": error, "checkpointing": checkpointing,
+        "stage_timings": [{"stage": stage, "started_at": (started + timedelta(seconds=offset)).isoformat()}
+                          for stage, offset in stage_offsets],
+    }, indent=2), encoding="utf-8")
+    ended = started + timedelta(seconds=1538)
+    commit_terminal_record(run_dir, TerminalRecord(
+        state="failed", reason_code="worker_exception", termination_method="worker_exit",
+        started_at=started, ended_at=ended, elapsed_seconds=1538, last_stage="Error", timeout_seconds=1800,
+        usage={"total_tokens": 0, "cost_usd": None, "cost_complete": False, "agents": []},
+        usage_accounting=UsageAccounting(state="lower_bound", snapshot_at=ended, through_stage="Error",
+                                         run_complete=False, in_flight_request_may_have_spent=True),
+        checkpointing=checkpointing,
+    ))
+    return run_id
+
+
+# Every list of stages the page draws in the run view, in order, with the
+# path it was drawn under: the first one a resume draws is what is checked.
+_RECORD_STAGE_RENDERS = """
+window.__stageRenders = [];
+new MutationObserver((mutations) => {
+  for (const mutation of mutations) {
+    for (const node of mutation.addedNodes) {
+      if (node.nodeType !== 1 || !node.classList.contains("stages") || !node.closest("#run-body")) continue;
+      window.__stageRenders.push({
+        path: location.pathname,
+        states: [...node.querySelectorAll(".stage")].map((row) => row.dataset.state),
+      });
+    }
+  }
+}).observe(document, { childList: true, subtree: true });
+"""
+
+
+def _exercise_resume_before_scoring(browser, base_url: str, parent_id: str, owner: str) -> dict[str, int]:
+    """The failed page of a run stopped before scoring, its resume, and the resume's first picture.
+
+    Until 2026-11-27 the page said only that the analysis failed, the toast
+    after "Resume from checkpoint" spoke of fresh credentials nobody had
+    entered, and the resume showed five stages not started for its first
+    ten seconds or so. In Chinese, as the production reader read it.
+
+    The resume POST is answered here and never reaches the server's paid
+    endpoint. It is launched by the API's own resume_run, so the child's
+    snapshot is the real copy, with the process start replaced by a live
+    shape that runs nothing: no worker, no provider.
+    """
+    from api import runs as api_runs
+
+    launched: list[str] = []
+    refused: list[str] = []
+    errors: list[str] = []
+    context = browser.new_context(locale=SMOKE_LOCALE)
+    context.add_init_script(_RECORD_STAGE_RENDERS)
+
+    def no_worker(cmd, **_kwargs):
+        assert "academic_agent.pipeline_worker" in cmd, cmd
+        return _SmokeLiveProcess()
+
+    def guard(route: Route) -> None:
+        request = route.request
+        parsed = urlsplit(request.url)
+        if parsed.hostname not in {"127.0.0.1", "localhost"}:
+            refused.append(f"{request.method} {request.url}")
+            route.abort("blockedbyclient")
+            return
+        if request.method == "POST" and parsed.path == f"/api/runs/{parent_id}/resume" and not launched:
+            with patch.object(api_runs.subprocess, "Popen", side_effect=no_worker):
+                child_id, child_dir = api_runs.resume_run(parent_id, owner=owner)
+            launched.append(child_id)
+            route.fulfill(status=202, json={
+                "run_id": child_id, "state": "running", "topic": RunSpec.load(child_dir).topic,
+                "assessment_mode": "topic", "resumed_from": parent_id,
+            })
+            return
+        if request.method not in {"GET", "HEAD", "OPTIONS"}:
+            refused.append(f"{request.method} {parsed.path}")
+            route.abort("blockedbyclient")
+            return
+        route.continue_()
+
+    context.route("**/*", guard)
+    page = context.new_page()
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    try:
+        # Signed in from the workbench, as the main journey does: a run's link
+        # opened first is a reader's page, with no gate on it.
+        page.goto(base_url, wait_until="domcontentloaded")
+        page.locator("#gate-input").fill(ACCESS_CODE)
+        page.locator("#gate-submit").click()
+        expect(page.locator("#gate")).to_be_hidden()
+        page.goto(f"{base_url}/run/{parent_id}", wait_until="domcontentloaded")
+        page.locator("#ui-lang").select_option("Simplified Chinese")
+        expect(page.locator("#run-pill")).to_have_text("失败")
+        # The cause by name, and that it was not the reader's topic or key;
+        # nobody needs the run ID sent to them.
+        outcome = page.locator("#run-outcome")
+        expect(outcome).to_contain_text("本次运行在下一步开始前到了运行时限")
+        expect(outcome).to_contain_text("这不是你的题目或 Key 的问题。")
+        expect(outcome).to_contain_text("从检查点续跑只做剩下的部分")
+        expect(outcome).not_to_contain_text("分析失败")
+        expect(page.locator("#run-help")).to_be_hidden()
+        resume = page.locator(f'[data-resume-run="{parent_id}"]')
+        expect(resume).to_have_class(re.compile(r"\bbtn--primary\b"))
+        expect(page.locator("#run-resume-note")).to_contain_text("从评分重新开始")
+
+        resume.click()
+        expect(page).not_to_have_url(f"{base_url}/run/{parent_id}")
+        assert len(launched) == 1, launched
+        child_id = launched[0]
+        expect(page).to_have_url(f"{base_url}/run/{child_id}")
+        toasts = page.locator("#toasts")
+        expect(toasts).to_contain_text("已从检查点续跑，只重做评分。")
+        expect(toasts).not_to_contain_text("凭据")
+        page.wait_for_function(
+            "(path) => window.__stageRenders.some((render) => render.path === path)", arg=f"/run/{child_id}")
+        renders = page.evaluate("() => window.__stageRenders")
+        first = next(render["states"] for render in renders if render["path"] == f"/run/{child_id}")
+        assert first == ["reused"] * 4 + ["pending"], f"The resume's first picture of its stages: {first}"
+        expect(page.locator('#run-body .stage[data-state="reused"]')).to_have_count(4)
+        assert not refused, "Requests outside the journey: " + "; ".join(refused)
+        assert not errors, "Uncaught page errors in the resume journey: " + "; ".join(errors)
+    except Exception:  # noqa: BLE001 - keep the picture of whatever the reader was shown
+        capture_failure(page, {"refused": refused, "page_errors": errors, "launched": launched})
+        raise
+    finally:
+        context.close()
+        with api_runs._registry_lock:
+            handles = [api_runs._registry.pop(child, None) for child in launched]
+        for handle in handles:
+            # The launch opened the child's process.log for a worker that
+            # never existed; the temporary root cannot be removed around it.
+            if handle is not None and handle.log_file is not None:
+                handle.log_file.close()
+    return {"time_limit_resumes": len(launched)}
+
+
 def main() -> None:
     with TemporaryDirectory(prefix=".browser-smoke-", dir=PROJECT_ROOT) as temp_dir:
         output_root = Path(temp_dir) / "outputs"
@@ -2119,6 +2317,15 @@ def main() -> None:
             terminal_path.write_text(json.dumps(record), encoding="utf-8")
         with _serve(app) as base_url:
             audit = _exercise_browser(base_url, run_id, (damaged_status_id, damaged_terminal_id, damaged_audit_id), runtime_ids, cap_run_id, foreign_run_id, decision_run_id, resumed_pair, owned_pair, account_pair, failed_decision_ids, near_deadline_id)
+            # Written only now: the journeys above count the code holder's runs.
+            time_limit_id = _write_stopped_before_scoring(output_root, access.owner_id(ACCESS_CODE))
+            with sync_playwright() as playwright:
+                browser = playwright.chromium.launch(headless=True)
+                try:
+                    audit.update(_exercise_resume_before_scoring(
+                        browser, base_url, time_limit_id, access.owner_id(ACCESS_CODE)))
+                finally:
+                    browser.close()
 
     print(
         json.dumps(

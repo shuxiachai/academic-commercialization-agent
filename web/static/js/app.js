@@ -823,6 +823,9 @@ function paintActions(state, checkpointing = null, canModify = true, facts = nul
     resume.disabled = pendingResumes.has(sourceRunId) || paidReceipts.state().uncertain;
     resume.addEventListener("click", async () => {
       if (pendingResumes.has(sourceRunId)) return;
+      // What this run had saved when the reader asked: the toast says what the
+      // resume does again from it, as the note beside this button did.
+      const saved = checkpointing?.committed_nodes;
       pendingResumes.add(sourceRunId);
       resume.disabled = true;
       try {
@@ -830,7 +833,7 @@ function paintActions(state, checkpointing = null, canModify = true, facts = nul
           requirePaidIdentity(accepted, "run_id");
           rememberAcceptedRun(accepted);
           await openRun(accepted.run_id, { known: accepted });
-          toast(t("msg_resumed"), "success");
+          toast(runView.resumedToast(saved), "success");
         }, "resume");
       } catch (err) {
         toast(operationErrorMessage(err), "error");
@@ -1122,13 +1125,13 @@ async function openRun(runId, { known } = {}) {
       paintHeader(progress);
       paintActions(progress.state, progress.checkpointing, mayModify(progress), progress);
       runView.renderStages(body, runView.stageStates(
-        progress.stage, progress.state, progress.stage_timings, progress.recovery));
+        progress.stage, progress.state, progress.stage_timings, progress.recovery, progress.resume_expected));
     },
     onDone(progress) {
       paintHeader(progress);
       paintActions(progress.state, progress.checkpointing, mayModify(progress), progress);
       runView.renderStages(body, runView.stageStates(
-        progress.stage, progress.state, progress.stage_timings, progress.recovery));
+        progress.stage, progress.state, progress.stage_timings, progress.recovery, progress.resume_expected));
       refreshSidebar();
 
       if (progress.state === "completed") {

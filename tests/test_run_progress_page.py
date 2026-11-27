@@ -319,7 +319,10 @@ def test_a_run_that_was_resumed_later_says_so_with_the_way_there(page):
 
 
 def test_the_page_hands_the_stage_list_the_runs_recovery_record():
-    assert APP_JS.count("progress.stage, progress.state, progress.stage_timings, progress.recovery));") == 2
+    # And, since 2026-11-27, what the API expects a resume to reuse before its
+    # worker has said (tests/test_scoring_time_limit.py).
+    assert APP_JS.count(
+        "progress.stage, progress.state, progress.stage_timings, progress.recovery, progress.resume_expected));") == 2
 
 
 # ── A resumed run's line under its header ───────────────────────────────────

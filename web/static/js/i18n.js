@@ -628,7 +628,6 @@ const STRINGS = {
     // Messages
     msg_complete: "Analysis complete.",
     msg_cancelled: "Run cancelled.",
-    msg_resumed: "Recovery run started with fresh credentials.",
     msg_busy: "Paid-operation capacity is busy. Try again after another operation finishes.",
     msg_daily_quota: "The daily paid-operation quota is exhausted. It resets at 00:00 UTC; waiting for a running task to finish will not reset it.",
     msg_account_busy: "Your account already has an assessment in progress. Wait for it to finish, or cancel it, then start this one.",
@@ -1488,7 +1487,6 @@ const STRINGS = {
 
     msg_complete: "分析完成。",
     msg_cancelled: "运行已取消。",
-    msg_resumed: "已使用新凭据启动恢复运行。",
     msg_busy: "付费操作并发已满，请等待其他操作结束后再试。",
     msg_daily_quota: "每日付费操作额度已用完，将于 UTC 00:00 重置；等待当前任务结束不会恢复今日额度。",
     msg_account_busy: "你的账号已有一次评估在进行。等它结束，或先取消它，再开始这一次。",

@@ -88,8 +88,16 @@ function stageSeconds(timings, recovery = null) {
  * "Done" is reported as its own stage rather than as the last one, so a
  * completed run marks every stage done instead of leaving the final one
  * looking stuck.
+ *
+ * `expected` is the API's `resume_expected`: for a resumed run whose worker
+ * has not yet said where it starts, the stages it is expected to take from
+ * the run it continues. The API stops sending it once the worker has said,
+ * and the worker's own `recovery` is then read alone. Until 2026-11-27 a
+ * resume's page showed all five stages as not started for its first ten
+ * seconds or so, then marked four of them reused, which read as a run
+ * starting over and then changing its mind.
  */
-export function stageStates(stage, state, timings = [], recovery = null) {
+export function stageStates(stage, state, timings = [], recovery = null, expected = null) {
   // The mutable stage can still say Done when a stronger outcome is damaged
   // or the process failed during finalization. Only verified completion may
   // paint every stage green; unknown cannot certify even a partial prefix.
@@ -97,10 +105,21 @@ export function stageStates(stage, state, timings = [], recovery = null) {
   const failed = state === "failed" || state === "timeout";
   const current = stageIndex(stage);
   const seconds = stageSeconds(timings, recovery);
-  const reused = reusedStages(recovery);
+  const running = state === "running";
+  // While the API still sends an expectation, the worker has not said where
+  // it starts: its own record then names at most the retrieval it has
+  // checked (written while its stage is still the first one), and taken
+  // alone would draw three reused stages as not started for that second.
+  const expecting = running && Array.isArray(expected?.reused_nodes) ? expected.reused_nodes : null;
+  const checked = recovery?.state === "reused" && Array.isArray(recovery.reused_nodes) ? recovery.reused_nodes : [];
+  const reused = reusedStages(expecting ? { state: "reused", reused_nodes: [...expecting, ...checked] } : recovery);
 
   const stateOf = (i) => {
     if (state === "unknown") return "pending";
+    // A stage a running resume takes from the earlier run is that run's
+    // wherever the worker's stage line is: it is not run here, so it is
+    // neither this run's current step nor one still to come.
+    if (running && reused.has(STAGES[i].id)) return "reused";
     // A finished stage this run did not run itself is said to be the earlier
     // run's: "done" with a time beside it would claim work that was not done
     // here. Only a finished row: the stage a run is in, or stopped in, is its own.
@@ -514,6 +533,10 @@ const HEADER_STRINGS = {
     resume_step_writing: "writing the report",
     resume_step_review: "the review",
     resume_step_scoring: "the scoring",
+    // The toast once a resume has started (resumedToast).
+    resumed_toast: "Resumed from the checkpoint: it starts again at {step}.",
+    resumed_toast_last: "Resumed from the checkpoint: only {step} runs again.",
+    resumed_toast_plain: "Resumed from the checkpoint.",
     // The main action when the cause is the reader's model or key.
     fix_model: "Change the model",
     fix_keys: "Check your API keys",
@@ -639,6 +662,9 @@ const HEADER_STRINGS = {
     resume_step_writing: "撰写报告",
     resume_step_review: "核查",
     resume_step_scoring: "评分",
+    resumed_toast: "已从检查点续跑，从{step}重新开始。",
+    resumed_toast_last: "已从检查点续跑，只重做{step}。",
+    resumed_toast_plain: "已从检查点续跑。",
     fix_model: "更换模型",
     fix_keys: "检查 API Key",
     leave_note: "可以关掉这个页面，完成后在左侧历史里找到它。",
@@ -1181,7 +1207,7 @@ const FAILURE_STRINGS = {
     "provider_output_limit:deployment": "本站所用的模型没写完回答就到了输出上限。这不是你的请求造成的；运营者可以凭运行 ID 查到原因。",
     "provider_output_limit:own_keys": "你填写的模型没写完回答就到了输出上限。请在“API Key”里换一个输出上限更大的模型，然后重新开始。",
     timeout: "分析超出了时间限制。请缩小主题范围后重试。",
-    timeout_resumable: "分析超出了时间限制。可以从最近一个已校验的检查点续跑，或重新开始一次运行。",
+    timeout_resumable: "分析超出了时间限制。这不是你的题目或 Key 的问题。可以从最近一个已校验的检查点续跑，或重新开始一次运行。",
     provider_auth: "上游服务商拒绝了身份验证。请检查已配置的凭据。",
     "provider_auth:deployment": "本站的模型服务商拒绝了本站的凭据。这不是你的请求造成的；运营者可以凭运行 ID 查到原因。",
     "provider_auth:own_keys": "有一个服务商拒绝了你的密钥。请在“API Key”里检查模型密钥和检索密钥，然后重新开始。",
@@ -1206,7 +1232,8 @@ const FAILURE_STRINGS = {
     "provider_response_format:own_keys": "你填写的模型的回答没有按要求的格式返回（需要结构化的 JSON），无法读取。如果再次出现，请在“API Key”里换一个模型。",
     quality_checks: "模型的回答没有按要求的格式返回，因此没有通过分析的检查。",
     "quality_checks:own_keys": "你填写的模型的回答没有按要求的格式返回，因此没有通过分析的检查。如果再次出现，请在“API Key”里换一个模型。",
-    provider_unreachable: "无法连接上游服务。请稍后重试。",
+    provider_unreachable: "无法连接上游服务。这不是你的题目或 Key 的问题。请稍后重试。",
+    run_time_limit: "本次运行在下一步开始前到了运行时限，所以下一步没有开始。这不是你的题目或 Key 的问题。已完成的步骤都已保存，从检查点续跑只做剩下的部分。",
     unknown: "分析失败。请重试，或把运行 ID 发给运营者。",
   },
 };
@@ -1291,6 +1318,10 @@ export const FAILURE_NEXT = {
   insufficient_evidence: ["again", "again"],
   timeout: ["again", "again"],
   timeout_resumable: ["resume", "resume"],
+  // The run's own time limit came before a step could start; the steps it
+  // finished are saved, so a resume does the rest (2026-11-27: resumed
+  // unchanged, the scoring finished in 3:38).
+  run_time_limit: ["resume", "resume"],
   cancelled: ["resume", "resume"],
   unknown: ["resume", "resume"],
 };
@@ -1375,6 +1406,19 @@ export const RESUME_STEPS = [
 export function resumeStep(committed) {
   const saved = Array.isArray(committed) ? committed : [];
   return RESUME_STEPS.find((step) => !step.nodes.every((node) => saved.includes(node))) ?? RESUME_STEPS.at(-1);
+}
+
+/**
+ * The toast once a resume has started: what it does again, from the earlier
+ * run's saved checkpoints (the same ones the note beside the button read).
+ * Until 2026-11-27 it said a recovery run had started "with fresh
+ * credentials", when nobody had changed any.
+ */
+export function resumedToast(committed) {
+  if (!Array.isArray(committed) || !committed.includes("retrieval")) return headerLabel("resumed_toast_plain");
+  const next = resumeStep(committed);
+  if (next === RESUME_STEPS.at(-1)) return headerLabel("resumed_toast_last").replace("{step}", () => headerLabel(next.label));
+  return headerLabel("resumed_toast").replace("{step}", () => headerLabel(next.label));
 }
 
 /**

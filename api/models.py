@@ -421,6 +421,22 @@ class RunEta(BaseModel):
                     "range is then what the later stages alone took.")
 
 
+class ResumeExpectation(BaseModel):
+    """What a resumed run is expected to reuse, before its worker has said."""
+
+    reused_nodes: list[str] = Field(
+        description="Checkpoint nodes of the parent, in order from retrieval, that the snapshot taken at "
+                    "launch holds intact for this revision and day.")
+
+
+_RESUME_EXPECTED_DESCRIPTION = (
+    "For a resumed run whose worker has not yet said where it starts: the parent's checkpoints it is "
+    "expected to reuse. An expectation, not a validation: `recovery` is the worker's word and replaces "
+    "it once the run's stage is the one it really starts in (before that, `recovery` names at most the "
+    "retrieval the worker has checked). Null otherwise."
+)
+
+
 class EarlierRun(BaseModel):
     """A run this one was resumed from, with what its own record says it took."""
 
@@ -594,7 +610,7 @@ class RunProgress(BaseModel):
                     "provider_auth, provider_free_quota, provider_billing, provider_model_unavailable, "
                     "provider_request_rejected, provider_rate_limited, topic_not_translated, insufficient_evidence, "
                     "provider_response_format, quality_checks, provider_unreachable, "
-                    "provider_output_limit, provider_empty_answer or unknown; "
+                    "provider_output_limit, provider_empty_answer, run_time_limit or unknown; "
                     "cancelled and timeout_resumable for those two outcomes. None when there is "
                     "nothing to explain. `error` stays the sentence to show.",
     )
@@ -627,6 +643,9 @@ class RunProgress(BaseModel):
         default=None,
         description="For a running run, the range recent completed runs took from this "
                     "point to their end; None without at least three of them.",
+    )
+    resume_expected: ResumeExpectation | None = Field(
+        default=None, description=_RESUME_EXPECTED_DESCRIPTION,
     )
     llm_model: str | None = Field(
         default=None,
@@ -816,7 +835,7 @@ class RunStatus(BaseModel):
                     "provider_auth, provider_free_quota, provider_billing, provider_model_unavailable, "
                     "provider_request_rejected, provider_rate_limited, topic_not_translated, insufficient_evidence, "
                     "provider_response_format, quality_checks, provider_unreachable, "
-                    "provider_output_limit, provider_empty_answer or unknown; "
+                    "provider_output_limit, provider_empty_answer, run_time_limit or unknown; "
                     "cancelled and timeout_resumable for those two outcomes. None when there is "
                     "nothing to explain. `error` stays the sentence to show.",
     )
@@ -849,6 +868,9 @@ class RunStatus(BaseModel):
         default=None,
         description="For a running run, the range recent completed runs took from this "
                     "point to their end; None without at least three of them.",
+    )
+    resume_expected: ResumeExpectation | None = Field(
+        default=None, description=_RESUME_EXPECTED_DESCRIPTION,
     )
     llm_model: str | None = Field(
         default=None,
