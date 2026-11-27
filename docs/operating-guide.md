@@ -1689,10 +1689,20 @@ when the server confirms the caller may modify the run. It opens the decision
 context so the user can verify the assessment mode before submitting. An
 explicitly empty context shows an orientation brief. Incomplete or unavailable
 context names the fields to fill for decision support. After an academic-source
-shortfall, the header shows the saved count and minimum when available. The
-owner can choose "Edit topic and retry" to open the form. Individual searches
-and rejections are under "Query audit" in the retrieval diagnostics. Starting
-a new assessment still takes a separate submission. A running run offers "Copy link" too. Copying a
+shortfall, the header shows the saved count and minimum when available, and
+why: how many papers final filtering removed and whether they lacked the
+setting the topic names, or, at the earlier validation gate, how many papers
+with on-topic titles had no usable abstract. The API counts these from the
+saved query audit when the run is read (`retrieval_shortfall`), so older runs
+get them too; a row or note it cannot read leaves all four counts null. The
+owner gets two buttons: "Retry with the same topic" (the main one) and "Edit
+the topic". Both fill the form with the topic and decision context; the retry
+also asks for the free topic reading where the deployment offers one. The
+retrieval diagnostics tab shows the papers the queries passed, those final
+filtering removed with each reason, and those kept; individual searches and
+rejections are under "Query audit". A run with no report shows no
+"Scope of this assessment" box and no note about a missing sources file.
+Starting a new assessment still takes a separate submission. A running run offers "Copy link" too. Copying a
 link is sharing a read capability, and the confirmation says that anyone who
 has it can read the run. Where a browser refuses the page's own write to the
 clipboard, as the one inside a chat app often does, the older selection copy

@@ -75,6 +75,47 @@ class SemanticScholarGetAbstractTests(unittest.TestCase):
         self.assertEqual(self._client().get_abstract_by_doi("10.1234/x"), "")
 
 
+class SemanticScholarAbstractLookupTests(unittest.TestCase):
+    """An answer without an abstract and no answer at all are different facts.
+
+    Measured 2026-11-27 on the passive-radiative-cooling topic: Semantic
+    Scholar answered HTTP 200 with "abstract": null for the Elsevier works
+    OpenAlex also lists without one, and HTTP 429 for others. Both came back
+    as "", so the audit said "0 chars" for a paper it never learned about.
+    """
+
+    def _client(self):
+        return SemanticScholarClient(timeout=5, retries=0)
+
+    @patch("academic_agent.source_clients.urlopen")
+    def test_an_answer_is_the_abstract_or_empty_with_no_failure(self, mock_urlopen):
+        for payload, expected in (({"abstract": "Cell therapy advances."}, "Cell therapy advances."),
+                                  ({"abstract": None}, ""), ({}, "")):
+            with self.subTest(payload=payload):
+                mock_urlopen.return_value = _FakeResponse(payload)
+                self.assertEqual(self._client().lookup_abstract("10.1/x"), (expected, None))
+
+    @patch("academic_agent.source_clients.urlopen")
+    def test_no_answer_says_why(self, mock_urlopen):
+        for error, expected in (
+            (HTTPError("u", 429, "Too Many Requests", {}, None), "HTTP 429"),
+            (HTTPError("u", 500, "Server Error", {}, None), "HTTP 500"),
+            (URLError("timeout"), "network error"),
+            (TimeoutError(), "network error"),
+        ):
+            with self.subTest(error=error):
+                mock_urlopen.side_effect = error
+                self.assertEqual(self._client().lookup_abstract("10.1/x"), ("", expected))
+        mock_urlopen.side_effect = None
+        mock_urlopen.return_value = _FakeResponse("not json {{")
+        self.assertEqual(self._client().lookup_abstract("10.1/x"), ("", "unreadable reply"))
+
+    @patch("academic_agent.source_clients.urlopen")
+    def test_the_old_string_method_still_answers_with_text_only(self, mock_urlopen):
+        mock_urlopen.side_effect = HTTPError("u", 429, "Too Many Requests", {}, None)
+        self.assertEqual(self._client().get_abstract_by_doi("10.1/x"), "")
+
+
 class SemanticScholarSearchTests(unittest.TestCase):
     def _client(self, retries=0):
         return SemanticScholarClient(timeout=5, retries=retries)

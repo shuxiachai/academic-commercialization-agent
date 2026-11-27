@@ -1136,6 +1136,7 @@ def _exercise_browser(
 ) -> dict[str, int]:
     external_requests: list[str] = []
     mutation_attempts: list[str] = []
+    plan_requests: list[str | None] = []
     console_errors: list[str] = []
     unexpected_console_errors: list[str] = []
     http_failures: list[tuple[str, str, int]] = []
@@ -1163,6 +1164,16 @@ def _exercise_browser(
                     # Unpaid and bounded to a closed vocabulary; the one write
                     # this journey makes on purpose, verified on disk below.
                     route.continue_()
+                    return
+                if request.method == "POST" and parsed.path == "/api/plan":
+                    # The topic reading "Retry with the same topic" asks for:
+                    # outside the daily quota and never receipted, but a model
+                    # call on the server, so answered here and never sent on.
+                    plan_requests.append(json.loads(request.post_data or "{}").get("topic"))
+                    route.fulfill(status=200, json={
+                        "planned": True, "resolved": True, "search_topic": "fixture search topic",
+                        "aliases": [], "components": [],
+                    })
                     return
                 mutation_attempts.append(f"{request.method} {parsed.path}")
                 route.abort("blockedbyclient")
@@ -1659,16 +1670,24 @@ def _exercise_browser(
 
             page.goto(f"{base_url}/run/{complete_failed}", wait_until="domcontentloaded")
             expect(page.locator("#run-pill")).to_have_text("failed")
-            expect(page.locator("#run-again")).to_have_class("btn btn--primary")
-            # A failed final relevance filter says what it retained, where it
-            # stopped, and whether the launch counted before inviting an edit.
-            # The browser must not make the owner open a second tab to learn
-            # that the report writer never ran.
+            # A failed final relevance filter says what it retained, why the
+            # rest were removed, where it stopped, and whether the launch
+            # counted. The counts come from the saved audit, read by the API.
             expect(page.locator("#run-outcome")).to_have_text(
                 "Academic sources fell short after final filtering (2 retained, minimum 3). "
+                "Of the 2 papers it removed, 1 made no mention of the setting named in the topic. "
                 "The assessment stopped before a report was written. This run counted toward "
                 "today's quota.")
-            expect(page.locator("#run-again")).to_have_text("Edit topic and retry")
+            # Too few sources is not a wrong topic: retrying it as it was is
+            # the main button, and editing it sits beside, not behind More.
+            expect(page.locator("#run-retry")).to_have_text("Retry with the same topic")
+            expect(page.locator("#run-retry")).to_have_class("btn btn--primary")
+            expect(page.locator("#run-again")).to_have_text("Edit the topic")
+            expect(page.locator("#run-again")).to_have_class("btn btn--secondary")
+            expect(page.locator("#run-actions > #run-retry + #run-again")).to_be_visible()
+            # No report: no scope of a conclusion, no note about its sources.
+            expect(page.locator(".decision-applicability")).to_have_count(0)
+            expect(page.locator(".sources__missing")).to_have_count(0)
             before_again = len(mutation_attempts)
 
             # The persisted final-filter record is folded, not hidden behind
@@ -1676,6 +1695,13 @@ def _exercise_browser(
             # actual query/audit row that made the shortfall inspectable.
             page.locator('button.tab[data-view="retrieval"]').click()
             retrieval = page.locator('.panel[data-view="retrieval"]')
+            # From the papers the queries accepted to the two kept, above the fold.
+            expect(retrieval.locator(".retrieval-flow__line").first).to_have_text(
+                "The queries passed 4 academic papers; final filtering removed 2; 2 remained (3 needed).")
+            expect(retrieval.locator(".retrieval-flow__item")).to_have_text([
+                "Fixture final-filter near-match — relevance 2, below 3",
+                "Fixture off-setting paper — no mention of the topic's setting (maintenance)",
+            ])
             query_audit = retrieval.locator("details")
             query_summary = query_audit.locator("summary")
             expect(query_summary).to_have_text("Query audit")
@@ -1685,8 +1711,22 @@ def _exercise_browser(
             expect(retrieval).to_contain_text("[Relevance-Filter]")
             expect(retrieval).to_contain_text(
                 "score=2 (min=3) — removed 'Fixture final-filter near-match'")
+            expect(retrieval).to_contain_text("Academic · 32 candidates · 2 accepted")
+            expect(retrieval).to_contain_text("Academic · final filtering removed 2")
             assert len(mutation_attempts) == before_again, "Inspecting retrieval diagnostics must not dispatch paid work."
 
+            # Retrying fills in the same topic and decision context and asks
+            # for the free topic reading, as the run button does; the run
+            # itself waits for that reading's Start.
+            page.locator("#run-retry").click()
+            expect(page.locator("#pane-compose")).to_be_visible()
+            expect(page.locator("#topic")).to_have_value(FIXTURE_TOPIC)
+            expect(page.locator("#decision-owner")).to_have_value(full_context["decision_owner"])
+            expect(page.locator("#plan-start")).to_be_visible()
+            assert plan_requests == [FIXTURE_TOPIC], plan_requests
+            assert len(mutation_attempts) == before_again, "Retry must stop at the topic reading; it cannot start a run."
+
+            page.goto(f"{base_url}/run/{complete_failed}", wait_until="domcontentloaded")
             page.locator("#run-again").click()
             expect(page.locator("#pane-compose")).to_be_visible()
             expect(page.locator("#topic")).to_have_value(FIXTURE_TOPIC)
@@ -1987,14 +2027,27 @@ def main() -> None:
             "aliases": [],
             "accepted_sources": 2,
             "required_sources": 3,
-            "audit": [SearchAudit(
-                domain="academic",
-                query="[Relevance-Filter]",
-                result_count=0,
-                rejected_reasons=[
-                    "score=2 (min=3) — removed 'Fixture final-filter near-match'",
-                ],
-            ).model_dump(mode="json")],
+            "setting_terms": ["maintenance"],
+            "audit": [audit.model_dump(mode="json") for audit in (
+                SearchAudit(
+                    domain="academic", query=f"[OA-Recent] {FIXTURE_TOPIC}", result_count=32,
+                    accepted_source_ids=["A1", "A2"],
+                    rejected_reasons=["abstract too thin (0 chars): 'Fixture paper without an abstract'"],
+                ),
+                SearchAudit(
+                    domain="academic", query=f"[OA-Cited] {FIXTURE_TOPIC}", result_count=32,
+                    accepted_source_ids=["A3", "A4"],
+                ),
+                SearchAudit(
+                    domain="academic",
+                    query="[Relevance-Filter]",
+                    result_count=0,
+                    rejected_reasons=[
+                        "score=2 (min=3) — removed 'Fixture final-filter near-match'",
+                        "score=-1 (min=3) — removed 'Fixture off-setting paper'",
+                    ],
+                ),
+            )],
         }, failed_decision_ids[0], output_root)
         # Mark the fixture through the API's marker writer so the outcome's
         # quota statement follows a durable launch fact, not fixture prose.

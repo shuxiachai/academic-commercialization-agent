@@ -857,10 +857,12 @@ function paintActions(state, checkpointing = null, canModify = true, facts = nul
   again.id = "run-again";
   // On someone else's run it is named for what it does: a new assessment of
   // the reader's own, on this topic.
-  const againLabel = retryFailed && facts?.error_code === "insufficient_evidence" ? "run_again_edit_topic" : "run_again";
-  again.textContent = t(canModify ? againLabel : "run_again_own");
+  const shortfall = retryFailed && facts?.error_code === "insufficient_evidence";
+  again.textContent = t(canModify ? (shortfall ? "run_again_edit_topic" : "run_again") : "run_again_own");
   again.title = t(retryFailed ? "run_again_failed_title" : "run_again_title");
-  again.addEventListener("click", () => {
+  // The composer, filled with this run's topic and, for a failed run of the
+  // owner's, its saved decision context. Nothing is started from here.
+  const refill = () => {
     const previous = $("#run-title").textContent.trim();
     showCompose();
     if (previous && previous !== "…") topic.value = previous;
@@ -874,10 +876,31 @@ function paintActions(state, checkpointing = null, canModify = true, facts = nul
       setDecisionContext(null);
     }
     syncComposer();
-    topic.focus();
-  });
+  };
+  again.addEventListener("click", () => { refill(); topic.focus(); });
+  if (shortfall) {
+    // Too few academic sources is not a wrong topic. The run that prompted
+    // this (2026-11-25) offered only "Edit topic and retry"; its topic, run
+    // again unchanged, collected eight sources. The same topic is the main
+    // button and the edit sits beside it, neither behind More. Retrying
+    // asks for the free reading of the topic where the deployment offers
+    // one, as pressing the run button would; the run itself starts only
+    // from that reading's Start, or from the run button, as always.
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.className = "btn btn--primary";
+    retry.id = "run-retry";
+    retry.textContent = t("run_retry_same");
+    retry.title = t("run_retry_same_title");
+    retry.addEventListener("click", () => {
+      refill();
+      if (previewApplies()) $("#compose-form").requestSubmit();
+      else runBtn.focus();
+    });
+    again.className = "btn btn--secondary";
+    actions.append(retry, again);
+  } else if (main === "again") actions.append(again);
   // Behind More, unless it is the main thing to do with this run.
-  if (main === "again") actions.append(again);
   else rare.push(again);
   actions.append(copyLinkButton());
   if (canModify) {
@@ -1431,17 +1454,23 @@ $("#compose-form").addEventListener("submit", async (e) => {
     needsScopeWarning(submittedTopic, { hasPaper: Boolean(attachedPaper) })
     && !confirm(t("confirm_broad_topic"))
   ) return;
-  // A code holder previews on the deployment's key. An account previews on
-  // its own, which it has by now: the gate above asked for keys; an
-  // administrator the deployment funds previews on the deployment's key, as
-  // a code holder does. A visitor whose keys are their only identity starts
-  // as before.
-  if (planPreviewEnabled && (accountMode ? (accountHasKeys() || operatorPays() || trialPays()) : !byokMode)) {
+  if (previewApplies()) {
     await previewPlan(submittedTopic);
     return;
   }
   await submitAssessment(submittedTopic, null);
 });
+
+// Whether the run button first shows the planner's reading of the topic.
+// A code holder previews on the deployment's key. An account previews on
+// its own, which it has by now: the gate in the submit handler asked for
+// keys; an administrator the deployment funds previews on the deployment's
+// key, as a code holder does. A visitor whose keys are their only identity
+// starts as before. Also asked by "Retry with the same topic", which
+// submits the form only where this reading, not a paid start, comes next.
+function previewApplies() {
+  return planPreviewEnabled && (accountMode ? (accountHasKeys() || operatorPays() || trialPays()) : !byokMode);
+}
 
 async function submitAssessment(submittedTopic, searchPlan) {
   if (submitting || extracting) return;

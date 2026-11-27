@@ -492,6 +492,15 @@ const HEADER_STRINGS = {
     shortage_relevance: "Academic sources fell short after final filtering ({accepted} retained, minimum {required}).",
     shortage_before_report: "The assessment stopped before a report was written.",
     shortage_no_report: "No report is available.",
+    // Why final filtering took back what the queries had accepted (shortageCause).
+    // "made no mention" agrees with one paper and with several.
+    shortage_removed_off_setting: "The {removed} {papers} it removed made no mention of the setting named in the topic.",
+    shortage_removed_low: "The {removed} {papers} it removed scored too low for relevance to the topic.",
+    shortage_removed_mixed: "Of the {removed} papers it removed, {off} made no mention of the setting named in the topic.",
+    shortage_abstracts: "{n} more {papers} with on-topic titles could not be used because no usable abstract was available.",
+    shortage_abstracts_one: "1 more paper with an on-topic title could not be used because no usable abstract was available.",
+    paper_one: "paper",
+    paper_many: "papers",
     // Under a run that did not finish: what the model's own record suggests (failureGuide).
     advice_model_kind: "The model this run used, {model}, does not look like a general chat model. Change to a model this project has measured before trying again: resuming repeats the same step on the model that is saved now.",
     advice_model_short: "Each answer {model} gave in the evidence step was under {limit} tokens, where every run this project has saved wrote more. Change to a model this project has measured before trying again: resuming repeats the same step on the model that is saved now.",
@@ -612,6 +621,13 @@ const HEADER_STRINGS = {
     shortage_relevance: "最终筛选后保留了 {accepted} 条学术来源，至少需要 {required} 条。",
     shortage_before_report: "评估在写报告前停止。",
     shortage_no_report: "没有可查看的报告。",
+    shortage_removed_off_setting: "被筛掉的 {removed} 篇论文没有提到题目里的使用场景。",
+    shortage_removed_low: "被筛掉的 {removed} 篇论文与题目的相关度不够。",
+    shortage_removed_mixed: "被筛掉的 {removed} 篇论文中，有 {off} 篇没有提到题目里的使用场景。",
+    shortage_abstracts: "另有 {n} 篇标题对题的论文因为拿不到摘要没有采用。",
+    shortage_abstracts_one: "另有 1 篇标题对题的论文因为拿不到摘要没有采用。",
+    paper_one: "篇",
+    paper_many: "篇",
     advice_model_kind: "这次运行用的模型 {model} 看起来不是通用对话模型。请先换成本项目实测过的模型再试：续跑会在当前保存的模型上重做同一步。",
     advice_model_short: "{model} 在证据分析这一步的每次回答都不到 {limit} token，而本项目保存的每一次运行都比这长。请先换成本项目实测过的模型再试：续跑会在当前保存的模型上重做同一步。",
     resume_note_quota: "续跑会再用 1 次今日额度。",
@@ -1192,10 +1208,38 @@ export function failureText({ state, error, error_code, funded_by, retrieval_sho
     ? headerLabel(stage === "academic_validation" ? "shortage_validation" : "shortage_relevance")
       .replace("{accepted}", accepted).replace("{required}", required)
     : reason];
+  if (hasCounts) sentences.push(shortageCause(retrieval_shortfall));
   if (Array.isArray(artifacts) && !artifacts.includes("report") && !artifacts.includes("draft")) {
     sentences.push(headerLabel(hasCounts ? "shortage_before_report" : "shortage_no_report"));
   }
   return sentences.filter(Boolean).join(uiLanguage() === "Simplified Chinese" ? "" : " ");
+}
+
+/* Why the academic sources fell short, from the API's counts of the saved
+ * audit (api/runs.py _academic_tally); "" where the counts do not say.
+ *
+ * The run that prompted this (2026-11-25, "passive daytime radiative cooling
+ * coatings for warehouse roofs") showed its owner "2 retained, minimum 3"
+ * and one button, "Edit topic and retry". Its two OpenAlex queries showed
+ * 4 accepted each, so final filtering took back 6. Rerun locally on
+ * 2026-11-27, the same topic had final filtering remove 12 of 15, every one
+ * for naming neither "warehouse" nor "roofs". Seven on-topic papers in the
+ * failed run had no abstract, and a reader took those for the cause, but
+ * the queries had filled their slots without them. Before final filtering
+ * every acceptable paper is taken, so missing abstracts are named as the
+ * reason only for a shortfall at that earlier gate. */
+function shortageCause({ stage, filter_removed: removed, filter_removed_off_setting: off,
+  abstract_unavailable: thin } = {}) {
+  const count = (n) => Number.isSafeInteger(n) && n >= 0;
+  const papers = (n) => headerLabel(n === 1 ? "paper_one" : "paper_many");
+  if (stage === "academic_relevance_filter") {
+    if (!count(removed) || !count(off) || off > removed || removed === 0) return "";
+    const key = off === removed ? "shortage_removed_off_setting" : off === 0 ? "shortage_removed_low" : "shortage_removed_mixed";
+    return headerLabel(key).replace("{removed}", removed).replace("{papers}", papers(removed)).replace("{off}", off);
+  }
+  if (!count(thin) || thin === 0) return "";
+  return thin === 1 ? headerLabel("shortage_abstracts_one")
+    : headerLabel("shortage_abstracts").replace("{n}", thin).replace("{papers}", papers(thin));
 }
 
 /* What to do next, cause by cause: the page's one table for it.
