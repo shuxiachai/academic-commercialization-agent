@@ -1732,7 +1732,11 @@ class _FailureCategory:
         return self.message
 
 
-_UNREACHABLE_MESSAGE = "An upstream service could not be reached. Retry later."
+# Said in every cause that is the server's: the path to a provider, the run's
+# own time limit. The owner of the 2026-11-27 run that stopped before scoring
+# was told "The analysis failed" and suspected their key and their topic.
+_NOT_YOURS = " Nothing in your topic or keys caused this."
+_UNREACHABLE_MESSAGE = "An upstream service could not be reached." + _NOT_YOURS + " Retry later."
 
 # Read ahead of every category, "timeout" above all: a provider request the
 # transport cut says "Request timed out.", and that category would answer it
@@ -1919,6 +1923,25 @@ _PUBLIC_FAILURE_CATEGORIES: tuple[_FailureCategory, ...] = (
             "service unavailable",
         ),
         _UNREACHABLE_MESSAGE,
+    ),
+    # The run's own time budget refused a model call before sending it
+    # (llm_config._CallBudget.require_window, whose sentence the marker is):
+    # what is left before the run's limit is shorter than the window one
+    # attempt is planned for. Production 2026-11-27 and 2026-11-18: a model
+    # that cannot turn thinking off asks for 300 s, the reviewer came back
+    # 25:31 and 25:38 into a 30-minute run, the scorer had 200 s and was not
+    # started, and the page said "The analysis failed", the sentence for a
+    # cause nobody could name. The resumes, on a fresh limit, scored in about
+    # 3:35. Last on purpose: a refusal after a dead connection carries its
+    # cause and is read above as the unreachable provider, whose refund is
+    # decided by this same reading, and the scorer's role in the sentence
+    # carries the topic. So whatever an earlier marker matches keeps the code
+    # it had; only text that matched nothing (and read "unknown") moves.
+    _FailureCategory(
+        "run_time_limit",
+        ("a bounded provider attempt requires",),
+        "The run reached its time limit before the next step could start, so that step was not begun."
+        + _NOT_YOURS + " The finished steps are saved: resuming from the checkpoint does only what is left.",
     ),
 )
 
@@ -2210,6 +2233,35 @@ def _academic_tally(audit: object) -> dict[str, int | None]:
     }
 
 
+def _expected_reuse(run_dir: Path) -> dict[str, list[str]] | None:
+    """What a resumed run is expected to take from its parent, before its worker says.
+
+    Read from the snapshot the API copied before launch, which is what the
+    worker reads: the unbroken run of intact checkpoints from retrieval on,
+    as CheckpointRuntime.restore_contiguous_prefix takes them, each also
+    saved by this revision today. The worker refuses a checkpoint from
+    another revision or another day, and the whole prefix with it, so none
+    of those is expected. It also compares inputs, settings and the model,
+    which only it can; a resume on another model can therefore be shown as
+    reusing a stage for the few seconds until its worker says it does not.
+    None when nothing is expected.
+    """
+    from academic_agent.checkpoint_runtime import TASK_NODES, pipeline_revision
+
+    store = CheckpointStore(run_dir / RESUME_SNAPSHOT_DIRECTORY)
+    revision = pipeline_revision()
+    today = datetime.now(UTC).date()
+    nodes: list[str] = []
+    for node in ("retrieval", *TASK_NODES):
+        inspection = store.inspect_existing(node)
+        identity = inspection.manifest.identity if inspection.manifest is not None else None
+        if (inspection.state != "reusable" or identity is None
+                or identity.pipeline_revision != revision or identity.as_of_date != today):
+            break
+        nodes.append(node)
+    return {"reused_nodes": nodes} if nodes else None
+
+
 #: How many earlier runs a resumed run's totals look back through. A resume
 #: of a resume of a resume is rare; this only bounds a damaged record.
 _LINEAGE_DEPTH = 8
@@ -2445,7 +2497,7 @@ def get_state(run_id: str, *, _depth: int = _LINEAGE_DEPTH) -> dict:
             elif state == "timeout":
                 error_code = "timeout_resumable"
                 error = (
-                    "The analysis exceeded its time limit. Resume from the "
+                    "The analysis exceeded its time limit." + _NOT_YOURS + " Resume from the "
                     "last validated checkpoint or start a new run."
                 )
             elif state == "failed":
@@ -2532,6 +2584,23 @@ def get_state(run_id: str, *, _depth: int = _LINEAGE_DEPTH) -> dict:
     # the run's real one. The snapshot the API took before launch is what
     # says, from the first second, that this run is a resume.
     awaiting_resume_stage = (run_dir / RESUME_SNAPSHOT_DIRECTORY).is_dir() and stage_key(stage) in (None, "sources")
+    # In those seconds the page drew all five stages as not started, and only
+    # then marked four of them reused (production, 2026-11-27: 9.4 s from the
+    # launch to the worker's first word). What the parent saved is known from
+    # the launch, in the snapshot the worker will read. It is said as an
+    # expectation, apart from `recovery`, which stays the worker's validated
+    # word and replaces it once the stage is the one the run starts in. The
+    # worker's first `recovery`, written while its stage is still the first
+    # one, names only the retrieval it has checked, so the expectation stands
+    # beside it until then; a worker that has said it starts cold is not
+    # contradicted.
+    worker_recovery = runtime["recovery"]
+    resume_expected = (
+        _expected_reuse(run_dir)
+        if state == "running" and awaiting_resume_stage
+        and (worker_recovery is None or worker_recovery.get("state") == "reused")
+        else None
+    )
 
     from academic_agent.auxiliary_usage import FILE_NAME, read_summary
     auxiliary = read_summary(run_dir / FILE_NAME,
@@ -2579,6 +2648,9 @@ def get_state(run_id: str, *, _depth: int = _LINEAGE_DEPTH) -> dict:
         # What recent completed runs took from this stage on, for a running run only.
         "eta": (estimate(stage, elapsed, timings, model=llm_model)
                 if state == "running" and not awaiting_resume_stage else None),
+        # For a resume whose worker has not yet said where it starts: the
+        # checkpoints of its parent that it is expected to reuse. None after.
+        "resume_expected": resume_expected,
         "source_counts": status.get("source_counts"),
         # True when the run finished but its per-agent evidence files could not
         # be written. The report is still valid; what is missing is the record
