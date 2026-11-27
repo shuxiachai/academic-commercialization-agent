@@ -497,6 +497,26 @@ class RetrievalShortfall(BaseModel):
     stage: Literal["academic_validation", "academic_relevance_filter"]
     accepted_sources: int = Field(strict=True, ge=0)
     required_sources: int = Field(strict=True, gt=0)
+    # Counted from the saved query audit when the run is read (runs.py
+    # _academic_tally), never taken from the file, so a run saved before
+    # these existed gets them too. All four are null together when any row
+    # or note of the academic audit does not read: an unread note is not 0.
+    passed_sources: int | None = Field(
+        default=None, strict=True, ge=0,
+        description="Academic sources the queries accepted, summed over every academic query row.",
+    )
+    filter_removed: int | None = Field(
+        default=None, strict=True, ge=0,
+        description="Academic sources the final relevance filter removed after the queries accepted them.",
+    )
+    filter_removed_off_setting: int | None = Field(
+        default=None, strict=True, ge=0,
+        description="Of filter_removed, those scored -1: no word of the setting the topic names.",
+    )
+    abstract_unavailable: int | None = Field(
+        default=None, strict=True, ge=0,
+        description="Distinct academic candidates whose title passed but which had no usable abstract.",
+    )
 
     @model_validator(mode="after")
     def _is_shortfall(self) -> RetrievalShortfall:

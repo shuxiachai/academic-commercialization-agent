@@ -2123,12 +2123,78 @@ def read_retrieval_shortfall(run_id: str, state: dict) -> RetrievalShortfall | N
         return None
     try:
         data = json.loads((run_dir_for(run_id) / _ARTIFACTS["retrieval"]).read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            return None
         # The public model admits only the two observed academic gates and
         # strict shortfall integers. Queries, aliases and audit text stay in
-        # the existing artifact rather than becoming UI facts by inference.
-        return RetrievalShortfall.model_validate(data)
+        # the existing artifact rather than becoming UI facts by inference;
+        # the tallies are counts of its rows and notes, computed here.
+        gate = {key: data[key] for key in ("stage", "accepted_sources", "required_sources") if key in data}
+        return RetrievalShortfall.model_validate({**gate, **_academic_tally(data.get("audit"))})
     except (OSError, UnicodeError, ValueError, RecursionError):
         return None
+
+
+# Rows of the query audit that record the final relevance filter rather than a
+# search (source_pipeline._record_relevance_filter), and the note each removal
+# leaves there. A score of -1 is the filter's "names none of the setting's words".
+_FILTER_ROWS = frozenset({"[Relevance-Filter]", "[Relevance-Recovery-Filter]"})
+_FILTER_REMOVAL = re.compile(r"score=(-?\d+(?:\.\d+)?) \(min=-?\d+(?:\.\d+)?\) — removed '.*'", re.S)
+# A candidate whose title passed the gate but whose abstract was missing or
+# under 60 characters, from any academic converter; since 2026-11-27 the
+# OpenAlex note also says when Semantic Scholar did not answer its lookup.
+_THIN_ABSTRACT = re.compile(
+    r"(?:(?:S2|arXiv|PubMed) )?abstract too thin \(\d+ chars(?:; [^)]*)?\): (.+)", re.S,
+)
+_UNKNOWN_TALLY = {
+    "passed_sources": None, "filter_removed": None,
+    "filter_removed_off_setting": None, "abstract_unavailable": None,
+}
+
+
+def _academic_tally(audit: object) -> dict[str, int | None]:
+    """Count what a failed run's academic audit says between its queries and its minimum.
+
+    The page's reason and the retrieval tab both need to say how many papers
+    the queries accepted, how many the final filter took back and why, and how
+    many on-topic candidates had no abstract. Every academic row and every note
+    of a filter row has to read; otherwise all four are unknown, never zero.
+    A paper met in two queries is one paper, so abstracts count distinct titles.
+    """
+    if not isinstance(audit, list):
+        return dict(_UNKNOWN_TALLY)
+    passed = removed = off_setting = 0
+    thin: set[str] = set()
+    for row in audit:
+        if not isinstance(row, dict) or not isinstance(row.get("domain"), str):
+            return dict(_UNKNOWN_TALLY)
+        if row["domain"] != "academic":
+            continue
+        query = row.get("query")
+        accepted = row.get("accepted_source_ids", [])
+        notes = row.get("rejected_reasons", [])
+        if (not isinstance(query, str) or not isinstance(accepted, list) or not isinstance(notes, list)
+                or not all(isinstance(item, str) for item in (*accepted, *notes))):
+            return dict(_UNKNOWN_TALLY)
+        if query in _FILTER_ROWS:
+            if accepted:
+                return dict(_UNKNOWN_TALLY)
+            for note in notes:
+                match = _FILTER_REMOVAL.fullmatch(note)
+                if match is None:
+                    return dict(_UNKNOWN_TALLY)
+                removed += 1
+                off_setting += float(match.group(1)) < 0
+            continue
+        passed += len(accepted)
+        for note in notes:
+            match = _THIN_ABSTRACT.fullmatch(note)
+            if match is not None:
+                thin.add(match.group(1))
+    return {
+        "passed_sources": passed, "filter_removed": removed,
+        "filter_removed_off_setting": off_setting, "abstract_unavailable": len(thin),
+    }
 
 
 #: How many earlier runs a resumed run's totals look back through. A resume

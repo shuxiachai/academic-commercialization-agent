@@ -282,6 +282,9 @@ NOT_TRANSLATED = {
     "verdict_go": "the conclusion's code, as the form, the scope line and the report write it",
     "verdict_no_go": "the same code",
     "verdict_label_colon": "punctuation",
+    "retrieval_flow_item": "a pattern of placeholders: a paper's title and its reason",
+    "retrieval_flow_terms": "punctuation around the setting's words, which stay as searched",
+    "retrieval_flow_terms_sep": "punctuation",
 }
 
 

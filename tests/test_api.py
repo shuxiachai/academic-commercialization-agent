@@ -531,6 +531,109 @@ class RetrievalShortfallTests(_ApiTestCase):
             self.assertEqual(response.status_code, 200, response.text)
             yield response.json()
 
+    _UNKNOWN_TALLY = {"passed_sources": None, "filter_removed": None,
+                      "filter_removed_off_setting": None, "abstract_unavailable": None}
+
+    @staticmethod
+    def _production_shortfall_audit() -> list[dict]:
+        """Modelled on the audit of 20261125T014549Z-7d39…, in the pipeline's own note formats.
+
+        Seven OpenAlex works with on-topic titles had no abstract, yet [OA-Recent]
+        still filled its four slots; [OA-Cited] filled four more; the run kept two.
+        The six removals are written as off-setting (score=-1), which is what a
+        local rerun of the same topic showed for every removal.
+        """
+        thin = [f"abstract too thin (0 chars): 'On-topic coating paper {i}'" for i in range(7)]
+        return [
+            {"domain": "academic", "query": "[OA-Recent] pdrc coatings for warehouse roofs", "result_count": 32,
+             "accepted_source_ids": ["A1", "A2", "A3", "A4"],
+             "rejected_reasons": [*thin, "OpenAlex peer-review artifact (not a paper): 'Review for \"X\"'"]},
+            {"domain": "academic", "query": "[OA-Cited] pdrc coatings for warehouse roofs", "result_count": 32,
+             "accepted_source_ids": ["A5", "A6", "A7", "A8"],
+             # The same paper met again in a second lane is one paper, not two.
+             "rejected_reasons": [thin[0], "OpenAlex topics indicate off-topic paper: 'The Gaia mission'"]},
+            {"domain": "academic", "query": "[Relevance-Filter]", "result_count": 0, "accepted_source_ids": [],
+             "rejected_reasons": [f"score=-1 (min=3) — removed 'Removed paper {i}'" for i in range(6)]},
+            # Another domain's filter is not the academic shortfall.
+            {"domain": "market", "query": "[Relevance-Filter]", "result_count": 0, "accepted_source_ids": [],
+             "rejected_reasons": ["score=0 (min=2) — removed 'Market page'"]},
+        ]
+
+    def test_final_filter_and_missing_abstracts_are_counted_from_the_saved_audit(self):
+        """The 2026-11-25 failure page showed 4 + 4 accepted and 2 retained, with no
+        word on the six removed between them, and told its owner to edit the topic.
+        The counts behind a better sentence are read from the audit already on disk,
+        so the old run's own page improves without rewriting its record."""
+        base = {"stage": "academic_relevance_filter", "accepted_sources": 2, "required_sources": 3}
+        rid = self._short_run({**base, "search_topic": "pdrc coatings for warehouse roofs",
+                               "audit": self._production_shortfall_audit()})
+        directory = self.tmp / rid
+        before = {p.name: p.read_bytes() for p in directory.iterdir()}
+        for body in self._responses(rid):
+            self.assertEqual(body["retrieval_shortfall"], {
+                **base, "passed_sources": 8, "filter_removed": 6,
+                "filter_removed_off_setting": 6, "abstract_unavailable": 7,
+            })
+            text = json.dumps(body)
+            for private in ("On-topic coating paper", "Removed paper", "warehouse", "Gaia"):
+                self.assertNotIn(private, text)
+        self.assertEqual({p.name: p.read_bytes() for p in directory.iterdir()}, before)
+
+    def test_a_failed_abstract_lookup_counts_and_low_scores_are_not_off_setting(self):
+        """A Semantic Scholar refusal is still a paper without an abstract; a
+        removal that scored 0 to 2 was judged weakly relevant, not off-setting."""
+        base = {"stage": "academic_validation", "accepted_sources": 1, "required_sources": 3}
+        audit = [
+            {"domain": "academic", "query": "[OA-Recent] x", "result_count": 5, "accepted_source_ids": ["A1"],
+             "rejected_reasons": [
+                 "abstract too thin (0 chars; Semantic Scholar did not answer: HTTP 429): 'Refused lookup'",
+                 "S2 abstract too thin (12 chars): 'Short S2 abstract'",
+                 "OpenAlex title not relevant to topic: 'abstract too thin (0 chars): in a title'",
+             ]},
+            {"domain": "academic", "query": "[Relevance-Recovery-Filter]", "result_count": 0,
+             "accepted_source_ids": [], "rejected_reasons": [
+                 "score=2 (min=3) — removed 'Weak'", "score=-1 (min=3) — removed 'Elsewhere'"]},
+        ]
+        rid = self._short_run({**base, "audit": audit})
+        for body in self._responses(rid):
+            self.assertEqual(body["retrieval_shortfall"], {
+                **base, "passed_sources": 1, "filter_removed": 2,
+                "filter_removed_off_setting": 1, "abstract_unavailable": 2,
+            })
+
+    def test_an_audit_the_reader_cannot_parse_leaves_the_tallies_unknown(self):
+        """Silence is not a count: one row or note that does not read leaves all
+        four tallies null while the gate's own counts still stand."""
+        base = {"stage": "academic_relevance_filter", "accepted_sources": 2, "required_sources": 3}
+        good = self._production_shortfall_audit()
+        broken = [
+            "not a list",
+            [*good, "not a row"],
+            [{**good[0], "accepted_source_ids": "A1"}, *good[1:]],
+            [{**good[0], "rejected_reasons": [None]}, *good[1:]],
+            [*good[:2], {**good[2], "rejected_reasons": ["removed for some new reason"]}],
+            [*good[:2], {**good[2], "accepted_source_ids": ["A9"]}],
+            [{**good[0], "domain": None}, *good[1:]],
+        ]
+        for audit in broken:
+            with self.subTest(audit=str(audit)[:60]):
+                rid = self._short_run({**base, "audit": audit})
+                for body in self._responses(rid):
+                    self.assertEqual(body["retrieval_shortfall"], {**base, **self._UNKNOWN_TALLY})
+        # A diagnostic without an audit (planning stopped first) says nothing either way.
+        rid = self._short_run(base)
+        for body in self._responses(rid):
+            self.assertEqual(body["retrieval_shortfall"], {**base, **self._UNKNOWN_TALLY})
+
+    def test_saved_tally_fields_in_a_diagnostic_are_never_trusted(self):
+        """The tallies are computed at read time; a file that carries keys of the
+        same name must not supply them (no writer has ever saved them)."""
+        base = {"stage": "academic_validation", "accepted_sources": 1, "required_sources": 3}
+        rid = self._short_run({**base, "passed_sources": 99, "filter_removed": 99,
+                               "filter_removed_off_setting": 99, "abstract_unavailable": 99})
+        for body in self._responses(rid):
+            self.assertEqual(body["retrieval_shortfall"], {**base, **self._UNKNOWN_TALLY})
+
     def test_saved_shortage_counts_reach_both_endpoints_without_raw_queries(self):
         """A declared model field alone used to hide missing progress wiring."""
         for stage in ("academic_validation", "academic_relevance_filter"):
@@ -543,7 +646,8 @@ class RetrievalShortfallTests(_ApiTestCase):
                     for body in self._responses(rid):
                         self.assertEqual(body["state"], "failed")
                         self.assertEqual(body["error_code"], "insufficient_evidence")
-                        self.assertEqual(body["retrieval_shortfall"], expected)
+                        # An audit row that is not a row leaves every tally unknown, never zero.
+                        self.assertEqual(body["retrieval_shortfall"], {**expected, **self._UNKNOWN_TALLY})
                         self.assertEqual(body["daily_charge"], "not_recorded")
                         self.assertNotIn("private query", json.dumps(body))
                         self.assertNotIn("raw audit", json.dumps(body))

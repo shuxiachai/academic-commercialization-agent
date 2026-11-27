@@ -1893,7 +1893,12 @@ export async function render(container, runId, progress) {
   if (artifacts.includes("retrieval"))
     views.push({ id: "retrieval", label: t("tab_retrieval") });
 
-  if (!artifacts.includes("sources")) {
+  // Both of these describe a report: the scope its conclusion may take, and
+  // the saved sources its citations would open. A run that stopped before
+  // writing one (a source shortfall, say) has neither to describe, and both
+  // stood above its tabs as if it had (seen 2026-11-27).
+  const hasText = artifacts.includes("report") || draft;
+  if (hasText && !artifacts.includes("sources")) {
     container.append(el("p", "empty-note sources__missing", t("sources_missing_artifact")));
   }
 
@@ -1907,7 +1912,7 @@ export async function render(container, runId, progress) {
   // score — so a reader has to meet them before the number, not after
   // choosing to go looking in a tab.
   const reliability = renderReliability(progress);
-  const applicability = renderDecisionApplicability(progress.decision_gate);
+  const applicability = hasText ? renderDecisionApplicability(progress.decision_gate) : null;
   if (applicability) container.append(applicability);
   // Under the line that says a conclusion is permitted: the conclusion. Its
   // own read and its own slot, so a scorecard that cannot be read costs the
@@ -2111,7 +2116,7 @@ export async function render(container, runId, progress) {
       } else if (id === "retrieval") {
         const diagnostics = await api.getArtifact(runId, "retrieval");
         panel.innerHTML = "";
-        panel.append(renderRetrievalDiagnostics(diagnostics));
+        panel.append(renderRetrievalDiagnostics(diagnostics, progress.retrieval_shortfall));
       } else {
         const sources = await sourcesOnce();
         panel.innerHTML = "";
@@ -2418,7 +2423,7 @@ const domainList = keys => (Array.isArray(keys) ? keys : []).map(domainLabel).jo
  * Every third-party string is assigned through textContent via el(); none of
  * the audit data is trusted as HTML.
  */
-export function renderRetrievalDiagnostics(data) {
+export function renderRetrievalDiagnostics(data, shortfall = null) {
   const wrap = el("div", "sources");
   wrap.append(el("p", "grounding__lede", t("retrieval_lede")));
 
@@ -2428,6 +2433,8 @@ export function renderRetrievalDiagnostics(data) {
     const count = t("retrieval_count").replace("{accepted}", accepted).replace("{required}", required);
     wrap.append(el("p", "consistency__clear", count));
   }
+  const flow = renderAcademicFlow(data, shortfall);
+  if (flow) wrap.append(flow);
 
   const aliases = Array.isArray(data.aliases) && data.aliases.length
     ? data.aliases.join(" · ")
@@ -2459,11 +2466,7 @@ export function renderRetrievalDiagnostics(data) {
     const item = el("li", "source");
     const body = el("div", "source__body");
     body.append(el("span", "source__link", entry.query || "—"));
-    const summary = t("retrieval_query_summary")
-      .replace("{domain}", domainLabel(entry.domain || "academic"))
-      .replace("{results}", String(entry.result_count ?? 0))
-      .replace("{accepted}", String(entry.accepted_source_ids?.length ?? 0));
-    body.append(el("span", "source__meta", summary));
+    body.append(el("span", "source__meta", auditRowSummary(entry)));
 
     const reasons = Array.isArray(entry.rejected_reasons)
       ? entry.rejected_reasons
@@ -2481,6 +2484,78 @@ export function renderRetrievalDiagnostics(data) {
   details.append(el("summary", null, t("retrieval_audit")), auditList);
   wrap.append(details);
   return wrap;
+}
+
+/* One audit row's counts, as that row's own. A query row has its candidates
+ * and the ones it accepted. The final relevance filter's rows are not
+ * queries: they read "0 candidates · 0 accepted" until 2026-11-27, under
+ * two queries showing 4 accepted each, on a run that kept 2. The relaxed
+ * title gate searches nothing either: its candidates are the other
+ * queries', counted again. */
+const FILTER_ROWS = new Set(["[Relevance-Filter]", "[Relevance-Recovery-Filter]"]);
+function auditRowSummary(entry) {
+  const domain = domainLabel(entry.domain || "academic");
+  const accepted = String(Array.isArray(entry.accepted_source_ids) ? entry.accepted_source_ids.length : 0);
+  const results = String(entry.result_count ?? 0);
+  const notes = Array.isArray(entry.rejected_reasons) ? entry.rejected_reasons : [];
+  if (FILTER_ROWS.has(entry.query)) {
+    return t("retrieval_filter_summary").replace("{domain}", domain).replace("{removed}", String(notes.length));
+  }
+  const key = String(entry.query ?? "").startsWith("[Relaxed-Title-Gate]") ? "retrieval_relaxed_summary" : "retrieval_query_summary";
+  return t(key).replace("{domain}", domain).replace("{results}", results).replace("{accepted}", accepted);
+}
+
+/* From the papers the queries accepted to the ones kept, for an academic
+ * shortfall: the three numbers (the API counts them from this audit,
+ * api/runs.py _academic_tally), each paper final filtering took back with
+ * its reason, and how many on-topic candidates had no abstract. Three
+ * numbers that do not add up are said to, not drawn as a chain: the audit
+ * does not record a merge that dropped a duplicate. Older runs saved no
+ * setting words; the reason then names the setting without them. */
+const FILTER_REMOVAL = /^score=(-?\d+(?:\.\d+)?) \(min=(-?\d+(?:\.\d+)?)\) — removed '(.*)'$/s;
+function renderAcademicFlow(data, shortfall) {
+  const nodes = [];
+  const line = (text) => nodes.push(el("p", "retrieval-flow__line", text));
+  const counts = shortfall && typeof shortfall === "object" ? shortfall : {};
+  const whole = (n) => Number.isSafeInteger(n) && n >= 0;
+  const { passed_sources: passed, filter_removed: removed, accepted_sources: kept, required_sources: required,
+    abstract_unavailable: thin, stage } = counts;
+  if (stage === "academic_relevance_filter" && [passed, removed, kept, required].every(whole)) {
+    line(t(passed - removed === kept ? "retrieval_flow_chain" : "retrieval_flow_counts")
+      .replace("{passed}", passed).replace("{removed}", removed)
+      .replace("{kept}", kept).replace("{required}", required));
+  }
+
+  // Titles and words are third-party text: replaced through functions, so a
+  // "$&" in a title is not read as a replacement pattern.
+  const terms = Array.isArray(data.setting_terms) && data.setting_terms.every((w) => typeof w === "string")
+    ? data.setting_terms : [];
+  const named = terms.length
+    ? t("retrieval_flow_terms").replace("{terms}", () => terms.join(t("retrieval_flow_terms_sep"))) : "";
+  const list = el("ul", "retrieval-flow__list");
+  for (const entry of Array.isArray(data.audit) ? data.audit : []) {
+    if (entry?.domain !== "academic" || !FILTER_ROWS.has(entry.query)) continue;
+    for (const note of Array.isArray(entry.rejected_reasons) ? entry.rejected_reasons : []) {
+      const m = typeof note === "string" ? FILTER_REMOVAL.exec(note) : null;
+      if (!m) continue;
+      const why = Number(m[1]) < 0
+        ? t("retrieval_flow_off_setting").replace("{terms}", () => named)
+        : t("retrieval_flow_low_score").replace("{score}", m[1]).replace("{min}", m[2]);
+      list.append(el("li", "retrieval-flow__item",
+        t("retrieval_flow_item").replace("{title}", () => m[3]).replace("{why}", () => why)));
+    }
+  }
+  if (list.children.length) {
+    line(t("retrieval_flow_removed"));
+    nodes.push(list);
+  }
+  if (whole(thin) && thin > 0) {
+    line(t(thin === 1 ? "retrieval_flow_abstracts_one" : "retrieval_flow_abstracts").replace("{n}", thin));
+  }
+  if (!nodes.length) return null;
+  const section = el("section", "retrieval-flow");
+  section.append(...nodes);
+  return section;
 }
 
 /* ── Sources ───────────────────────────────────────────────────────── */
