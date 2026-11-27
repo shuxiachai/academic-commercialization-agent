@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 ![Python 3.11 | 3.12](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)
 
-**[▶ 免 Key、免注册，先读一份完整报告](https://academic-agent.cc/samples)** · [打开在线应用](https://academic-agent.cc) · [本地运行](#快速启动) · [English](README.md)
+**[▶ 免 Key、免注册，先读一份完整报告](https://academic-agent.cc/samples)** · [打开在线应用](https://academic-agent.cc) · [本地运行](#快速启动) · [English](README.md) · [Türkçe](README.tr.md)
 
 ![演示：填写课题和决策场景；随后打开已完成的评估，依次查看报告给出的结论（DEFER，暂缓）、带总分的决策简报、评分卡、带引用的风险、报告中写明结论的段落，以及一条已保存的来源摘录](assets/demo.gif)
 

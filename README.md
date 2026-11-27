@@ -10,7 +10,7 @@ included.
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 ![Python 3.11 | 3.12](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue)
 
-**[▶ Read a finished report — no key, no sign-up](https://academic-agent.cc/samples)** · [Open the application](https://academic-agent.cc) · [Run locally](#quick-start) · [中文](README.zh-CN.md)
+**[▶ Read a finished report — no key, no sign-up](https://academic-agent.cc/samples)** · [Open the application](https://academic-agent.cc) · [Run locally](#quick-start) · [中文](README.zh-CN.md) · [Türkçe](README.tr.md)
 
 ![Demo: a topic and a decision context are entered; the finished assessment then shows the conclusion its report states (DEFER), the decision brief with the score, the scorecard, risks with citations, the paragraph of the report that states the conclusion, and one saved source excerpt](assets/demo.gif)
 
@@ -386,6 +386,7 @@ general accuracy score.
 ## Documentation
 
 - [中文项目说明](README.zh-CN.md)
+- [Türkçe proje açıklaması](README.tr.md)
 - [Documentation map](docs/README.md) — reading paths, repository layout and
   the boundary between current guides, historical experiments and local/private material.
 - [Evidence ledger](docs/evidence-status.md) — measurements and what they cannot prove.
