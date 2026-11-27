@@ -2104,14 +2104,50 @@ def draft_report(run_id: str, state: str) -> Draft | None:
     Either way the scorecard and the applicability paragraph belong to steps
     the run did not finish, and the page says which text it is above it
     (`stage`). Only for a run that has stopped and has no report; a finished
-    run shows its report, and a running one has not been asked. A checkpoint
+    run shows its report, and a running one is draft_in_review's. A checkpoint
     is checked against its own manifest, so a truncated or replaced file is
     passed over. Readable by whoever can read the run, like the report it
     stands in for.
     """
     if not _is_valid_run_id(run_id) or state not in _STOPPED_STATES:
         return None
-    run_dir = run_dir_for(run_id)
+    return _checkpoint_draft(run_dir_for(run_id))
+
+
+#: The stages of a running run in which its draft can be read: the review,
+#: which starts from the writer's saved report, and the scoring after it.
+_REVIEWED_FROM_STAGES = frozenset({"review", "scoring"})
+
+
+def draft_in_review(run_id: str, state: str, stage: object) -> Draft | None:
+    """The report as far as it has got, for a run still going whose review has begun.
+
+    The run of 2026-11-27 spent 8 min 57 s in its review, and the writer's
+    report it was reviewing had been saved, as a checkpoint, the whole time.
+    Its page showed that text only after the run had failed. Once the review
+    has begun the same text is offered while the run goes on; during the
+    scoring that follows, the reviewed report (the reviewer's checkpoint). A
+    checkpoint is committed whole, its output before its manifest, and read
+    against that manifest, so a reader meets either the saved text or none.
+
+    Not before the review: a writer's checkpoint is the run's own text only
+    once its writer has finished, which the stage line says. Not a source for
+    the PDF either (get_report_pdf asks draft_report alone): an export is
+    cached for good, and this text changes when the review returns.
+    """
+    from api.eta import stage_key
+
+    if not _is_valid_run_id(run_id) or state != "running" or stage_key(stage) not in _REVIEWED_FROM_STAGES:
+        return None
+    return _checkpoint_draft(run_dir_for(run_id))
+
+
+def readable_draft(run_id: str, state: str, stage: object) -> Draft | None:
+    """The draft the run's reads list and its `draft` artifact serves: a stopped run's, else one in review."""
+    return draft_report(run_id, state) or draft_in_review(run_id, state, stage)
+
+
+def _checkpoint_draft(run_dir: Path) -> Draft | None:
     if (run_dir / _ARTIFACTS["report"]).exists():
         return None
     store = CheckpointStore(run_dir)
@@ -2608,7 +2644,7 @@ def get_state(run_id: str, *, _depth: int = _LINEAGE_DEPTH) -> dict:
         fallback=status.get("auxiliary_usage_snapshot"))
     llm_model = run_model(status, runtime["usage"])
     artifacts = available_artifacts(run_dir)
-    draft = draft_report(run_id, state)
+    draft = readable_draft(run_id, state, stage)
     if draft is not None:
         artifacts.append(DRAFT_ARTIFACT)
     projection = {
@@ -2645,8 +2681,8 @@ def get_state(run_id: str, *, _depth: int = _LINEAGE_DEPTH) -> dict:
         "daily_charge_reason": _read_refund_reason(run_dir),
         "elapsed_seconds": elapsed,
         "stage_timings": timings,
-        # What recent completed runs took from this stage on, for a running run only.
-        "eta": (estimate(stage, elapsed, timings, model=llm_model)
+        # What earlier runs took from this stage on, stage by stage, for a running run only.
+        "eta": (estimate(stage, timings, model=llm_model)
                 if state == "running" and not awaiting_resume_stage else None),
         # For a resume whose worker has not yet said where it starts: the
         # checkpoints of its parent that it is expected to reuse. None after.

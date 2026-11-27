@@ -1,0 +1,73 @@
+{
+  "about": [
+    "A production run on qwen3.8-2.4t-a95b, started 2026-11-27 08:48:56 UTC, failed at 25:38 when its own time budget refused the scorer (PR #511). Its page's time-left line read, at the elapsed times in `observed`: 4-25, 8-24, 8-9, 3-21, 1-16, 11-16, 7-8, 5-6, 1-13, 3-4 minutes, every one 'going by runs on other models'.",
+    "`run` is that run's own stage record and `history` the earlier runs on the same model whose records could be read through a run's public link, both copied from GET /api/runs/{id} on 2026-11-28 with the run IDs left out (a run ID is a read capability). The 30:07 timeout of 2026-11-25 on this model is not here: its record was not read.",
+    "The `stand_in` runs are not records. The other models' runs that production compared this run with cannot be read without signing in, so these are the fewest runs of another model with which api/eta.py at main 102346f gives every value in `observed`, together with the one completed run on this model. They are here so that the replay shows main's behaviour and the change's on the same inputs."
+  ],
+  "model": "qwen3.8-2.4t-a95b",
+  "run": {
+    "started_at": "2026-11-27T08:48:56.869532+00:00",
+    "hard_timeout_seconds": 1800,
+    "stage_timings": [
+      {"stage": "Source Collection & Validation", "started_at": "2026-11-27T08:49:06.706510+00:00"},
+      {"stage": "Phase 1 — Evidence Collection (Academic · Patent · Market)", "started_at": "2026-11-27T08:49:40.856027+00:00"},
+      {"stage": "Agent 4 — Report Writing", "started_at": "2026-11-27T08:54:50.533047+00:00"},
+      {"stage": "Agent 5 — Quality Review & Citation Check", "started_at": "2026-11-27T09:05:37.738533+00:00"},
+      {"stage": "Agent 6 — Commercialization Scoring", "started_at": "2026-11-27T09:14:34.908720+00:00"}
+    ],
+    "review_ended_seconds": 1538,
+    "resume_scoring_seconds": 218
+  },
+  "observed": [
+    ["0:12", "4–25"], ["1:37", "8–24"], ["4:57", "8–9"], ["5:58", "3–21"], ["10:23", "1–16"],
+    ["10:43", "11–16"], ["14:48", "7–8"], ["16:08", "5–6"], ["16:48", "1–13"], ["25:18", "3–4"]
+  ],
+  "history": [
+    {
+      "label": "2026-11-18 08:34 UTC, completed in 24:40",
+      "model": "qwen3.8-2.4t-a95b", "state": "completed",
+      "started_at": "2026-11-18T08:34:04.200093+00:00", "ended_at": "2026-11-18T08:58:44.616014+00:00",
+      "stage_timings": [
+        {"stage": "Source Collection & Validation", "started_at": "2026-11-18T08:34:12.951180+00:00"},
+        {"stage": "Phase 1 — Evidence Collection (Academic · Patent · Market)", "started_at": "2026-11-18T08:34:40.729097+00:00"},
+        {"stage": "Agent 4 — Report Writing", "started_at": "2026-11-18T08:38:17.849479+00:00"},
+        {"stage": "Agent 5 — Quality Review & Citation Check", "started_at": "2026-11-18T08:46:31.203418+00:00"},
+        {"stage": "Agent 6 — Commercialization Scoring", "started_at": "2026-11-18T08:55:35.393215+00:00"},
+        {"stage": "Done", "started_at": "2026-11-18T08:58:44.616014+00:00"}
+      ]
+    },
+    {
+      "label": "2026-11-18 09:00 UTC, failed at 25:31 when scoring was refused",
+      "model": "qwen3.8-2.4t-a95b", "state": "failed",
+      "started_at": "2026-11-18T09:00:18.711785+00:00", "ended_at": "2026-11-18T09:25:50.608663+00:00",
+      "stage_timings": [
+        {"stage": "Source Collection & Validation", "started_at": "2026-11-18T09:00:31.068263+00:00"},
+        {"stage": "Phase 1 — Evidence Collection (Academic · Patent · Market)", "started_at": "2026-11-18T09:01:48.872819+00:00"},
+        {"stage": "Agent 4 — Report Writing", "started_at": "2026-11-18T09:05:44.206758+00:00"},
+        {"stage": "Agent 5 — Quality Review & Citation Check", "started_at": "2026-11-18T09:18:10.049807+00:00"},
+        {"stage": "Agent 6 — Commercialization Scoring", "started_at": "2026-11-18T09:25:49.748079+00:00"},
+        {"stage": "Error", "started_at": "2026-11-18T09:25:50.500000+00:00"}
+      ]
+    },
+    {
+      "label": "2026-11-18 09:46 UTC, the resume of the 09:00 run, scoring only; its worker of then filed the scorer's 3:33 under the evidence stage",
+      "model": "qwen3.8-2.4t-a95b", "state": "completed",
+      "started_at": "2026-11-18T09:46:01.117223+00:00", "ended_at": "2026-11-18T09:49:49.522192+00:00",
+      "recovery": {
+        "state": "reused", "source_run_id": "20261118T090017Z-00000000000000000000000000000000",
+        "reused_nodes": ["retrieval", "academic", "patent", "market", "writer", "reviewer"], "next_node": "scorer"
+      },
+      "stage_timings": [
+        {"stage": "Source Collection & Validation", "started_at": "2026-11-18T09:46:15.493000+00:00"},
+        {"stage": "Phase 1 — Evidence Collection (Academic · Patent · Market)", "started_at": "2026-11-18T09:46:15.556000+00:00"},
+        {"stage": "Agent 6 — Commercialization Scoring", "started_at": "2026-11-18T09:49:48.758000+00:00"},
+        {"stage": "Done", "started_at": "2026-11-18T09:49:49.400000+00:00"}
+      ]
+    },
+    {"label": "stand-in H", "stand_in": true, "model": "stand-in-model", "state": "completed", "day": "2026-11-20", "stages": [22, 40, 100, 70, 30]},
+    {"label": "stand-in A", "stand_in": true, "model": "stand-in-model", "state": "completed", "day": "2026-11-21", "stages": [25, 45, 280, 50, 40]},
+    {"label": "stand-in E", "stand_in": true, "model": "stand-in-model", "state": "completed", "day": "2026-11-22", "stages": [30, 100, 260, 120, 60]},
+    {"label": "stand-in D", "stand_in": true, "model": "stand-in-model", "state": "completed", "day": "2026-11-23", "stages": [30, 280, 250, 150, 70]},
+    {"label": "stand-in C", "stand_in": true, "model": "stand-in-model", "state": "completed", "day": "2026-11-24", "stages": [30, 150, 650, 200, 114]}
+  ]
+}

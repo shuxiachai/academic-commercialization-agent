@@ -3631,10 +3631,12 @@ def get_artifact(run_id: str, artifact: str) -> Response:
     if artifact == runs.DRAFT_ARTIFACT:
         # The report as far as a run that stopped before it had one got (the
         # reviewer's text, else the writer's; `draft_stage` says which), in
-        # the words the page shows a report in. Advertised in `artifacts` and
-        # readable by the same people as the report it stands in for; a run
-        # with a report, or still running, has none (runs.draft_report).
-        draft = runs.draft_report(run_id, state["state"])
+        # the words the page shows a report in; or, for a run still going
+        # whose review has begun, as far as it has got so far. Advertised in
+        # `artifacts` and readable by the same people as the report it stands
+        # in for; a run with a report, or still writing, has none
+        # (runs.readable_draft).
+        draft = runs.readable_draft(run_id, state["state"], state.get("stage"))
         if draft is None:
             raise HTTPException(
                 status_code=409,

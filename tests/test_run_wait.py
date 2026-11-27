@@ -40,9 +40,15 @@ class _Root(unittest.TestCase):
         self.serial = 0
 
     def _finished(self, durations: tuple[int, ...] | None, *, state: str = "completed", total: int | None = None,
-                  model: str | None = None, model_in: str = "status", resumed_from: str | None = None):
+                  model: str | None = None, model_in: str = "status", resumed_from: str | None = None,
+                  stages: tuple[tuple[str, int], ...] | None = None, reused: tuple[str, ...] = ("retrieval",),
+                  next_node: str = "academic"):
         """A finished run whose stages took `durations` seconds (None: no stage times).
 
+        A run that did not complete stops in the last stage `durations`
+        reaches, and its record ends there with "Error", as a worker's does.
+        `stages` gives the record's (stage, seconds) entries outright, for a
+        resume whose record files its time under another stage's name.
         `model` is recorded where a worker of today records it (`status`) or
         only in the usage record, as a run from before that field has it.
         """
@@ -50,16 +56,20 @@ class _Root(unittest.TestCase):
         run_dir = self.root / f"20261021T{self.serial:06d}Z-ab"
         run_dir.mkdir()
         start = datetime(2026, 10, 21, 9, tzinfo=UTC)
-        elapsed = total if total is not None else sum(durations or ())
-        status: dict = {"stage": "Done", "done": True}
+        entries = stages
+        if entries is None and durations is not None:
+            entries = tuple(zip(STAGES[:len(durations)], durations, strict=True))
+        elapsed = total if total is not None else sum(seconds for _stage, seconds in entries or ())
+        status: dict = {"stage": "Done" if state == "completed" else "Error", "done": True}
         if model and model_in == "status":
             status["llm_model"] = model
-        if durations is not None:
+        if entries is not None:
             offsets, at = [], start
-            for stage, seconds in zip(STAGES, durations, strict=True):
+            for stage, seconds in entries:
                 offsets.append({"stage": stage, "started_at": at.isoformat()})
                 at += timedelta(seconds=seconds)
-            status["stage_timings"] = [*offsets, {"stage": "Done", "started_at": at.isoformat()}]
+            ending = "Done" if state == "completed" else "Error"
+            status["stage_timings"] = [*offsets, {"stage": ending, "started_at": at.isoformat()}]
         (run_dir / "status.json").write_text(json.dumps(status), encoding="utf-8")
         end = start + timedelta(seconds=elapsed)
         usage = None
@@ -67,12 +77,12 @@ class _Root(unittest.TestCase):
             usage = {"total_tokens": 10, "agents": [{"role": "Writer", "model": model, "total_tokens": 10}]}
         recovery = None
         if resumed_from is not None:
-            recovery = {"state": "reused", "source_run_id": resumed_from, "reused_nodes": ["retrieval"],
-                        "next_node": "academic"}
+            recovery = {"state": "reused", "source_run_id": resumed_from, "reused_nodes": list(reused),
+                        "next_node": next_node}
         commit_terminal_record(run_dir, TerminalRecord(
             state=state, reason_code="worker_completed" if state == "completed" else "worker_exception",
             termination_method="worker_exit", started_at=start, ended_at=end, elapsed_seconds=elapsed,
-            last_stage="Done", timeout_seconds=1800, usage=usage,
+            last_stage=status["stage"], timeout_seconds=1800, usage=usage,
             usage_accounting=UsageAccounting(state="unavailable" if usage is None else "complete", snapshot_at=end,
                                              run_complete=True, in_flight_request_may_have_spent=False),
             recovery=recovery,
@@ -81,123 +91,150 @@ class _Root(unittest.TestCase):
 
 
 class EtaTests(_Root):
-    """The range a running run is shown, from what recent runs took (api/eta.py).
+    """The range a running run is shown, from what earlier runs took (api/eta.py).
 
     On 2026-11-18 the page said "about 7 min" at the start of a run that took
     24 min 40 s: one median over the last thirty completed runs, whatever
-    model they ran on, two days after the deployment moved to a slower one.
+    model they ran on. On 2026-11-27 a run on the same model was told 1-16
+    minutes, then 11-16 twenty seconds later, then 7-8 and 5-6 with fourteen
+    minutes still to go, all "going by runs on other models" although the
+    model had three earlier runs here (tests/test_eta_replay.py). Each stage
+    is now the fastest to the slowest of the model's own recent times for
+    it, from any run that finished the stage, and the range adds them up.
     """
 
     THREE = ((60, 300, 120, 90, 30), (80, 320, 140, 100, 40), (70, 310, 130, 95, 35))
 
-    def _estimate(self, stage: str, in_stage: int, elapsed: int, model: str | None = None):
+    def _estimate(self, stage: str, in_stage: int, model: str | None = "m"):
         timings = [{"stage": stage, "started_at": "", "duration_seconds": in_stage, "active": True}]
-        return eta.estimate(stage, elapsed, timings, model=model)
+        return eta.estimate(stage, timings, model=model)
 
-    def test_the_range_is_what_each_run_took_from_this_point_on(self):
+    def test_each_stage_is_its_fastest_to_its_slowest_and_the_range_adds_them_up(self):
         for durations in self.THREE:
-            self._finished(durations)
-        estimate = self._estimate(STAGES[2], in_stage=30, elapsed=450)
-        # Run by run: the rest of the report stage, then its review and scoring:
-        # 90 + 90 + 30, 110 + 100 + 40, 100 + 95 + 35.
+            self._finished(durations, model="m")
+        estimate = self._estimate(STAGES[2], in_stage=30)
+        # The rest of the report, 120 - 30 to 140 - 30; review 90 to 100; scoring 30 to 40.
         self.assertEqual(estimate, {
             "remaining_seconds": 230, "low_seconds": 210, "high_seconds": 250, "basis_runs": 3,
-            "basis": "stages", "model": None, "same_model": False, "overdue": False,
+            "basis": "stages", "model": "m", "same_model": True, "overdue": False,
+            "other_model_stages": [], "few_sample_stages": [],
         })
-
-    def test_the_range_moves_as_stages_complete(self):
-        for durations in self.THREE:
-            self._finished(durations)
-        at_start = self._estimate(STAGES[0], in_stage=0, elapsed=0)
+        at_start = self._estimate(STAGES[0], in_stage=0)
         self.assertEqual((at_start["low_seconds"], at_start["high_seconds"]), (600, 680))
-        scoring = self._estimate(STAGES[4], in_stage=0, elapsed=600)
-        self.assertEqual((scoring["low_seconds"], scoring["high_seconds"]), (30, 40))
 
-    def test_a_run_that_had_left_the_stage_by_now_is_not_asked(self):
-        """Fifty seconds into scoring, the runs that scored in 30, 35 and 40 say nothing about the rest."""
+    def test_within_a_stage_neither_end_rises_as_the_stage_goes_on(self):
+        """The rule it replaces asked only the runs that had stayed in the stage this long:
+        fifty seconds into scoring that was one run, and the range read 150 to 150."""
         for durations in (*self.THREE, (70, 310, 130, 95, 200)):
-            self._finished(durations)
-        estimate = self._estimate(STAGES[4], in_stage=50, elapsed=650)
-        self.assertEqual((estimate["low_seconds"], estimate["high_seconds"], estimate["overdue"]), (150, 150, False))
+            self._finished(durations, model="m")
+        seen = [self._estimate(STAGES[4], in_stage=second) for second in range(0, 260, 10)]
+        for before, after in zip(seen, seen[1:], strict=False):
+            for end in ("low_seconds", "high_seconds"):
+                self.assertLessEqual(after[end], before[end])
+                self.assertLessEqual(before[end] - after[end], 10)
+        fifty = seen[5]
+        self.assertEqual((fifty["low_seconds"], fifty["high_seconds"], fifty["overdue"]), (0, 150, False))
 
-    def test_slower_than_every_run_at_this_stage_is_said_with_what_the_later_stages_took(self):
+    def test_a_run_that_failed_or_timed_out_lends_the_stages_it_finished(self):
+        """Not the stage it stopped in: that one was cut short, not finished."""
+        self._finished((60, 300, 120, 90, 30), model="m")
+        self._finished((70, 310, 600, 400, 5), state="failed", model="m")
+        self._finished((65, 305, 610), state="timeout", model="m")
+        in_review = self._estimate(STAGES[3], in_stage=0)
+        # Review 90 and 400, widened a quarter for two times: 72 to 500. Scoring 30 alone,
+        # widened by half: 20 to 45. The failed run's 5 s of scoring was never finished.
+        self.assertEqual((in_review["low_seconds"], in_review["high_seconds"]), (92, 545))
+        self.assertEqual((in_review["basis_runs"], in_review["few_sample_stages"]), (2, ["review", "scoring"]))
+        writing = self._estimate(STAGES[2], in_stage=0)
+        # Report 120 and 600 (the timed-out run's 610 was cut short): 96 to 750.
+        self.assertEqual((writing["low_seconds"], writing["high_seconds"]), (96 + 92, 750 + 545))
+        sources = self._estimate(STAGES[0], in_stage=0)
+        self.assertNotIn("sources", sources["few_sample_stages"])
+
+    def test_a_resume_lends_the_stage_it_ran_not_the_ones_it_took_from_its_parent(self):
+        """The production resume of 2026-11-18 scored in 3 min 33 s, and its worker of then filed
+        those seconds under the evidence stage; run.js stageSeconds shows them under scoring."""
         for durations in self.THREE:
-            self._finished(durations)
-        estimate = self._estimate(STAGES[1], in_stage=900, elapsed=980)
-        self.assertTrue(estimate["overdue"])
-        # Report, review and scoring alone: 240, 280, 260.
-        self.assertEqual((estimate["low_seconds"], estimate["high_seconds"]), (240, 280))
-        last = self._estimate(STAGES[4], in_stage=900, elapsed=1500)
-        self.assertEqual((last["low_seconds"], last["high_seconds"], last["overdue"]), (0, 0, True))
+            self._finished(durations, model="m")
+        self._finished(None, model="m", resumed_from="20261021T000001Z-ab",
+                       reused=("retrieval", "academic", "patent", "market", "writer", "reviewer"),
+                       next_node="scorer", stages=((STAGES[0], 0), (STAGES[1], 213), (STAGES[4], 0)))
+        scoring = self._estimate(STAGES[4], in_stage=0)
+        self.assertEqual((scoring["low_seconds"], scoring["high_seconds"], scoring["basis_runs"]), (30, 213, 4))
+        whole = self._estimate(STAGES[0], in_stage=0)
+        # Sources and evidence are the three whole runs' alone: 60 to 80 and 300 to 320.
+        self.assertEqual((whole["low_seconds"], whole["high_seconds"]), (600, 680 + 213 - 40))
 
-    def test_runs_of_the_same_model_make_the_range(self):
+    def test_a_stage_seen_once_or_twice_is_widened(self):
+        """Measured on 106 benchmark runs in 13 batches of one model each: the next run's time lay
+        between the fastest and slowest of one earlier run 0% of the time, of two 33%; a half
+        either way for one and a quarter for two brought that to 69% and 73%."""
+        self._finished((60, 300, 120, 90, 30), model="m")
+        once = self._estimate(STAGES[4], in_stage=0)
+        self.assertEqual((once["low_seconds"], once["high_seconds"], once["few_sample_stages"]), (20, 45, ["scoring"]))
+        self._finished((80, 320, 140, 100, 40), model="m")
+        eta._cache.clear()  # what is on record is read again at most every CACHE_SECONDS
+        twice = self._estimate(STAGES[4], in_stage=0)
+        self.assertEqual((twice["low_seconds"], twice["high_seconds"]), (24, 50))
+        self._finished((70, 310, 130, 95, 35), model="m")
+        eta._cache.clear()
+        thrice = self._estimate(STAGES[4], in_stage=0)
+        self.assertEqual((thrice["low_seconds"], thrice["high_seconds"], thrice["few_sample_stages"]), (30, 40, []))
+
+    def test_stages_this_model_never_finished_go_by_other_models_and_are_named(self):
         for durations in self.THREE:
             self._finished(durations, model="fast-model")
-        for durations in ((60, 900, 400, 100, 60), (60, 700, 300, 100, 60), (60, 800, 350, 100, 60)):
-            self._finished(durations, model="slow-model")
-        slow = self._estimate(STAGES[0], in_stage=0, elapsed=0, model="slow-model")
-        self.assertEqual((slow["low_seconds"], slow["high_seconds"]), (1220, 1520))
-        self.assertEqual((slow["model"], slow["same_model"], slow["basis_runs"]), ("slow-model", True, 3))
-        fast = self._estimate(STAGES[0], in_stage=0, elapsed=0, model="fast-model")
-        self.assertEqual((fast["low_seconds"], fast["high_seconds"]), (600, 680))
+        for durations in ((60, 900, 400, 100), (70, 800, 350, 90), (65, 850, 380, 95)):
+            self._finished(durations, state="failed", model="new-model")
+        estimate = self._estimate(STAGES[2], in_stage=0, model="new-model")
+        # Its own reports, 350 to 400; review and scoring from the other model, 90 to 100 and 30 to 40.
+        self.assertEqual((estimate["low_seconds"], estimate["high_seconds"]), (470, 540))
+        self.assertEqual((estimate["model"], estimate["same_model"], estimate["other_model_stages"]),
+                         ("new-model", False, ["review", "scoring"]))
 
-    def test_too_few_runs_of_the_model_and_other_models_stand_in_and_say_so(self):
+    def test_a_model_with_no_runs_here_goes_by_other_models(self):
         for durations in self.THREE:
             self._finished(durations, model="fast-model")
-        self._finished((60, 900, 400, 100, 60), model="new-model")
-        self._finished((60, 800, 350, 100, 60), model="new-model")
-        estimate = self._estimate(STAGES[0], in_stage=0, elapsed=0, model="new-model")
-        self.assertEqual((estimate["model"], estimate["same_model"], estimate["basis_runs"]), (None, False, 5))
-        self.assertEqual((estimate["low_seconds"], estimate["high_seconds"]), (600, 1520))
-        # A run that names no model is answered the same way.
-        self.assertFalse(self._estimate(STAGES[0], in_stage=0, elapsed=0)["same_model"])
+        for model in ("brand-new-model", None):
+            estimate = self._estimate(STAGES[0], in_stage=0, model=model)
+            self.assertEqual((estimate["low_seconds"], estimate["high_seconds"]), (600, 680), model)
+            self.assertEqual((estimate["model"], estimate["same_model"]), (None, False), model)
+            self.assertEqual(estimate["other_model_stages"], ["sources", "evidence", "report", "review", "scoring"])
 
     def test_a_model_named_only_by_the_usage_record_is_still_its_model(self):
         for durations in self.THREE:
             self._finished(durations, model="older-run-model", model_in="usage")
-        estimate = self._estimate(STAGES[0], in_stage=0, elapsed=0, model="older-run-model")
+        estimate = self._estimate(STAGES[0], in_stage=0, model="older-run-model")
         self.assertEqual((estimate["model"], estimate["same_model"]), ("older-run-model", True))
 
-    def test_only_the_newest_runs_of_a_model_are_asked(self):
+    def test_only_the_newest_times_of_a_stage_are_asked(self):
         self._finished((60, 3000, 120, 90, 30), model="m")
-        for _ in range(eta.MODEL_RUNS):
+        for _ in range(eta.STAGE_SAMPLES):
             self._finished((60, 300, 120, 90, 30), model="m")
-        estimate = self._estimate(STAGES[0], in_stage=0, elapsed=0, model="m")
+        estimate = self._estimate(STAGES[0], in_stage=0)
         self.assertEqual((estimate["low_seconds"], estimate["high_seconds"], estimate["basis_runs"]),
-                         (600, 600, eta.MODEL_RUNS))
+                         (600, 600, eta.STAGE_SAMPLES))
 
-    def test_a_resumed_run_is_not_history(self):
-        """It ran only what its parent had not finished: 3 min 48 s was never a whole run."""
+    def test_slower_than_every_time_at_this_stage_is_said_with_what_the_later_stages_took(self):
         for durations in self.THREE:
-            self._finished(durations)
-        self._finished((5, 200, 0, 0, 0), resumed_from="20261021T000001Z-ab")
-        estimate = self._estimate(STAGES[0], in_stage=0, elapsed=0)
-        self.assertEqual((estimate["low_seconds"], estimate["basis_runs"]), (600, 3))
+            self._finished(durations, model="m")
+        estimate = self._estimate(STAGES[1], in_stage=900)
+        self.assertTrue(estimate["overdue"])
+        # Report, review and scoring alone: 120 + 90 + 30 to 140 + 100 + 40.
+        self.assertEqual((estimate["low_seconds"], estimate["high_seconds"]), (240, 280))
+        last = self._estimate(STAGES[4], in_stage=900)
+        self.assertEqual((last["low_seconds"], last["high_seconds"], last["overdue"]), (0, 0, True))
 
-    def test_without_stage_times_whole_run_times_are_used(self):
+    def test_a_stage_with_no_time_on_record_from_any_model_gives_no_estimate(self):
+        """Runs that all stopped in their first stage, or have no stage times, finished nothing to go by."""
+        self._finished((60,), state="failed", model="m")
         for total in (600, 900, 700):
-            self._finished(None, total=total)
-        self.assertEqual(self._estimate(STAGES[1], in_stage=10, elapsed=100), {
-            "remaining_seconds": 600, "low_seconds": 500, "high_seconds": 800, "basis_runs": 3,
-            "basis": "total", "model": None, "same_model": False, "overdue": False,
-        })
-
-    def test_a_run_slower_than_every_whole_run_is_overdue_and_never_negative(self):
-        for total in (600, 600, 600):
-            self._finished(None, total=total)
-        estimate = self._estimate(STAGES[4], in_stage=10, elapsed=700)
-        self.assertEqual((estimate["remaining_seconds"], estimate["low_seconds"], estimate["high_seconds"],
-                          estimate["overdue"]), (0, 0, 0, True))
-
-    def test_failed_runs_are_not_history(self):
-        self._finished(None, total=600)
-        self._finished(None, total=600)
-        self._finished(None, total=60, state="failed")
-        self.assertIsNone(self._estimate(STAGES[0], in_stage=5, elapsed=5))
+            self._finished(None, total=total, model="m")
+        self.assertIsNone(self._estimate(STAGES[0], in_stage=5))
 
     def test_a_finished_run_reports_no_eta(self):
-        for total in (600, 600, 600):
-            run_dir = self._finished(None, total=total)
+        for durations in self.THREE:
+            run_dir = self._finished(durations)
         self.assertIsNone(runs.get_state(run_dir.name)["eta"])
 
     def test_the_estimate_reaches_both_run_reads_with_the_runs_own_model(self):
@@ -233,9 +270,11 @@ class EtaTests(_Root):
                 self.assertEqual(body["llm_model"], "slow-model", path)
                 estimate = body["eta"]
                 self.assertEqual(set(estimate), {"remaining_seconds", "low_seconds", "high_seconds", "basis_runs",
-                                                 "basis", "model", "same_model", "overdue"}, path)
+                                                 "basis", "model", "same_model", "overdue", "other_model_stages",
+                                                 "few_sample_stages"}, path)
                 self.assertEqual((estimate["model"], estimate["same_model"], estimate["basis_runs"]),
                                  ("slow-model", True, 3), path)
+                self.assertEqual((estimate["other_model_stages"], estimate["few_sample_stages"]), ([], []), path)
                 # 40 s into a report stage that took 300 to 400, then 160 of review and scoring.
                 self.assertTrue(415 <= estimate["low_seconds"] <= 420, estimate)
                 self.assertTrue(515 <= estimate["high_seconds"] <= 520, estimate)

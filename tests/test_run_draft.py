@@ -245,3 +245,89 @@ def test_the_draft_opens_to_the_readers_the_runs_other_artifacts_open_to(root: P
             assert draft == sources == 200, headers
         # The list of a code's runs stays behind the code, as before.
         assert client.get("/api/runs").status_code == 401
+
+
+# ── While the run is still going ─────────────────────────────────────────────
+#
+# The run of 2026-11-27 spent 8 min 57 s in its review, and its writer's report
+# had been saved the whole time, as the checkpoint the review starts from. The
+# page showed it only after the run had failed. A run in its review, or in the
+# scoring after it, now lists the same saved text as `draft`, with
+# `draft_stage` saying whose it is; the page offers it under a label that says
+# it is not the assessment yet.
+
+REVIEW = "Agent 5 — Quality Review & Citation Check"
+SCORING = "Agent 6 — Commercialization Scoring"
+WRITING = "Agent 4 — Report Writing"
+
+
+class _Alive:
+    def poll(self):
+        return None
+
+
+def _running(root: Path, serial: int, stage: str, *, writer: str | None = DRAFT,
+             reviewer: str | None = None) -> str:
+    run_id = f"202611{serial:02d}T090000Z-" + f"{serial:x}" * 32
+    run_dir = root / run_id
+    run_dir.mkdir()
+    (run_dir / "status.json").write_text(json.dumps({
+        "stage": stage, "done": False, "topic": "sodium-ion storage", "output_language": "English",
+        "stage_timings": [{"stage": stage, "started_at": datetime.now(UTC).isoformat()}],
+    }), encoding="utf-8")
+    if writer is not None:
+        _commit(run_dir, "writer", writer)
+    if reviewer is not None:
+        _commit(run_dir, "reviewer", reviewer)
+    runs._registry[run_id] = runs._Handle(run_id=run_id, topic="sodium-ion storage", proc=_Alive())
+    return run_id
+
+
+def test_a_run_in_its_review_offers_what_its_writer_finished(root: Path) -> None:
+    run_id = _running(root, 1, REVIEW)
+    client = TestClient(app)
+    for path in (f"/api/runs/{run_id}", f"/api/runs/{run_id}/progress"):
+        body = client.get(path).json()
+        assert body["state"] == "running", path
+        assert "draft" in body["artifacts"] and body["draft_stage"] == "writer", path
+    reply = client.get(f"/api/runs/{run_id}/draft")
+    assert reply.status_code == 200
+    assert "Sodium-ion cells are in pilot production [A1]." in reply.text
+
+
+def test_a_run_in_its_scoring_offers_the_reviewed_report(root: Path) -> None:
+    run_id = _running(root, 1, SCORING, reviewer=REVIEWED)
+    client = TestClient(app)
+    assert client.get(f"/api/runs/{run_id}").json()["draft_stage"] == "reviewer"
+    assert "pilot-line production [A1]" in client.get(f"/api/runs/{run_id}/draft").text
+
+
+def test_a_run_still_writing_offers_no_draft(root: Path) -> None:
+    """Before the review starts there is nothing finished to read: a writer's checkpoint left
+    from an earlier attempt is not this run's text yet."""
+    run_id = _running(root, 1, WRITING)
+    client = TestClient(app)
+    body = client.get(f"/api/runs/{run_id}").json()
+    assert "draft" not in body["artifacts"] and body["draft_stage"] is None
+    assert client.get(f"/api/runs/{run_id}/draft").status_code == 409
+
+
+def test_a_run_in_its_review_has_no_draft_pdf(root: Path) -> None:
+    """An export is cached for good, and this text changes when the review finishes: the PDF
+    of a draft stays for a run that has stopped (runs.draft_report)."""
+    run_id = _running(root, 1, REVIEW)
+    assert runs.draft_report(run_id, "running") is None
+    assert TestClient(app).get(f"/api/runs/{run_id}/report.pdf").status_code == 409
+    assert not (root / run_id / "commercialization_draft.pdf").exists()
+
+
+def test_a_running_runs_draft_opens_to_the_readers_its_other_artifacts_open_to(root: Path) -> None:
+    run_id = _running(root, 1, REVIEW)
+    (root / run_id / "validated_sources.json").write_text("{}", encoding="utf-8")
+    (root / run_id / ".owner").write_text(access.owner_id("for-alice"), encoding="utf-8")
+    with patch.object(access, "ACCESS_CODES", "for-alice,for-bob"), patch.object(access, "ADMIN_CODE", "for-admin"):
+        client = TestClient(app)
+        for headers in ({}, {"X-Access-Code": "for-alice"}, {"X-Access-Code": "for-bob"}):
+            sources = client.get(f"/api/runs/{run_id}/sources", headers=headers).status_code
+            draft = client.get(f"/api/runs/{run_id}/draft", headers=headers).status_code
+            assert draft == sources == 200, headers

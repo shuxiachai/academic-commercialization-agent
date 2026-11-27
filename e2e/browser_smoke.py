@@ -1195,6 +1195,7 @@ def _exercise_browser(
                     "remaining_seconds": 150, "low_seconds": 60, "high_seconds": 240,
                     "basis_runs": 6, "basis": "stages", "model": None,
                     "same_model": False, "overdue": True,
+                    "other_model_stages": ["review", "scoring"], "few_sample_stages": [],
                 }
                 route.fulfill(response=response, json=body)
                 return
@@ -1292,10 +1293,35 @@ def _exercise_browser(
                 assert budget.get("hard_timeout_seconds") == 780, budget
                 remaining = budget.get("remaining_seconds")
                 assert isinstance(remaining, int) and 0 <= remaining <= 130, budget
+                # The slowest of those earlier runs needed more than the time
+                # left, and the limit line says so (2026-11-27: never said).
+                expect(page.locator("#run-deadline")).to_contain_text(
+                    "· Going by past runs, this run may come close to the 13-minute limit",
+                )
+                # The writer's report is saved and the review is under way:
+                # the page offers it, closed, and says what it is once opened.
+                live_draft = page.locator("#run-body details.live-draft")
+                expect(live_draft.locator("summary")).to_have_text("Read the draft now (in review, not scored)")
+                expect(live_draft.locator("article.prose")).to_be_hidden()
+                with page.expect_response(lambda r: urlsplit(r.url).path == f"/api/runs/{near_deadline_id}/draft"):
+                    live_draft.locator("summary").click()
+                expect(live_draft.locator(".draft-note")).to_contain_text("not the assessment's conclusion")
+                expect(live_draft.locator("article.prose")).to_contain_text("Saved browser smoke writer checkpoint")
+                # The stage list is redrawn on every read; the open draft stays.
+                with page.expect_response(
+                    lambda r: urlsplit(r.url).path == f"/api/runs/{near_deadline_id}/progress",
+                    timeout=10_000,
+                ):
+                    pass
+                expect(live_draft).to_have_attribute("open", "")
+                expect(live_draft.locator("article.prose")).to_contain_text("Saved browser smoke writer checkpoint")
+                expect(page.locator("#run-body .stages")).to_be_visible()
                 page.locator("#ui-lang").select_option("Simplified Chinese")
                 expect(page.locator("#run-current-step")).to_contain_text("审查引用与论断")
                 expect(page.locator("#run-eta")).to_contain_text("后续步骤（评分）合计用时 1–4 分钟")
                 expect(page.locator("#run-deadline")).to_contain_text("本次运行时限 13:00")
+                expect(page.locator("#run-deadline")).to_contain_text("按以往的运行估计，可能接近 13 分钟时限")
+                expect(live_draft.locator("summary")).to_have_text("先读草稿（审查中、未评分）")
                 for selector in ("#run-current-step", "#run-eta", "#run-deadline", "#run-deadline-note"):
                     expect(page.locator(selector)).to_be_in_viewport(ratio=1)
                 page.locator("#ui-lang").select_option("English")

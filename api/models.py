@@ -396,29 +396,40 @@ class StageTiming(BaseModel):
     active: bool = Field(default=False, description="The stage the run is in now.")
 
 
+EtaStage = Literal["sources", "evidence", "report", "review", "scoring"]
+
+
 class RunEta(BaseModel):
     remaining_seconds: int = Field(
         ge=0, description="The middle of the range below, for a client that shows one figure.",
     )
     low_seconds: int = Field(
-        ge=0, description="What the fastest of the runs in the pool took from this point to its end.")
-    high_seconds: int = Field(ge=0, description="What the slowest of them took.")
-    basis_runs: int = Field(description="Recent completed runs the range is drawn from.")
-    basis: Literal["stages", "total"] = Field(
-        description="`stages`: the rest of the current stage plus every later stage, run by run. "
-                    "`total`: whole-run times, where too few runs recorded their stages.",
+        ge=0, description="The rest of the current stage and every later one at their fastest recorded "
+                          "times, added up.")
+    high_seconds: int = Field(ge=0, description="The same at their slowest recorded times.")
+    basis_runs: int = Field(description="Earlier runs whose stage times went into the range.")
+    basis: Literal["stages"] = Field(
+        description="`stages`: each stage's recorded times, from any run that finished that stage, "
+                    "including runs that later failed or timed out.",
     )
     model: str | None = Field(
         default=None,
-        description="The model whose runs make the range; null when they are runs of other models.")
+        description="This run's model when any stage ahead goes by its own runs' times; null when "
+                    "every one goes by other models' runs.")
     same_model: bool = Field(
         default=False,
-        description="True when the range is drawn from at least three completed runs on this run's own "
-                    "model; false when there were too few and runs of any model stand in.")
+        description="True when every stage ahead goes by this run's own model's times.")
     overdue: bool = Field(
         default=False,
-        description="This run has been in its current stage longer than every run in the pool was; the "
-                    "range is then what the later stages alone took.")
+        description="This run has been in its current stage longer than its slowest recorded time (widened "
+                    "where it was seen fewer than three times); the range is then what the later stages "
+                    "alone took.")
+    other_model_stages: list[EtaStage] = Field(
+        default_factory=list,
+        description="Stages ahead that this run's model has not finished here, which go by other models' times.")
+    few_sample_stages: list[EtaStage] = Field(
+        default_factory=list,
+        description="Stages ahead with fewer than three recorded times, whose range is widened.")
 
 
 class ResumeExpectation(BaseModel):
@@ -482,8 +493,8 @@ class DailyQuota(BaseModel):
     resets_at: AwareDatetime
 
 
-# Which saved text the `draft` artifact of a run that stopped without a
-# report is (api.runs.draft_report).
+# Which saved text the `draft` artifact is, for a run that stopped without a
+# report or one still going whose review has begun (api.runs.readable_draft).
 DraftStage = Literal["writer", "reviewer"]
 _DRAFT_STAGE_DESCRIPTION = (
     "Which step's saved text the `draft` artifact is: `reviewer`, the report after "
@@ -641,8 +652,8 @@ class RunProgress(BaseModel):
     )
     eta: RunEta | None = Field(
         default=None,
-        description="For a running run, the range recent completed runs took from this "
-                    "point to their end; None without at least three of them.",
+        description="For a running run, how long the rest of its current stage and the later ones took "
+                    "earlier runs, fastest to slowest; None when one of those stages has no recorded time.",
     )
     resume_expected: ResumeExpectation | None = Field(
         default=None, description=_RESUME_EXPECTED_DESCRIPTION,
@@ -866,8 +877,8 @@ class RunStatus(BaseModel):
     )
     eta: RunEta | None = Field(
         default=None,
-        description="For a running run, the range recent completed runs took from this "
-                    "point to their end; None without at least three of them.",
+        description="For a running run, how long the rest of its current stage and the later ones took "
+                    "earlier runs, fastest to slowest; None when one of those stages has no recorded time.",
     )
     resume_expected: ResumeExpectation | None = Field(
         default=None, description=_RESUME_EXPECTED_DESCRIPTION,
