@@ -126,6 +126,7 @@ function snapshot() {
         link: link ? { tag: link.tag, href: link.href ?? null, rel: link.rel ?? null, target: link.target ?? null } : null,
         excerpt_tag: details?.tag ?? null,
         summary_tag: details?.children[0]?.tag ?? null,
+        summary_text: details?.children[0]?.textContent ?? null,
         excerpts: texts(row, "source__text"),
         excerpt_children: byClass(row, "source__text").map(n => n.children.length),
         excerpt_state: texts(row, "source__excerpt-state"),

@@ -392,3 +392,61 @@ def test_contract_assertions_kill_in_memory_production_mutations(mutation):
         _assert_exact_excerpt(healthy["states"][0]["rows"][0], EXACT_TEXT)
         with pytest.raises(AssertionError, match="Saved excerpt"):
             _assert_exact_excerpt(mutant["states"][0]["rows"][0], EXACT_TEXT)
+
+
+@pytest.mark.parametrize("language,abstract_label,snippet_label,generic_label,known_prefix,unknown_prefix,unrecorded_line", [
+    (
+        "English",
+        "Saved abstract",
+        "Saved search-result snippet",
+        "Saved excerpt",
+        "Recorded summary_source label: ",
+        "Unrecognized recorded summary_source label: ",
+        "No readable summary_source label is recorded.",
+    ),
+    (
+        "Simplified Chinese",
+        "已保存摘要",
+        "已保存搜索结果片段",
+        "已保存摘录",
+        "记录的 summary_source 标签：",
+        "未识别的已记录 summary_source 标签：",
+        "未记录可读取的 summary_source 标签。",
+    ),
+])
+def test_saved_excerpt_disclosure_labels_localize_known_kinds_with_generic_fallback(
+    language, abstract_label, snippet_label, generic_label, known_prefix, unknown_prefix, unrecorded_line,
+):
+    """Readable known kinds get localized disclosure labels; unknown, missing, or unreadable rows stay generic."""
+    result = _render(_collection(
+        _source("A1", summary_source="abstract", evidence_summary="Abstract text"),
+        _source("A2", summary_source="search_snippet", evidence_summary="Snippet text"),
+        _source("A3", summary_source="custom_kind", evidence_summary="Unknown kind text"),
+        _source("A4", summary_source=None, evidence_summary="Unrecorded kind text"),
+        _source("A5", summary_source="abstract", evidence_summary=None),
+        _source("A6", summary_source="search_snippet", evidence_summary="   "),
+    ), language=language)
+    rows = result["states"][0]["rows"]
+    assert rows[0]["summary_text"] == abstract_label
+    assert rows[0]["summary_source"] == [f"{known_prefix}abstract"]
+    _assert_exact_excerpt(rows[0], "Abstract text")
+
+    assert rows[1]["summary_text"] == snippet_label
+    assert rows[1]["summary_source"] == [f"{known_prefix}search_snippet"]
+    _assert_exact_excerpt(rows[1], "Snippet text")
+
+    assert rows[2]["summary_text"] == generic_label
+    assert rows[2]["summary_source"] == [f"{unknown_prefix}custom_kind"]
+    _assert_exact_excerpt(rows[2], "Unknown kind text")
+
+    assert rows[3]["summary_text"] == generic_label
+    assert rows[3]["summary_source"] == [unrecorded_line]
+    _assert_exact_excerpt(rows[3], "Unrecorded kind text")
+
+    assert rows[4]["summary_text"] == generic_label
+    assert rows[4]["summary_source"] == [f"{known_prefix}abstract"]
+    assert rows[4]["excerpts"] == []
+
+    assert rows[5]["summary_text"] == generic_label
+    assert rows[5]["summary_source"] == [f"{known_prefix}search_snippet"]
+    _assert_exact_excerpt(rows[5], "   ")

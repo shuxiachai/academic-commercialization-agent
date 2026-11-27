@@ -2674,13 +2674,16 @@ function renderSavedSource(source) {
   if (source.invalid) body.append(el("p", "source__fault", t("sources_record_partial")));
 
   const excerpt = el("details", "source__excerpt");
-  excerpt.append(el("summary", null, t("sources_excerpt")));
   const label = source.summary_source.text;
-  const labelKey = ["abstract", "search_snippet"].includes(label)
+  const saved = source.evidence_summary;
+  const knownKind = ["abstract", "search_snippet"].includes(label);
+  const summaryKey = saved.state === "available" && knownKind
+    ? `sources_excerpt_${label}` : "sources_excerpt";
+  excerpt.append(el("summary", null, t(summaryKey)));
+  const labelKey = knownKind
     ? "sources_summary_source" : "sources_summary_unrecognized";
   excerpt.append(el("p", "source__summary-source", label
     ? t(labelKey).replace("{label}", () => label) : t("sources_summary_unrecorded")));
-  const saved = source.evidence_summary;
   if (saved.text !== null) {
     // Direct textContent, including an empty string and all original white
     // space. No Markdown, autolinks, highlighting or excerpt normalization.
