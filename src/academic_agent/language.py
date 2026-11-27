@@ -464,7 +464,15 @@ def plan_topic_search(topic: str, n: int = 2, *, credentials: dict | None = None
     # A verbose explanation that happens to carry a tag is still not a search
     # phrase. Falling back is safer than silently sending model commentary to
     # every backend and then interpreting zero hits as evidence scarcity.
-    if len(search_topic) > 200 or len(search_topic.split()) > 24:
+    # A SEARCH_TOPIC left in another script is not one either: the run would
+    # refuse to search it (source_pipeline._require_english_search_phrase), so
+    # a preview must not offer it as a reading to confirm. It falls back to
+    # the plain translation, like an answer with no SEARCH_TOPIC line.
+    if (
+        len(search_topic) > 200
+        or len(search_topic.split()) > 24
+        or not detect_language(search_topic).startswith("en")
+    ):
         search_topic = ""
 
     # Whether the phrase below is the model's. It used to be "the model

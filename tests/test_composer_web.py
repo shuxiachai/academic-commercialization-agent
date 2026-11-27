@@ -138,6 +138,22 @@ def test_the_waiting_preview_does_not_outlive_its_question(kind):
     assert "PASS preview_waiting" in result.stdout
 
 
+@pytest.mark.parametrize("kind", ["chinese", "mixed", "short", "english"])
+def test_a_search_phrase_the_run_would_not_search_starts_nothing(kind):
+    """A search phrase edited into Chinese used up a daily run that searched nothing.
+
+    The worker stops before any search on a phrase in another script
+    (topic_not_translated) and the stop still counts as the day's run, so
+    the preview refuses it, as it refuses one too short, before a request.
+    """
+    node = shutil.which("node")
+    assert node, "Node is required for the plan-phrase seam"
+    result = subprocess.run([node, str(Path(__file__).with_name("js") / "composer_contract.mjs"),
+        "plan_phrase", kind], capture_output=True, text=True, encoding="utf-8", timeout=30)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "PASS plan_phrase" in result.stdout
+
+
 @pytest.mark.parametrize("kind", ["pending", "done", "failed"])
 def test_a_pressed_cancel_stays_pressed_until_the_run_stops(kind):
     """Each poll repainted Cancel as if it had never been pressed."""

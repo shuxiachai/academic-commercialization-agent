@@ -1419,6 +1419,37 @@ const scenarios = {
       assert.notEqual(panel.children[1].textContent, actualRunView.planLabel('previewing'));
     }
   },
+  async plan_phrase() {
+    // A search phrase edited into Chinese was admitted, counted as the day's
+    // run and then stopped before any search (topic_not_translated). The
+    // panel now says so before anything is started.
+    const kind = process.argv[3];
+    const f = fixture();
+    const label = actualRunView.planLabel;
+    api.setAccessCode('fixture-code');
+    f.run('planPreviewEnabled = true');
+    f.topic('超级高铁的商业潜力');
+    const submitted = f.submit();
+    f.respond(0, { planned: true, resolved: true, search_topic: 'hyperloop transportation system',
+      aliases: ['vacuum tube maglev train'], components: [] });
+    await submitted;
+    const phrase = { chinese: '超级高铁', mixed: 'hyperloop 超级高铁', short: ' h ', english: '  hyperloop   ' }[kind];
+    f.run(`planState.plan.search_topic = ${JSON.stringify(phrase)}`);
+    const started = f.run('startFromPlan()');
+    for (let i = 0; i < 6; i += 1) await new Promise((resolve) => setImmediate(resolve));
+    if (kind === 'english') {
+      // The run's POST is left unanswered: what it carries is the seam.
+      assert.equal(f.requests.length, 2);
+      assert.equal(f.requests[1].url, '/api/runs');
+      assert.deepEqual(JSON.parse(f.requests[1].options.body).search_plan,
+        { search_topic: 'hyperloop', aliases: ['vacuum tube maglev train'], components: [] });
+      return;
+    }
+    assert.equal(f.requests.length, 1, 'Nothing is started on a phrase the run would not search');
+    await started;
+    const said = kind === 'short' ? 'too_short' : 'not_english';
+    assert.equal(f.get('#toasts').children.at(-1).textContent, label(said));
+  },
   async cancel_feedback() {
     // Every poll repaints the run's actions. Until 2026-11-11 that replaced a
     // Cancel that had just been pressed with a fresh, enabled one: for the

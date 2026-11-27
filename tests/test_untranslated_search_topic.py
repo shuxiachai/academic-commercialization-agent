@@ -116,6 +116,17 @@ class UntranslatedTopicIsNotSearched(TestCase):
         error = self._assert_stopped_before_search(DROWNING, search_plan=plan)
         self.assertIs(error.diagnostics["planned"], True)
 
+    def test_a_confirmed_alias_or_component_that_is_not_english_is_not_searched(self):
+        # Every title passes the gate on a phrase it reads no word of; the
+        # planner drops such phrases, a caller's confirmed plan is stopped.
+        for plan in (
+            SearchPlan(search_topic="active drowning rescue systems", aliases=["防溺水救援"]),
+            SearchPlan(search_topic="active drowning rescue systems",
+                       components=["溺水检测", "wearable drowning sensors"]),
+        ):
+            with self.subTest(plan=plan):
+                self._assert_stopped_before_search(DROWNING, search_plan=plan)
+
     def _searched(self, topic: str) -> list[str]:
         """What OpenAlex was asked; the unrelated answers leave the run short, past planning."""
         openalex = _RecordingOpenAlex()
@@ -175,6 +186,13 @@ class PlannedMeansThePlannerWroteIt(TestCase):
         # a preview showed the topic as typed as if the planner had read it so.
         self.assertEqual((plan.search_topic, plan.planned), (DROWNING, False))
 
+    def test_a_search_topic_left_in_chinese_is_not_a_reading(self):
+        # The run would refuse to search it, so a preview must not offer it to confirm.
+        answers = {"search_planning": "SEARCH_TOPIC: 防溺水救援系统", "translation": "Active drowning rescue systems"}
+        with patch.object(language, "_llm_call", _planner(answers)):
+            plan = plan_topic_search(DROWNING)
+        self.assertEqual((plan.search_topic, plan.planned), ("Active drowning rescue systems", False))
+
     def test_a_search_topic_too_long_to_use_is_not_a_reading(self):
         answer = "SEARCH_TOPIC: " + " ".join(["drowning"] * 30)
         with patch.object(language, "_llm_call", _planner({"search_planning": answer})):
@@ -203,3 +221,49 @@ class PlannedMeansThePlannerWroteIt(TestCase):
         with patch.object(language, "_llm_call", _planner({"search_planning": answer})):
             plan = plan_topic_search(DROWNING)
         self.assertEqual(plan.components, ("wearable drowning sensors", "unmanned rescue buoys"))
+
+
+class ThePreviewShowsOnlyAReading(TestCase):
+    """`planned` reaches the page through POST /api/plan, with the real planner behind it."""
+
+    def setUp(self):
+        import shutil
+        import tempfile
+        from pathlib import Path
+
+        from fastapi.testclient import TestClient
+
+        from api import access, plan_preview
+        from api.main import app
+
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        for patcher in (
+            patch.object(runs, "DEFAULT_OUTPUT_ROOT", tmp),
+            patch.object(runs, "DAILY_CAP", 0),
+            patch.object(access, "ACCESS_CODE", None),
+            patch.object(access, "ACCESS_CODES", "for-alice"),
+            patch.object(access, "ADMIN_CODE", None),
+            patch.object(plan_preview, "_counts", {}),
+        ):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.client = TestClient(app)
+
+    def _preview(self, answers: dict[str, str]) -> dict:
+        with patch.object(language, "_llm_call", _planner(answers)):
+            reply = self.client.post("/api/plan", json={"topic": DROWNING}, headers={"X-Access-Code": "for-alice"})
+        self.assertEqual(reply.status_code, 200, reply.text)
+        return reply.json()
+
+    def test_the_topic_as_typed_is_not_shown_as_a_reading(self):
+        for answers in ({}, {"search_planning": "Sure, here is a plan."},
+                        {"search_planning": "SEARCH_TOPIC: 防溺水救援系统"}):
+            with self.subTest(answers=answers):
+                body = self._preview(answers)
+                # Before, the last two came back planned: true with the Chinese text as the reading.
+                self.assertEqual((body["planned"], body["search_topic"]), (False, DROWNING))
+
+    def test_a_reading_the_planner_wrote_is_shown(self):
+        body = self._preview({"search_planning": "SEARCH_TOPIC: active drowning rescue systems"})
+        self.assertEqual((body["planned"], body["search_topic"]), (True, "active drowning rescue systems"))

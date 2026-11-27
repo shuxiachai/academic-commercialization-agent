@@ -1157,10 +1157,12 @@ These are example policy values, not a cost/SLO guarantee.
   planning again. The count lives in memory, so a restart resets it. A
   request that carries a complete key set is planned on that set's model key
   and can be billed to nobody else; an account must send one. When the model
-  gives no answer, or no usable `SEARCH_TOPIC` line, the reply says
-  `planned: false`, and the page says the search could not be previewed
-  instead of showing the topic as typed. A confirmed reading in a non-Latin
-  script is not searched either: the worker stops as above.
+  gives no answer, or no usable `SEARCH_TOPIC` line (a non-Latin script
+  counts as unusable), the reply says `planned: false`, and the page says the
+  search could not be previewed instead of showing the topic as typed. A
+  confirmed plan with any phrase in a non-Latin script is not searched
+  either: the worker stops as above. The page refuses such a search phrase
+  before starting the run, as it refuses one under 3 characters.
 - Counts are atomically persisted in
   `outputs/.paid-operation-ledger.json`; restart does not reset that day's
   budget. Unreadable accounting fails closed before paid work.

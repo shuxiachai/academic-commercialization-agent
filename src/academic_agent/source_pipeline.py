@@ -3757,11 +3757,15 @@ def _require_english_search_phrase(
 
     The same script test as detect_language: Chinese, Japanese, Korean,
     Arabic and Russian text is caught, a Latin-script phrase is not. A
-    confirmed reading is held to it as well: it is searched the same way.
+    confirmed reading is held to it as well, aliases and components
+    included: they are searched and gated the same way. (The planner drops
+    such aliases and components itself; a confirmed plan is the caller's
+    own, so it is stopped rather than quietly changed.)
     """
     from academic_agent.language import detect_language
 
-    if detect_language(search_topic).startswith("en"):
+    phrases = (search_topic, *plan.aliases, *plan.components)
+    if all(detect_language(phrase).startswith("en") for phrase in phrases):
         return
     raise SourceCollectionError(
         UNTRANSLATED_TOPIC_ERROR,

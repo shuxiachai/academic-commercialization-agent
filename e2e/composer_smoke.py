@@ -404,6 +404,12 @@ def _plan_preview_journey(browser, base: str) -> int:
         assert len(previews) == 1
         panel.locator(".plan-chip").first.locator("button").click()
         expect(panel.locator(".plan-chip")).to_have_text(["evacuated tube transport×"])
+        # A phrase the run would not search starts nothing: the worker stops
+        # on it (topic_not_translated), and the stop counts as the day's run.
+        page.locator("#plan-topic").fill("超级高铁")
+        page.locator("#plan-start").click()
+        expect(page.locator("#toasts .toast").last).to_contain_text("a phrase in another script is not searched")
+        assert not posts, "A search phrase in another script must not start a run"
         page.locator("#plan-topic").fill("  hyperloop   ")
         page.locator("#plan-start").click()
         _wait_requests(page, posts, 1)
