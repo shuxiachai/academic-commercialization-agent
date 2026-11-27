@@ -1420,9 +1420,31 @@ def _academic_source_from_openalex(
             return None, f"OpenAlex title not relevant to topic: {title!r}"
 
     abstract = _openalex_abstract(work)
+    unanswered: str | None = None
     if len(abstract) < 60 and s2_client is not None:
-        abstract = s2_client.get_abstract_by_doi(doi)
+        # OpenAlex serves no abstract for Elsevier works. Measured 2026-11-27
+        # on the warehouse-roof cooling topic: of the first 27 recent works
+        # OpenAlex listed, 18 had none, 15 of them Elsevier. Semantic Scholar
+        # answered "abstract": null for the two Elsevier ones it answered at
+        # all (HTTP 429 for the rest), and Crossref had none for the seven
+        # Elsevier and Springer ones checked. That is a real absence and the
+        # paper stays out; AGENTS.md records why abstracts are not scraped
+        # from publisher pages. A lookup S2 did not answer is not an absence,
+        # and the note says so instead of "0 chars".
+        lookup = getattr(s2_client, "lookup_abstract", None)
+        if lookup is not None:
+            fetched, unanswered = lookup(doi)
+        else:
+            fetched = s2_client.get_abstract_by_doi(doi)
+        abstract = fetched if len(fetched) >= len(abstract) else abstract
     if len(abstract) < 60:
+        if unanswered:
+            # Worded so /api/health/retrieval does not read one paper's lookup
+            # as its lane giving up (retrieval_health._FAILURE_NOTE).
+            return None, (
+                f"abstract too thin ({len(abstract)} chars; Semantic Scholar did not answer: "
+                f"{unanswered}): {title!r}"
+            )
         return None, f"abstract too thin ({len(abstract)} chars): {title!r}"
 
     primary = work.get("primary_location") or {}
@@ -2301,6 +2323,20 @@ def _filter_by_relevance(
     result_ids = {s.source_id for s in result}
     removed = [(s, sc) for s, sc in scored if s.source_id not in result_ids]
     return result, removed
+
+
+def _setting_terms(topic: str, aliases: Sequence[str] = ()) -> list[str]:
+    """The words whose absence makes _filter_by_relevance score a source -1.
+
+    A source is removed as off-setting only when every reading of the topic
+    names a setting and none of those words is in the source, so the words
+    are listed only then, for every reading. A failed run keeps them: the
+    query audit says "score=-1" and the page has to say what was missing.
+    """
+    readings = [_topic_domain_keywords(reading) for reading in dict.fromkeys((topic, *aliases))]
+    if not readings or not all(readings):
+        return []
+    return sorted(set().union(*readings))
 
 
 def _record_relevance_filter(
@@ -3849,6 +3885,10 @@ def collect_source_collection(
             "aliases": topic_synonyms,
             "accepted_sources": accepted_sources,
             "required_sources": minimum_sources,
+            # The words a "score=-1" removal lacked (_setting_terms). Added
+            # 2026-11-27; older diagnostics have no key, and the page then
+            # says "the topic's setting" without naming it.
+            "setting_terms": _setting_terms(normalized_topic, topic_synonyms),
             "audit": [audit.model_dump(mode="json") for audit in all_audits],
         }
 

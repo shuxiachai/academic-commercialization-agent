@@ -91,15 +91,34 @@ class SemanticScholarClient:
 
     def get_abstract_by_doi(self, doi: str) -> str:
         """Fetch abstract text for a paper by DOI from S2. Returns '' on failure."""
+        return self.lookup_abstract(doi)[0]
+
+    def lookup_abstract(self, doi: str) -> tuple[str, str | None]:
+        """The abstract S2 holds for a DOI, and why there is none when it did not answer.
+
+        Returns (text, None) when S2 answered, text being "" when it lists no
+        abstract, and ("", reason) when it gave no answer: "HTTP 429", another
+        status, a network error or an unreadable reply. The two used to share
+        "": measured on 2026-11-27, S2 answered "abstract": null for Elsevier
+        works OpenAlex also lists without one, and HTTP 429 for others, and the
+        audit called both "0 chars". It is asked once: a lookup is best-effort
+        and a retry after a refusal would hold the run for every such paper.
+        """
         url = f"{self._BASE_URL}/DOI:{quote(doi, safe='')}?fields=abstract"
         request = Request(url, headers=self.headers)
         try:
             s2_wait_turn()
             with urlopen(request, timeout=self.timeout) as resp:
                 payload = json.loads(resp.read().decode("utf-8"))
-            return str(payload.get("abstract") or "")
-        except (OSError, URLError, TimeoutError, json.JSONDecodeError):
-            return ""
+        except HTTPError as exc:
+            return "", f"HTTP {exc.code}"
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return "", "unreadable reply"
+        except (OSError, URLError, TimeoutError):
+            return "", "network error"
+        if not isinstance(payload, dict):
+            return "", "unreadable reply"
+        return str(payload.get("abstract") or ""), None
 
     def search(self, topic: str, rows: int = 15) -> list[dict[str, Any]]:
         params = urlencode({
