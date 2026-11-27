@@ -105,6 +105,8 @@ def test_the_smoke_has_no_wait_that_remembers_a_previous_look():
     # The one thing the journey does keep on the page is the article node it compares against.
     # The print check, a different function, keeps one more: whether the reviewer's notes were
     # open at the moment the browser announced a print, which only a listener on the page can see.
-    # Neither is a position looked at earlier and waited on.
-    assert set(re.findall(r"window\.(__\w+)", _SMOKE)) == {"__smokeArticle", "__notesAtPrint"}
-    assert "__notesAtPrint" not in journey
+    # The resume journey keeps the stage lists the run view drew, for the same reason: what a
+    # resume showed first is gone by the time any look from outside the page could be taken.
+    # None of them is a position looked at earlier and waited on.
+    assert set(re.findall(r"window\.(__\w+)", _SMOKE)) == {"__smokeArticle", "__notesAtPrint", "__stageRenders"}
+    assert "__notesAtPrint" not in journey and "__stageRenders" not in journey
