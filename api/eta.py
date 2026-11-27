@@ -1,41 +1,57 @@
-"""How long a running assessment probably has left, from recent finished runs.
+"""How long a running assessment probably has left, from earlier runs' stage times.
 
 The page showed one figure, the median of the deployment's last thirty
 completed runs whatever model they ran on. On 2026-11-18 it said "about 7 min"
 at the start of a run that took 24 min 40 s: the deployment had moved to a
-slower model two days before, and the thirty still held the faster one's
-runs. A resumed run that only had scoring left then counted as a completed
-run of 3 min 48 s, with those seconds filed under the evidence stage.
+slower model two days before, and the thirty still held the faster one's runs.
 
-So the estimate is now a range, drawn from runs of the same model:
+The range that replaced it (#431) was drawn from whole completed runs of the
+same model, and asked only the runs whose current stage had lasted at least as
+long as this one's had so far. On 2026-11-27 a run on qwen3.8-2.4t-a95b was
+told 1-16 minutes, 11-16 twenty seconds later, then 7-8 and 5-6 with fourteen
+minutes still to go, all "going by runs on other models" (tests/
+test_eta_replay.py). Near the end of each stage the runs still in it were one
+or two, so the range closed to a minute and opened again at the next stage;
+and the model had three runs on record, none of which counted, because one
+had failed in scoring and one was a resume: only completed whole runs were
+history, and three of one model were needed.
 
-- A sample is a completed run that ran every stage itself. A resumed run is
-  not one: it ran only what its parent had not finished.
-- The pool is the newest `MODEL_RUNS` samples on the running run's model.
-  With fewer than `MIN_SAMPLES` of those, it is the newest `MODEL_RUNS`
-  samples of any model, and the answer says so (`same_model` false): the
-  reader is told the figure comes from other models, not given it as if it
-  were this one's.
-- For each run in the pool: what it took from this point to its end, that is
-  the rest of the current stage plus every later stage. The range is the
-  fastest and the slowest of those. Only runs whose current stage lasted at
-  least as long as this one's already has are asked: a run that had left the
-  stage by now says nothing about how much of it is left. When none lasted
-  this long the run is `overdue`, slower at this stage than every run in the
-  pool, and the range is what the later stages alone took.
+So the range is now built stage by stage:
 
-It is what recent runs did, not a promise. The link between the host and the
+- A stage's time is on record when a run finished that stage, whatever
+  became of the run afterwards: a run that failed or timed out lends every
+  stage it got through, not the one it stopped in. A resume lends the stages
+  it ran and none it took from its parent, and its seconds are read where
+  they were spent (`_finished_stages`, as run.js stageSeconds shows them).
+- For each stage still ahead, the newest `STAGE_SAMPLES` times of this run's
+  model, fastest to slowest. A stage this model has never finished here goes
+  by other models' times for it, and the answer names it
+  (`other_model_stages`), so the page can say why the range is wide.
+- A stage seen fewer than `MIN_SAMPLES` times is widened (`WIDEN`) and named
+  (`few_sample_stages`). Measured on the 106 local benchmark runs, in 13
+  batches of one model each, whole-run times: the next run lay between the
+  fastest and slowest of one earlier run 0% of the time and of two 33%; half
+  either way for one and a quarter for two brought that to 69% and 73%.
+  Those are whole runs on a local machine, not production stages; the stage
+  sum below is wider than any one run's, which is a margin of its own.
+- The range is the rest of the current stage plus the later ones: the
+  fastest times added up to the slowest added up. Within a stage neither end
+  can rise; both fall with the clock, the low end stopping at the later
+  stages' fastest. A run slower at its stage than the slowest (widened) time
+  is `overdue`, and the range is what the later stages alone took.
+
+It is what earlier runs did, not a promise. The link between the host and the
 model provider stalls for minutes at a time (api/link_probe.py), which is
-why the range is wide and why it is not narrowed to a middle half: the slow
-runs are the ones a waiting reader needs to know about.
+why the range runs to the slowest time and is not narrowed to a middle half.
 """
 
 from __future__ import annotations
 
 import json
-import statistics
+import math
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
 
 from academic_agent.run_terminal import TerminalRecordUnreadable, load_terminal_record
@@ -48,11 +64,27 @@ STAGES = (
     ("Agent 5", "review"),
     ("Agent 6", "scoring"),
 )
-#: Completed runs kept, newest first, across every model.
-SAMPLE_RUNS = 30
-#: At most this many runs make one range.
-MODEL_RUNS = 10
+#: The checkpoints behind each stage, as run.js STAGES names them: a resume
+#: that reused every one of a stage's took that stage from its parent.
+STAGE_NODES = {
+    "sources": ("retrieval",),
+    "evidence": ("academic", "patent", "market"),
+    "report": ("writer",),
+    "review": ("reviewer",),
+    "scoring": ("scorer",),
+}
+_END_STAGES = frozenset({"Done", "Error"})
+#: Run directories read for stage times, newest first.
+SCAN_RUNS = 200
+#: The newest times of one stage on one model that make its range.
+STAGE_SAMPLES = 10
 MIN_SAMPLES = 3
+#: How much a stage seen once or twice is widened: its fastest time divided
+#: by this and its slowest multiplied by it.
+WIDEN = {1: 1.5, 2: 1.25}
+#: Completed whole runs kept for the figure the public pages state.
+SAMPLE_RUNS = 30
+MODEL_RUNS = 10
 CACHE_SECONDS = 600
 
 _lock = threading.Lock()
@@ -65,14 +97,85 @@ def stage_key(stage: object) -> str | None:
     return next((key for marker, key in STAGES if marker in stage), None)
 
 
-def _sample(run_dir: Path) -> dict | None:
+def _entries(raw: object) -> list[tuple[str, datetime]]:
+    """The worker's (stage, start) lines, end markers kept, as runs.stage_timings parses them."""
+    entries: list[tuple[str, datetime]] = []
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict):
+            continue
+        stage, started = item.get("stage"), item.get("started_at")
+        if not isinstance(stage, str) or not stage or not isinstance(started, str):
+            continue
+        try:
+            started_at = datetime.fromisoformat(started)
+        except ValueError:
+            continue
+        if started_at.tzinfo is not None:
+            entries.append((stage, started_at))
+    return entries[:32]
+
+
+def _finished_stages(raw: object, *, completed: bool, ended_at: datetime | None,
+                     recovery: object) -> dict[str, int]:
+    """Seconds of each stage this run finished itself, by stage key.
+
+    A stage is finished when the run moved on from it to another stage or to
+    "Done", or, for the last one of a completed run, when the run ended. One
+    followed by "Error", or by nothing in a run that did not complete, was
+    cut short and is left out. So is a stage a resume reused whole or in part
+    from its parent: it was not run here. Until 2026-11-19 the worker left a
+    resume's stage line on the evidence stage until its first task had
+    finished, so a resume that only scored filed its scoring under evidence
+    (the production resume of 2026-11-18: "Phase 1" 3:33, scoring 0:00).
+    Seconds under a stage the resume took whole from its parent were spent
+    in the first stage it did run, which its record names, and are counted
+    there, as run.js stageSeconds shows them.
+    """
+    entries = _entries(raw)
+    seconds: dict[str, float] = {}
+    cut: set[str] = set()
+    for index, (stage, started_at) in enumerate(entries):
+        key = None if stage in _END_STAGES else stage_key(stage)
+        if key is None:
+            continue
+        if index + 1 < len(entries):
+            following, end = entries[index + 1]
+            done = following != "Error"
+        else:
+            end, done = ended_at, completed and ended_at is not None
+        if end is None:
+            cut.add(key)
+            continue
+        seconds[key] = seconds.get(key, 0.0) + max(0.0, (end - started_at).total_seconds())
+        if not done:
+            cut.add(key)
+
+    reused_nodes = (recovery.get("reused_nodes") if isinstance(recovery, dict)
+                    and recovery.get("state") == "reused" else None)
+    reused_nodes = [node for node in reused_nodes if isinstance(node, str)] if isinstance(reused_nodes, list) else []
+    whole = {key for key, nodes in STAGE_NODES.items() if all(node in reused_nodes for node in nodes)}
+    part = {key for key, nodes in STAGE_NODES.items() if key not in whole and any(n in reused_nodes for n in nodes)}
+    next_node = recovery.get("next_node") if isinstance(recovery, dict) else None
+    began = next((key for key, nodes in STAGE_NODES.items() if next_node in nodes), None)
+    if began is not None and began not in whole:
+        # The first stage is the worker starting up, under that label then and now.
+        for key, _nodes in list(STAGE_NODES.items())[1:]:
+            if key in whole and key in seconds:
+                seconds[began] = seconds.get(began, 0.0) + seconds.pop(key)
+                if key in cut:
+                    cut.add(began)
+    return {key: int(value) for key, value in seconds.items() if key not in cut | whole | part}
+
+
+def _record(run_dir: Path) -> dict | None:
+    """What one ended run says: its model, the stages it finished, and its whole time."""
     from api import runs
 
     try:
         record = load_terminal_record(run_dir)
     except TerminalRecordUnreadable:
         return None
-    if record is None or record.state != "completed":
+    if record is None:
         return None
     try:
         status = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
@@ -83,22 +186,20 @@ def _sample(run_dir: Path) -> dict | None:
     # The terminal record's copy is the one the run page shows; the live file
     # is the fallback for a record written without it.
     recovery = record.recovery if record.recovery is not None else status.get("recovery")
-    if isinstance(recovery, dict) and recovery.get("source_run_id"):
-        return None
-    per_stage: dict[str, int] = {}
-    for timing in runs.stage_timings(status.get("stage_timings"), running=False, ended_at=record.ended_at):
-        key = stage_key(timing["stage"])
-        if key is not None and timing["duration_seconds"] is not None:
-            per_stage[key] = per_stage.get(key, 0) + timing["duration_seconds"]
+    completed = record.state == "completed"
     return {
-        "total": record.elapsed_seconds,
-        "stages": per_stage,
+        "run": run_dir.name,
         "model": runs.run_model(status, record.usage),
+        "stages": _finished_stages(status.get("stage_timings"), completed=completed,
+                                   ended_at=record.ended_at, recovery=recovery),
+        "total": record.elapsed_seconds,
+        "completed": completed,
+        "resumed": isinstance(recovery, dict) and bool(recovery.get("source_run_id")),
     }
 
 
-def history() -> list[dict]:
-    """The newest completed, unresumed runs with their stage times and model, cached."""
+def _records() -> list[dict]:
+    """The newest ended runs' records, newest first, cached."""
     from api import runs
 
     root = runs.DEFAULT_OUTPUT_ROOT
@@ -106,77 +207,86 @@ def history() -> list[dict]:
         cached = _cache.get(root)
         if cached is not None and time.monotonic() - cached[0] < CACHE_SECONDS:
             return cached[1]
-    samples: list[dict] = []
-    for run_dir in runs.run_directories():
-        if len(samples) >= SAMPLE_RUNS:
-            break
-        sample = _sample(run_dir)
-        if sample is not None:
-            samples.append(sample)
+    records = [record for record in map(_record, runs.run_directories()[:SCAN_RUNS]) if record is not None]
     with _lock:
-        _cache[root] = (time.monotonic(), samples)
-    return samples
+        _cache[root] = (time.monotonic(), records)
+    return records
 
 
-def _pool(model: str | None) -> tuple[list[dict], bool]:
-    samples = history()
-    same = [sample for sample in samples if model and sample["model"] == model][:MODEL_RUNS]
-    if len(same) >= MIN_SAMPLES:
-        return same, True
-    return samples[:MODEL_RUNS], False
+def history() -> list[dict]:
+    """The newest completed runs that ran every stage themselves (not resumes), with their whole times."""
+    return [record for record in _records() if record["completed"] and not record["resumed"]][:SAMPLE_RUNS]
 
 
-def _answer(values: list[int], *, pool: list[dict], basis: str, model: str | None,
-            same_model: bool, overdue: bool) -> dict:
-    return {
-        # The middle of the range, for a client that shows one figure.
-        "remaining_seconds": int(statistics.median(values)),
-        "low_seconds": min(values),
-        "high_seconds": max(values),
-        "basis_runs": len(pool),
-        "basis": basis,
-        # Whose runs the range is drawn from: the model's name, or None for
-        # runs of other models.
-        "model": model if same_model else None,
-        "same_model": same_model,
-        "overdue": overdue,
-    }
+def _times(key: str, model: str | None, records: list[dict]) -> tuple[list[tuple[str, int]], bool]:
+    """The newest times of one stage: this model's when it has any, else other models'."""
+    own = [(r["run"], r["stages"][key]) for r in records if model and r["model"] == model and key in r["stages"]]
+    if own:
+        return own[:STAGE_SAMPLES], True
+    others = [(r["run"], r["stages"][key]) for r in records if key in r["stages"] and not (model and r["model"] == model)]
+    return others[:STAGE_SAMPLES], False
 
 
-def estimate(stage: str, elapsed_seconds: int | None, timings: list[dict], *,
-             model: str | None = None) -> dict | None:
-    """What recent runs took from this point to their end, or None without enough of them."""
-    pool, same_model = _pool(model)
-    if len(pool) < MIN_SAMPLES:
-        return None
+def estimate(stage: str, timings: list[dict], *, model: str | None = None) -> dict | None:
+    """The rest of the current stage and every later one, fastest to slowest; None with no time on record
+    for one of them."""
     order = [key for _, key in STAGES]
     current = stage_key(stage)
+    # Before the worker names its first stage the whole run is ahead.
+    ahead = order[order.index(current):] if current is not None else order
     in_stage = next((t["duration_seconds"] for t in reversed(timings) if t.get("active")), None)
-    staged = [sample for sample in pool if len(sample["stages"]) == len(order)]
-    if current is not None and in_stage is not None and len(staged) >= MIN_SAMPLES:
-        later = order[order.index(current) + 1:]
-        rest = [sum(sample["stages"][key] for key in later) for sample in staged]
-        still_in = [
-            sample["stages"][current] - in_stage + after
-            for sample, after in zip(staged, rest, strict=True)
-            if sample["stages"][current] >= in_stage
-        ]
-        return _answer(still_in or rest, pool=staged, basis="stages", model=model,
-                       same_model=same_model, overdue=not still_in)
-    if elapsed_seconds is None:
-        return None
-    left = [sample["total"] - elapsed_seconds for sample in pool if sample["total"] >= elapsed_seconds]
-    return _answer(left or [0], pool=pool, basis="total", model=model,
-                   same_model=same_model, overdue=not left)
+    in_stage = in_stage if current is not None and isinstance(in_stage, int) else 0
+
+    records = _records()
+    ranges: list[tuple[float, float]] = []
+    runs_asked: set[str] = set()
+    others: list[str] = []
+    few: list[str] = []
+    for key in ahead:
+        times, own = _times(key, model, records)
+        if not times:
+            return None
+        seconds = [value for _run, value in times]
+        widen = WIDEN.get(len(seconds), 1.0)
+        ranges.append((min(seconds) / widen, max(seconds) * widen))
+        runs_asked.update(run for run, _value in times)
+        if not own:
+            others.append(key)
+        if len(seconds) < MIN_SAMPLES:
+            few.append(key)
+
+    (now_low, now_high), later = ranges[0], ranges[1:]
+    later_low, later_high = sum(low for low, _ in later), sum(high for _, high in later)
+    overdue = in_stage > now_high
+    if overdue:
+        low, high = later_low, later_high
+    else:
+        low, high = max(0.0, now_low - in_stage) + later_low, now_high - in_stage + later_high
+    low_seconds, high_seconds = math.floor(low), math.ceil(high)
+    return {
+        # The middle of the range, for a client that shows one figure.
+        "remaining_seconds": (low_seconds + high_seconds) // 2,
+        "low_seconds": low_seconds,
+        "high_seconds": high_seconds,
+        # The runs whose times went into the range.
+        "basis_runs": len(runs_asked),
+        "basis": "stages",
+        # Whose runs: the model's name when any stage ahead goes by its own times.
+        "model": model if len(others) < len(ahead) else None,
+        "same_model": bool(model) and not others,
+        "overdue": overdue,
+        "other_model_stages": others,
+        "few_sample_stages": few,
+    }
 
 
 def typical_minutes() -> dict | None:
     """How long the newest completed runs here took, for a page that states it.
 
-    The range of whole runs over the newest `MODEL_RUNS` samples of any
-    model, in minutes rounded outward, with how many runs it is drawn from.
-    None with fewer than `MIN_SAMPLES`: a page then says no figure, rather
-    than one from somewhere else.
+    The range of whole runs over the newest `MODEL_RUNS` completed runs that
+    were not resumes, of any model, in minutes rounded outward, with how many
+    runs it is drawn from. None with fewer than `MIN_SAMPLES`: a page then says
+    no figure, rather than one from somewhere else.
     """
     totals = [sample["total"] for sample in history()[:MODEL_RUNS]]
     if len(totals) < MIN_SAMPLES:

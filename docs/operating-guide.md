@@ -1006,23 +1006,37 @@ Scoring's duration includes report finalization. The run header shows them
 folded under "Stage timing"; the live stage list shows them per row. Runs
 started before this field have none.
 
-A running run also carries `eta`: a range, not one figure. It is what recent
-completed runs took from the run's current point to their end, the rest of
-the current stage plus every later stage, as `low_seconds` and
-`high_seconds`, the fastest and the slowest of them (`api/eta.py`). The runs
-asked are the newest ten on the run's own model, which the worker records at
-its start as `llm_model`; with fewer than three of those, the newest ten of
-any model stand in and `same_model` is false, which the header says in words
-("going by runs on other models"). A resumed run is never one of them: it ran
-only what its parent had not finished. Nor is a resumed run given an estimate
-while it is still in its first stage: until its worker has read the
-checkpoints, an estimate would be for a whole run. Only runs whose current stage lasted
-at least as long as this run's already has are asked about the rest of it;
-when none did, `overdue` is true. The header says the remaining time for the
-current stage cannot be estimated and names the later stages covered by the
-historical range. During review that range covers scoring alone. The history is read newest first up
-to thirty completed runs and cached for ten minutes; `eta` is `null` with
-fewer than three.
+A running run also carries `eta`: a range, not one figure, built stage by
+stage from earlier runs (`api/eta.py`). For each stage still ahead it takes
+that stage's newest ten times on the run's own model, which the worker records
+at its start as `llm_model`. A stage's time counts whenever a run finished
+that stage, whatever became of the run afterwards: a run that failed or timed
+out lends every stage it got through, not the one it stopped in, and a resume
+lends only the stages it ran itself. A stage this model has never finished
+here goes by other models' times for it and is named in `other_model_stages`;
+the header then says why ("Review, Scoring go by runs on other models: none
+on this model yet"), and `same_model` is true only when no stage needed that.
+A stage seen once or twice is widened, its fastest time divided and its slowest multiplied by 1.5
+for one time and 1.25 for two, and is named in `few_sample_stages`; the
+header says the model's record is still short and the range was widened.
+`low_seconds` is the fastest times added up, `high_seconds` the slowest, less
+what the current stage has already taken; within a stage neither end rises.
+A run slower at its stage than the slowest (widened) time is `overdue`: the
+header says the remaining time for the current stage cannot be estimated and
+names the later stages the range covers (during review, scoring alone). A
+resumed run has no estimate while it is still in its first stage: until its
+worker has read the checkpoints, an estimate would be for a whole run. The
+newest 200 ended runs are read and cached for ten minutes; `eta` is `null`
+when a stage ahead has no time on record from any model.
+
+Before 2026-11-28 the range was whole completed runs of the same model, with
+other models' standing in below three, and only the runs whose current stage
+had lasted at least as long as this one's were asked about the rest. A run of
+2026-11-27 on a model with three runs on record (one completed, one failed in
+scoring, one a resume) was told 1-16 minutes and 11-16 twenty seconds later,
+then 7-8 and 5-6 with fourteen minutes still to go, all "going by runs on
+other models". `tests/test_eta_replay.py` replays that run through the
+current code.
 
 The owner's live progress header separately shows the current stage and this
 worker's configured time limit. The API reports the seconds left in the
@@ -1033,7 +1047,23 @@ header keeps the known limit and labels the last confirmed stage. The countdown
 and historical estimate return after a successful read. In the last fifth of the window
 (up to five minutes), the page describes any recorded writer or reviewer
 checkpoint, saved sources, or recovery information available at that point.
-A readable checkpoint can supply a draft after a timeout.
+A readable checkpoint can supply a draft after a timeout. When the slowest
+end of the estimate is more than the time left before the limit, the limit
+line adds that this model's earlier runs came close to the limit (or, when
+some stages go by other models, that this run may); the limit itself, the
+review reserve and the call windows are unchanged by it.
+
+Once the review has begun, the writer's saved report is listed as the
+artifact `draft` of the running run (`runs.draft_in_review`), and the
+reviewer's once scoring has begun (`draft_stage`). The run page offers it
+under the stage list, closed, as "Read the draft now (in review, not scored)"
+("先读草稿（审查中、未评分）"), or "(reviewed, not scored)" during scoring.
+It is read only when opened, and a notice above the text says the review may
+still change it, nothing is scored, and it is not the assessment's
+conclusion. Before the review it is not offered: until then the writer has
+not finished. A running run's draft has no PDF, since an export is cached for
+good and this text changes when the review returns; the PDF of a draft is for
+a run that stopped without a report.
 
 `/health` carries `run_minutes`, the fastest and slowest
 whole run of the newest ten in minutes with their count, which is the

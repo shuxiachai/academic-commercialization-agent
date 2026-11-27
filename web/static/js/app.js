@@ -375,7 +375,7 @@ function paintHeader(progress) {
 
   // What recent runs on this model took from this step on, for a run still going.
   timingLine("#run-current-step", live ? runView.currentStep(progress.stage) : "");
-  const etaText = live ? runView.etaSummary(eta, progress.stage) : "";
+  const etaText = live ? runView.etaSummary(eta, progress.stage, llm_model) : "";
   timingLine("#run-eta", live ? `${runView.headerLabel("eta_heading")} · ${etaText || runView.headerLabel("eta_missing")}` : "");
   $("#run-eta").title = etaText ? runView.etaTitle(eta, llm_model) : "";
   paintNotifyButton(state);
@@ -1079,8 +1079,81 @@ function paintGone() {
   line.textContent = kept ? t("gone_retention_days").replace("{days}", String(days)) : t("gone_retention");
 }
 
+/* The draft a running run offers once its review has begun
+ * (runView.liveDraftWording): a fold under the stage list, closed until it is
+ * asked for. On 2026-11-27 a run spent nine minutes in its review with its
+ * writer's report saved, and its page showed that text only once the run had
+ * failed.
+ *
+ * The text is read when the fold is opened, not on every poll, and the
+ * notice above it says what it is before a line of it can be read as the
+ * assessment. The stage list is redrawn on every poll (renderStages empties
+ * the pane), so the same fold is put back each time: one that is open stays
+ * open with what it read. When the reviewer's text replaces the writer's
+ * (draft_stage), the fold is built again under its new name, and read again
+ * if it was open. It goes when the run ends: a stopped run's draft is its own
+ * tab (result.js), and a finished run has its report. */
+let liveDraft = null;
+
+function paintLiveDraft(body, runId, progress) {
+  const wording = runView.liveDraftWording(progress);
+  if (!wording) {
+    dropLiveDraft();
+    return;
+  }
+  const stage = progress.draft_stage ?? null;
+  if (liveDraft?.runId !== runId || liveDraft.stage !== stage) {
+    const wasOpen = liveDraft?.runId === runId && liveDraft.fold.open;
+    dropLiveDraft();
+    liveDraft = { runId, stage, fold: liveDraftFold(runId, wording) };
+    // Opening it fires its toggle, which reads the new text.
+    if (wasOpen) liveDraft.fold.open = true;
+  }
+  body.append(liveDraft.fold);
+}
+
+function dropLiveDraft() {
+  liveDraft?.fold.remove();
+  liveDraft = null;
+}
+
+function liveDraftFold(runId, wording) {
+  const fold = document.createElement("details");
+  fold.className = "live-draft";
+  const summary = document.createElement("summary");
+  summary.className = "live-draft__summary";
+  summary.textContent = t(wording.label);
+  const panel = document.createElement("div");
+  panel.className = "live-draft__body";
+  fold.append(summary, panel);
+  const line = (className, key) => {
+    const p = document.createElement("p");
+    p.className = className;
+    p.textContent = t(key);
+    return p;
+  };
+  let reading = null;
+  fold.addEventListener("toggle", () => {
+    if (!fold.open || reading) return;
+    panel.replaceChildren(line("live-draft__status", "live_draft_loading"));
+    reading = api.getArtifact(runId, "draft").then((md) => {
+      const article = document.createElement("article");
+      article.className = "prose prose--draft";
+      article.innerHTML = result.renderMarkdown(md);
+      panel.replaceChildren(line("draft-note", wording.note), article);
+    }, () => {
+      // Closing and opening the fold again reads it again.
+      reading = null;
+      panel.replaceChildren(line("live-draft__status", "live_draft_failed"));
+    });
+  });
+  return fold;
+}
+
 async function openRun(runId, { known } = {}) {
   stopFollowing();
+  // Another run, or this one drawn again in another language.
+  dropLiveDraft();
   showRun(runId);
   $("#run-connection").textContent = "";
   $("#run-gone").hidden = true;
@@ -1124,10 +1197,16 @@ async function openRun(runId, { known } = {}) {
       lastProgress = progress;
       paintHeader(progress);
       paintActions(progress.state, progress.checkpointing, mayModify(progress), progress);
+      // The pane is the scroll container, and a reader may be partway down
+      // the draft when the stage list is redrawn under it.
+      const scrolled = body.scrollTop;
       runView.renderStages(body, runView.stageStates(
         progress.stage, progress.state, progress.stage_timings, progress.recovery, progress.resume_expected));
+      paintLiveDraft(body, runId, progress);
+      body.scrollTop = scrolled;
     },
     onDone(progress) {
+      dropLiveDraft();
       paintHeader(progress);
       paintActions(progress.state, progress.checkpointing, mayModify(progress), progress);
       runView.renderStages(body, runView.stageStates(

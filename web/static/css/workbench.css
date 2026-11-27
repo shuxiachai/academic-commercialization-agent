@@ -1146,6 +1146,34 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The draft a running run offers during its review (app.js paintLiveDraft):
+   under the stage list and closed until asked for, since what the page is
+   for at that point is the run. Its name already says it is unscored; the
+   notice inside (.draft-note) says it is not the conclusion. */
+.live-draft {
+  max-width: 820px;
+  margin-top: var(--space-4);
+}
+.live-draft__summary {
+  display: inline-block;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.live-draft__summary::-webkit-details-marker { display: none; }
+.live-draft__summary::before { content: "▸ "; }
+.live-draft[open] > .live-draft__summary::before { content: "▾ "; }
+.live-draft__summary:hover { color: var(--text-primary); border-color: var(--border-strong); }
+.live-draft[open] > .live-draft__summary { margin-bottom: var(--space-4); }
+.live-draft__status {
+  color: var(--text-tertiary);
+  font-size: var(--text-sm);
+}
+
 /* ═══ Pills ════════════════════════════════════════════════════════════ */
 
 .pill {
