@@ -60,9 +60,10 @@ def admit(owner: str | None) -> None:
 def preview(topic: str, credentials: dict | None = None) -> dict:
     """The planner's reading of `topic`, on the deployment's key or the caller's.
 
-    `planned` is False when the model gave no answer: what comes back is then
-    the topic as typed, and the caller is told so instead of being shown its
-    own words as a reading.
+    `planned` is False when the model gave no answer, or none with a usable
+    search topic: what comes back is then the topic as typed (or its plain
+    translation), and the caller is told so instead of being shown its own
+    words as a reading.
     """
     plan = plan_topic_search(topic, n=2, credentials=credentials)
     return {

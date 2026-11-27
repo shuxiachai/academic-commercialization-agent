@@ -1052,6 +1052,7 @@ const PLAN_STRINGS = {
     no_answer_own: "Your model did not answer, so the search could not be previewed. "
       + "If your key or model name is wrong the run will fail too: check them under API keys. You can also start anyway.",
     too_short: "The search phrase needs at least 3 characters.",
+    not_english: "Write the search phrase in English: a phrase in another script is not searched.",
   },
   "Simplified Chinese": {
     title: "开始前确认检索方向",
@@ -1072,11 +1073,25 @@ const PLAN_STRINGS = {
     no_answer: "模型没有应答，无法预览检索方向。可以直接开始，由系统自动确定检索词。",
     no_answer_own: "你的模型没有应答，无法预览检索方向。如果密钥或模型名称有误，运行同样会失败：请在“API Key”里检查。也可以直接开始。",
     too_short: "检索词至少需要 3 个字符。",
+    not_english: "检索词请用英文填写：含中文等其他文字的检索词不会被检索。",
   },
 };
 
 export function planLabel(key) {
   return (PLAN_STRINGS[uiLanguage()] ?? PLAN_STRINGS.English)[key] ?? PLAN_STRINGS.English[key];
+}
+
+// The code points language.py's _detect_script reads as Korean, Japanese,
+// Chinese, Arabic or Russian. A run stops before searching a phrase with any
+// of them (topic_not_translated), and the stop still counts as the day's run;
+// said here, before the run is started, it costs nothing.
+const NON_ENGLISH_SCRIPT_RE = /[\u0400-\u052F\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\u1100-\u11FF\u3040-\u30FF\u3400-\u4DBF\u4E00-\u9FFF\uAC00-\uD7AF\uFB50-\uFDFF\uFE70-\uFEFF]/u;
+
+/** Why a confirmed search phrase cannot start a run: a planLabel key, or null. */
+export function searchPhraseProblem(phrase) {
+  const text = String(phrase ?? "");
+  if (text.length < 3) return "too_short";
+  return NON_ENGLISH_SCRIPT_RE.test(text) ? "not_english" : null;
 }
 
 // Short stage names for the one-line timing summary; the stage list keeps the
@@ -1184,6 +1199,8 @@ const FAILURE_STRINGS = {
     "provider_request_rejected:own_keys": "你填写的模型拒绝了请求。请在“API Key”里换成支持 JSON 输出的模型，然后重新开始。",
     provider_rate_limited: "上游服务商的速率或额度限制已触发。请稍后重试。",
     "provider_rate_limited:own_keys": "你的某个服务商触发了速率或额度限制。请稍后重试，或在服务商处检查额度。",
+    topic_not_translated: "题目没有被转成英文检索词，所以没有进行任何检索。",
+    "topic_not_translated:own_keys": "题目没有被转成英文检索词，所以没有进行任何检索。如果是你的模型没有应答，请在“API Key”里检查模型密钥和模型名称，然后重新开始。",
     insufficient_evidence: "系统未能为这个主题收集到足够的已校验证据。请稍后重试或调整主题。",
     provider_response_format: "模型的回答没有按要求的格式返回（需要结构化的 JSON），无法读取。",
     "provider_response_format:own_keys": "你填写的模型的回答没有按要求的格式返回（需要结构化的 JSON），无法读取。如果再次出现，请在“API Key”里换一个模型。",
@@ -1268,6 +1285,9 @@ export const FAILURE_NEXT = {
   provider_output_limit: ["keys", null],
   provider_rate_limited: ["resume", "resume"],
   provider_unreachable: ["resume", "resume"],
+  // Nothing was searched. On an account's own keys it is their model that did
+  // not answer; for anyone else the same topic again is what there is to do.
+  topic_not_translated: ["keys", "again"],
   insufficient_evidence: ["again", "again"],
   timeout: ["again", "again"],
   timeout_resumable: ["resume", "resume"],

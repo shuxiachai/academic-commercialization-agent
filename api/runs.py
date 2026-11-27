@@ -1849,6 +1849,19 @@ _PUBLIC_FAILURE_CATEGORIES: tuple[_FailureCategory, ...] = (
         own_keys="One of your providers reached its rate or quota limit. Retry later, or check "
                  "your quota with the provider.",
     ),
+    # source_pipeline.UNTRANSLATED_TOPIC_ERROR: a topic the model never turned
+    # into English stops before any search. Four production runs (2026-11-23)
+    # searched a Chinese topic as typed, kept unrelated papers and failed later
+    # as "unknown". Not "insufficient_evidence": nothing was looked for, so a
+    # count of papers found would say the wrong thing. No operator wording:
+    # the reading can also be one the reader confirmed in another language.
+    _FailureCategory(
+        "topic_not_translated",
+        ("no english search phrase",),
+        "The topic was not turned into an English search phrase, so nothing was searched.",
+        own_keys="The topic was not turned into an English search phrase, so nothing was searched. "
+                 "If your model did not answer, check its key and name under API keys, then start again.",
+    ),
     _FailureCategory(
         "insufficient_evidence",
         (

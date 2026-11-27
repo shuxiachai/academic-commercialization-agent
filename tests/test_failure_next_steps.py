@@ -99,6 +99,7 @@ EXPECTED = {
     "provider_output_limit": ("keys", None),
     "provider_rate_limited": ("resume", "resume"),
     "provider_unreachable": ("resume", "resume"),
+    "topic_not_translated": ("keys", "again"),
     "insufficient_evidence": ("again", "again"),
     "timeout": ("again", "again"),
     "timeout_resumable": ("resume", "resume"),
@@ -396,3 +397,45 @@ def test_every_new_string_is_in_both_languages():
         slots = [set(re.findall(r"\{(\w+)\}", re.search(rf'^\s+{key}: "((?:[^"\\]|\\.)*)",$', table, re.M)[1]))
                  for table in (english, chinese)]
         assert slots[0] == slots[1], key
+
+
+def test_a_topic_never_turned_into_english_is_said_so_in_each_language(page):
+    """Four production runs (2026-11-23) searched a Chinese topic as typed, then failed as "unknown".
+    The stop that replaces them names itself, and is not worded as a count of papers found."""
+    for funded_by in (None, "deployment", "own_keys"):
+        code, sentence = runs._public_failure(
+            "Topic planning produced no English search phrase: the topic was not translated", funded_by=funded_by)
+        facts = {"state": "failed", "error": sentence, "error_code": code, "funded_by": funded_by,
+                 "artifacts": ["retrieval"],
+                 "retrieval_shortfall": {"stage": "topic_planning", "accepted_sources": 0, "required_sources": 3}}
+        english, chinese = page([EN, "failureText", [facts]], [ZH, "failureText", [facts]])
+        assert code == "topic_not_translated"
+        assert english == sentence and "nothing was searched" in english
+        assert chinese.startswith("题目没有被转成英文检索词，所以没有进行任何检索。")
+        assert ("API Key" in chinese) == (funded_by == "own_keys")
+        assert "已校验证据" not in chinese
+
+
+def test_the_page_refuses_the_scripts_the_worker_refuses(page):
+    """The preview refuses a search phrase the run would stop on, and no other.
+
+    A run stops before any search when its phrase is in a script
+    detect_language reads as not English (topic_not_translated), and the stop
+    counts as the day's run. The page's own test must draw the line in the
+    same place: checked at each end of each of the worker's ranges, and one
+    code point beyond.
+    """
+    from academic_agent.language import detect_language
+
+    ranges = ((0x0400, 0x052F), (0x0600, 0x06FF), (0x0750, 0x077F), (0x08A0, 0x08FF), (0x1100, 0x11FF),
+              (0x3040, 0x30FF), (0x3400, 0x4DBF), (0x4E00, 0x9FFF), (0xAC00, 0xD7AF), (0xFB50, 0xFDFF),
+              (0xFE70, 0xFEFF))
+    probes = sorted({point for low, high in ranges for point in (low - 1, low, high, high + 1)})
+    phrases = ["drowning rescue " + chr(point) for point in probes]
+    said = page(*([EN, "searchPhraseProblem", [phrase]] for phrase in phrases))
+    for point, phrase, problem in zip(probes, phrases, said, strict=True):
+        worker_refuses = not detect_language(phrase).startswith("en")
+        assert (problem == "not_english") == worker_refuses, hex(point)
+    assert any(problem == "not_english" for problem in said)
+    assert page([EN, "searchPhraseProblem", ["drowning rescue"]]) == [None]
+    assert page([EN, "searchPhraseProblem", ["ab"]]) == ["too_short"]

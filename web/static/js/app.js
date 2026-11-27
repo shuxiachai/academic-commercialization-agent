@@ -1614,7 +1614,6 @@ async function refreshQuota() {
 
 function readConfirmedPlan() {
   const searchTopic = planState.plan.search_topic.split(/\s+/).filter(Boolean).join(" ");
-  if (searchTopic.length < 3) return null;
   // An edited phrase may now equal an alternative; searching it twice adds nothing.
   const distinct = (phrases) => phrases.filter((p) => p.toLowerCase() !== searchTopic.toLowerCase());
   const components = distinct(planState.plan.components);
@@ -1702,8 +1701,11 @@ async function startFromPlan() {
   let searchPlan = null;
   if (planState.plan) {
     searchPlan = readConfirmedPlan();
-    if (!searchPlan) {
-      toast(runView.planLabel("too_short"), "error");
+    // Only the search phrase can be edited here; aliases and components come
+    // from the planner, which drops ones in another script itself.
+    const problem = runView.searchPhraseProblem(searchPlan.search_topic);
+    if (problem) {
+      toast(runView.planLabel(problem), "error");
       return;
     }
   }

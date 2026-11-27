@@ -3734,6 +3734,56 @@ def _name_patent_applicants(
     return companies, audits
 
 
+# Read by api/runs.py to name the stop (code "topic_not_translated").
+UNTRANSLATED_TOPIC_ERROR = (
+    "Topic planning produced no English search phrase: the topic was not "
+    "translated into English, so nothing was searched."
+)
+
+
+def _require_english_search_phrase(
+    search_topic: str, display_topic: str, plan: Any, *, minimum_sources: int,
+) -> None:
+    """Stop before any search when the search phrase is not in English.
+
+    Every backend is searched with this phrase, and every academic gate reads
+    only its [a-z] words. A phrase in Chinese gives them none, so the title
+    gate passes every title and the final relevance filter scores every paper
+    the same and keeps them all. Four production runs on 2026-11-23 searched
+    with a Chinese topic as typed (the planner and the translation after it
+    had both come back empty) and kept eight papers on Chinese literature,
+    translation studies and dam safety as their academic evidence; all four
+    failed later anyway, after their paid web searches.
+
+    The same script test as detect_language: Chinese, Japanese, Korean,
+    Arabic and Russian text is caught, a Latin-script phrase is not. A
+    confirmed reading is held to it as well, aliases and components
+    included: they are searched and gated the same way. (The planner drops
+    such aliases and components itself; a confirmed plan is the caller's
+    own, so it is stopped rather than quietly changed.)
+    """
+    from academic_agent.language import detect_language
+
+    phrases = (search_topic, *plan.aliases, *plan.components)
+    if all(detect_language(phrase).startswith("en") for phrase in phrases):
+        return
+    raise SourceCollectionError(
+        UNTRANSLATED_TOPIC_ERROR,
+        diagnostics={
+            "version": 1,
+            "stage": "topic_planning",
+            "input_topic": display_topic,
+            "search_topic": search_topic,
+            "aliases": list(plan.aliases),
+            # False: the model wrote no reading; True: a reading was confirmed or written so.
+            "planned": plan.planned,
+            "accepted_sources": 0,
+            "required_sources": minimum_sources,
+            "audit": [],
+        },
+    )
+
+
 def collect_source_collection(
     topic: str,
     *,
@@ -3815,6 +3865,9 @@ def collect_source_collection(
                 "audit": [],
             },
         )
+    _require_english_search_phrase(
+        normalized_topic, display_topic, plan, minimum_sources=minimum_sources,
+    )
     native_topic = display_topic if is_native else None
     topic_synonyms = list(plan.aliases)
     # The words the user typed anchor the academic title gate, when they name a topic.
