@@ -49,9 +49,12 @@ class TopicSearchPlan:
     aliases: tuple[str, ...] = ()
     components: tuple[str, ...] = ()
     resolved: bool = True
-    # False when the model gave no answer and search_topic is only the input
-    # (or its translation) passed through. A run proceeds on that as it always
-    # has; a preview must not present it as the planner's reading.
+    # False when search_topic is not a phrase the model wrote: it gave no
+    # answer, or no usable SEARCH_TOPIC line, and search_topic is only the
+    # input (or its translation) passed through. An English run proceeds on
+    # that as it always has; a preview must not present it as the planner's
+    # reading. A non-English input passed through untranslated is not
+    # searched at all (source_pipeline._require_english_search_phrase).
     planned: bool = True
 
 
@@ -390,7 +393,9 @@ def plan_topic_search(topic: str, n: int = 2, *, credentials: dict | None = None
     support response_format, and topic planning is too early in a run to fail
     over a convenience format. A malformed response falls back to the prior
     behaviour: the exact English input, or one ordinary translation for
-    non-English text.
+    non-English text. When that translation fails too, the input comes back
+    untranslated with planned=False, and collect_source_collection stops the
+    run there rather than search with it.
     """
     raw = " ".join(topic.split())
     if not raw:
@@ -432,7 +437,6 @@ def plan_topic_search(topic: str, n: int = 2, *, credentials: dict | None = None
         ),
         max_tokens=260, stage="search_planning", credentials=credentials,
     )
-    planned = bool(result.strip())
 
     search_topic = ""
     aliases: list[str] = []
@@ -463,12 +467,22 @@ def plan_topic_search(topic: str, n: int = 2, *, credentials: dict | None = None
     if len(search_topic) > 200 or len(search_topic.split()) > 24:
         search_topic = ""
 
+    # Whether the phrase below is the model's. It used to be "the model
+    # returned any text", so an answer with no usable SEARCH_TOPIC line still
+    # counted as a reading, and a preview could show a Chinese topic, passed
+    # through untranslated, as what the planner had made of it.
+    planned = bool(search_topic)
     if not search_topic:
         if detect_language(raw).startswith("en"):
             search_topic = raw
         else:
             search_topic = " ".join(translate_to_english(raw, credentials=credentials).split()) or raw
 
+    # Aliases and components are search phrases too, and the academic gates
+    # read only English words: a phrase in another script gives them nothing
+    # to test, so every title would pass on it. None was found in the saved
+    # runs (2026-11-27); the planner is asked for English, and one that
+    # answers otherwise is treated like one that answers too long.
     unique_aliases: list[str] = []
     seen = {search_topic.casefold()}
     for alias in aliases:
@@ -478,6 +492,7 @@ def plan_topic_search(topic: str, n: int = 2, *, credentials: dict | None = None
             or len(alias) > 180
             or len(alias.split()) > 20
             or key in seen
+            or not detect_language(alias).startswith("en")
         ):
             continue
         seen.add(key)
@@ -494,6 +509,7 @@ def plan_topic_search(topic: str, n: int = 2, *, credentials: dict | None = None
             or len(component) > 120
             or len(component.split()) > 12
             or key in component_seen
+            or not detect_language(component).startswith("en")
         ):
             continue
         component_seen.add(key)

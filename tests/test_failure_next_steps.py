@@ -99,6 +99,7 @@ EXPECTED = {
     "provider_output_limit": ("keys", None),
     "provider_rate_limited": ("resume", "resume"),
     "provider_unreachable": ("resume", "resume"),
+    "topic_not_translated": ("keys", "again"),
     "insufficient_evidence": ("again", "again"),
     "timeout": ("again", "again"),
     "timeout_resumable": ("resume", "resume"),
@@ -396,3 +397,20 @@ def test_every_new_string_is_in_both_languages():
         slots = [set(re.findall(r"\{(\w+)\}", re.search(rf'^\s+{key}: "((?:[^"\\]|\\.)*)",$', table, re.M)[1]))
                  for table in (english, chinese)]
         assert slots[0] == slots[1], key
+
+
+def test_a_topic_never_turned_into_english_is_said_so_in_each_language(page):
+    """Four production runs (2026-11-23) searched a Chinese topic as typed, then failed as "unknown".
+    The stop that replaces them names itself, and is not worded as a count of papers found."""
+    for funded_by in (None, "deployment", "own_keys"):
+        code, sentence = runs._public_failure(
+            "Topic planning produced no English search phrase: the topic was not translated", funded_by=funded_by)
+        facts = {"state": "failed", "error": sentence, "error_code": code, "funded_by": funded_by,
+                 "artifacts": ["retrieval"],
+                 "retrieval_shortfall": {"stage": "topic_planning", "accepted_sources": 0, "required_sources": 3}}
+        english, chinese = page([EN, "failureText", [facts]], [ZH, "failureText", [facts]])
+        assert code == "topic_not_translated"
+        assert english == sentence and "nothing was searched" in english
+        assert chinese.startswith("题目没有被转成英文检索词，所以没有进行任何检索。")
+        assert ("API Key" in chinese) == (funded_by == "own_keys")
+        assert "已校验证据" not in chinese

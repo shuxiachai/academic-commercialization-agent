@@ -124,8 +124,14 @@ attempts in all. The log line
 `[llm] search_planning: <error> before the request was sent` records each
 retry. It does not resend after the request has gone out: a timeout or a
 broken reply may come after the model has already started working, and a
-resend could be billed twice. When the helper fails, the run still searches
-the topic as typed, without alias queries. That fallback raises no error.
+resend could be billed twice. When the helper fails on an English topic, the
+run still searches the topic as typed, without alias queries; that fallback
+raises no error. A topic in Chinese (or another non-Latin script) is then
+translated by a second call. When that fails too, the run stops before any
+search with `topic_not_translated` ("nothing was searched"), because the
+academic gates read only English words and would pass every paper found
+for the untranslated text; four production runs on 2026-11-23 kept eight
+unrelated papers that way. The stop still counts as the day's run.
 
 **Before switching the model**, run
 `railway run python scripts/check_llm_model.py --long`, or run it locally with
@@ -1151,8 +1157,10 @@ These are example policy values, not a cost/SLO guarantee.
   planning again. The count lives in memory, so a restart resets it. A
   request that carries a complete key set is planned on that set's model key
   and can be billed to nobody else; an account must send one. When the model
-  gives no answer the reply says `planned: false`, and the page says the
-  search could not be previewed instead of showing the topic as typed.
+  gives no answer, or no usable `SEARCH_TOPIC` line, the reply says
+  `planned: false`, and the page says the search could not be previewed
+  instead of showing the topic as typed. A confirmed reading in a non-Latin
+  script is not searched either: the worker stops as above.
 - Counts are atomically persisted in
   `outputs/.paid-operation-ledger.json`; restart does not reset that day's
   budget. Unreadable accounting fails closed before paid work.

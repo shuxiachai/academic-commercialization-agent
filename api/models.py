@@ -167,8 +167,9 @@ class PlanRequest(BaseModel):
 class PlanPreview(BaseModel):
     """How the planner reads a topic, for the user to confirm or edit."""
 
-    planned: bool = Field(default=True, description="False when the model gave no answer: search_topic is "
-                                                    "then the topic as typed, not a reading of it.")
+    planned: bool = Field(default=True, description="False when the model gave no usable reading: "
+                                                    "search_topic is then the topic as typed (or its "
+                                                    "plain translation), not a reading of it.")
     resolved: bool = Field(description="False when no technology or research subject could be identified.")
     search_topic: str = Field(description="English phrase sent to every retrieval backend.")
     aliases: list[str] = Field(description="Equivalent phrasings searched alongside it.")
@@ -591,7 +592,7 @@ class RunProgress(BaseModel):
         default=None,
         description="The recognised cause behind `error`, the same for every reader: timeout, "
                     "provider_auth, provider_free_quota, provider_billing, provider_model_unavailable, "
-                    "provider_request_rejected, provider_rate_limited, insufficient_evidence, "
+                    "provider_request_rejected, provider_rate_limited, topic_not_translated, insufficient_evidence, "
                     "provider_response_format, quality_checks, provider_unreachable, "
                     "provider_output_limit, provider_empty_answer or unknown; "
                     "cancelled and timeout_resumable for those two outcomes. None when there is "
@@ -813,7 +814,7 @@ class RunStatus(BaseModel):
         default=None,
         description="The recognised cause behind `error`, the same for every reader: timeout, "
                     "provider_auth, provider_free_quota, provider_billing, provider_model_unavailable, "
-                    "provider_request_rejected, provider_rate_limited, insufficient_evidence, "
+                    "provider_request_rejected, provider_rate_limited, topic_not_translated, insufficient_evidence, "
                     "provider_response_format, quality_checks, provider_unreachable, "
                     "provider_output_limit, provider_empty_answer or unknown; "
                     "cancelled and timeout_resumable for those two outcomes. None when there is "
