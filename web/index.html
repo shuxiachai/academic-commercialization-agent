@@ -363,11 +363,23 @@
            maxlength="120" data-i18n-placeholder="runs_search" placeholder="Search runs"
            aria-label="Search runs" data-i18n-aria-label="runs_search" hidden>
 
-    <nav class="runlist" id="runlist" aria-label="Previous runs" data-i18n-aria-label="aria_previous_runs">
-      <div class="runlist__empty" id="runlist-empty">
-        <span data-i18n="no_runs">No runs yet</span>
+    <!-- Loading rows until the history has answered (sidebar.js loading draws
+         the same). The markup said "No runs yet" here until 2026-11-28, and
+         every signed-in visit read it before its own runs appeared; only the
+         server's answer may say a history is empty (tests/test_boot_loading.py). -->
+    <nav class="runlist" id="runlist" data-state="loading" aria-label="Previous runs" data-i18n-aria-label="aria_previous_runs">
+      <div class="runlist__loading" role="status" aria-busy="true">
+        <span class="visually-hidden" data-i18n="runs_loading">Loading your runs…</span>
+        <span class="runlist__loading-row"></span>
+        <span class="runlist__loading-row"></span>
+        <span class="runlist__loading-row"></span>
+        <span class="runlist__loading-row"></span>
       </div>
     </nav>
+
+    <!-- Where the account (or the code or keys badge) will be, until the
+         boot's access check has said who this is (app.js identityKnown). -->
+    <div class="identity-loading" id="identity-loading" aria-hidden="true"><span></span><span></span></div>
 
     <div class="byok-badge" id="byok-badge" hidden>
       <span data-i18n="byok_badge">Using your own API keys</span>
@@ -491,7 +503,30 @@
       <button type="button" class="active-run__view" id="active-run-view"></button>
     </p>
 
-    <section class="pane" id="pane-compose">
+    <!-- ── Loading ─────────────────────────────────────────────── -->
+    <!-- What the page shows until it knows what to show: from the first
+         paint, while its scripts load, and while the boot's access check is
+         out (app.js showPane puts it away). Until 2026-11-28 the composer
+         stood here instead, so a shared link or a signed-in visit opened on
+         "What should we assess?" before its own page: from 2.2 s to 6.6 s on
+         DevTools' Slow 4G (tests/test_boot_loading.py). It says nothing
+         about the visitor. -->
+    <section class="pane pane--loading" id="pane-loading" role="status" aria-busy="true">
+      <div class="pane__body">
+        <div class="loading-view">
+          <span class="visually-hidden" data-i18n="page_loading">Loading…</span>
+          <span class="loading-view__line loading-view__line--title"></span>
+          <span class="loading-view__line loading-view__line--meta"></span>
+          <span class="loading-view__line"></span>
+          <span class="loading-view__line"></span>
+          <span class="loading-view__line loading-view__line--short"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Hidden until the boot has decided this visit is the composer's
+         (app.js routeFromLocation, showCompose). -->
+    <section class="pane" id="pane-compose" hidden>
       <div class="pane__body pane__body--centered">
         <div class="compose">
           <h1 class="compose__title" data-i18n="compose_title">What should we assess?</h1>

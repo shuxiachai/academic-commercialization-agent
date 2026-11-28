@@ -53,7 +53,9 @@ function fixture(receiptStore = new Map()) {
       removeItem: key => receiptStore.delete(key),
     })),
     api, runView: { ...actualRunView }, compareView, Event, modelKind,
-    sidebar: { refresh: () => Promise.resolve([]) }, result: {}, needsScopeWarning: () => false,
+    // The rail's loading rows and the boot's early history read (sidebar.js) are drawn here as nothing.
+    sidebar: { refresh: () => Promise.resolve([]), loading: () => {}, prefetch: () => {}, forgetPrefetch: () => {} },
+    result: {}, needsScopeWarning: () => false,
     i18n: { t: (key) => translations[key] || key, language: () => "English", locale: () => "en-GB", apply: () => {},
             pageTitle: (name = "") => (name ? `${name} · brand_full` : "brand_full") },
     document: { querySelector: get, querySelectorAll: (selector) => selector === '[data-resume-run]'
@@ -177,7 +179,7 @@ const scenarios = {
         accessCodeClearConflict:()=>false};`);
     const actualSidebar = fs.readFileSync(new URL('../../web/static/js/sidebar.js', import.meta.url),'utf8')
       .replace(/^import .*;\r?\n/gm,'').replace(/export /g,'');
-    f.run(`sidebar=(()=>{${actualSidebar};return {render,refresh};})()`);
+    f.run(`sidebar=(()=>{${actualSidebar};return {render,refresh,loading,prefetch,forgetPrefetch};})()`);
     if (mode === 'byok') f.run('byokMode=true');
     const old = f.run('refreshSidebar()');
     const rows = () => f.get('#runlist').children.filter(el=>el.className==='runitem-row')

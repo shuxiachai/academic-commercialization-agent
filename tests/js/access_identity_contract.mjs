@@ -15,7 +15,8 @@ const shared = {
 };
 function tab() {
   const requests = [], session = new Map();
-  const context = vm.createContext({localStorage: shared, FormData, File,
+  // AbortSignal: the history read is bounded (api.js listRuns).
+  const context = vm.createContext({localStorage: shared, FormData, File, AbortSignal,
     sessionStorage: {getItem: key => session.get(key) ?? null,
       setItem: (key, value) => session.set(key, value), removeItem: key => session.delete(key)},
     fetch: (path, options) => new Promise(resolve => requests.push({path, options, resolve})),

@@ -51,7 +51,9 @@ if (scenario === "keys_in_this_tab_never_see_the_landing") {
     model: "deepseek-chat", search: "tavily", searchKey: "tvly-fixture-000000000000" }));
 }
 if (scenario === "unreadable_keys_never_see_the_landing") tab.set("byok-credentials", "{not json");
-if (["signed_in", "logout_goes_home", "a_signed_in_boot_told_to_wait_keeps_the_session"].includes(scenario)) {
+if (["signed_in", "logout_goes_home", "a_signed_in_boot_told_to_wait_keeps_the_session",
+  "a_signed_in_visit_asks_for_its_history_beside_the_check", "a_boot_that_stops_at_the_card_asks_again_after_it",
+].includes(scenario)) {
   disk.set("session-token", "fixture-token");
 }
 if (scenario === "logout_without_accounts_reloads") disk.set("access-code", "fixture-code");
@@ -62,8 +64,14 @@ const { modelKind } = await import("../../web/static/js/model_kind.js");
 const compareView = await import("../../web/static/js/compare.js");
 // The real grading of a sample's score, so the list's words are the scorecard's.
 const { sampleFacts, sampleTitle } = await import("../../web/static/js/result.js");
-const source = fs.readFileSync(new URL("../../web/static/js/app.js", import.meta.url), "utf8")
+let source = fs.readFileSync(new URL("../../web/static/js/app.js", import.meta.url), "utf8")
   .replace(/^import .*;\r?\n/gm, "");
+// The bound on the boot's reads, shortened so a scenario can wait it out.
+const BOOT_BOUND = /const BOOT_READ_TIMEOUT_MS = [\d_]+;/;
+if (scenario === "a_boot_check_that_never_answers_ends_in_the_notice") {
+  assert.ok(BOOT_BOUND.test(source), "app.js bounds the boot's reads (BOOT_READ_TIMEOUT_MS)");
+  source = source.replace(BOOT_BOUND, "const BOOT_READ_TIMEOUT_MS = 40;");
+}
 // The elements the document itself starts hidden (#gate, #landing, the card's
 // forms...): app.js shows them and relies on the markup for the rest.
 const markup = fs.readFileSync(new URL("../../web/index.html", import.meta.url), "utf8");
@@ -74,7 +82,9 @@ assert.ok(hiddenAtStart.includes("landing-preview-note"), "the note for a previe
 // `replies` answers the seams a scenario is about beyond the boot's access check.
 // `hold: true` keeps the access check unanswered until the scenario calls answer().
 // `dark: true` is a system set to its dark theme, as matchMedia reports it.
-function fixture({ pathname = "/", search = "", hash = "", access, replies = {}, hold = false, dark = false }) {
+// `held` names requests that wait until the scenario calls release(url, reply), with
+// a reply in the shape `replies` takes; a held request also ends when its signal aborts.
+function fixture({ pathname = "/", search = "", hash = "", access, replies = {}, hold = false, held = [], dark = false }) {
   const elements = new Map();
   class Element {
     constructor() {
@@ -96,12 +106,15 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
     before(...nodes) { (this.placedBefore ??= []).push(...nodes); }
     showModal() { this.open = true; } close() { this.open = false; }
   }
+  // run.js and the other real modules draw with the global document.
+  globalThis.document = { createElement: () => new Element(), querySelector: (selector) => get(selector), querySelectorAll: () => [] };
   const get = (selector) => {
     if (!elements.has(selector)) elements.set(selector, new Element());
     return elements.get(selector);
   };
   for (const id of hiddenAtStart) get(`#${id}`).hidden = true;
   const requests = [], navigations = [], reloads = [], sidebarRefreshes = [], replaced = [], summaries = [];
+  const rail = { prefetched: 0, forgotten: 0, loading: [] };
   // What the page asked to hear about the system's theme, and the theme it is told.
   const system = { dark, heard: [] };
   // Where app.js writes how far its boot got (markBoot), for whoever reads a failed smoke.
@@ -114,8 +127,21 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
     status, headers: { "Content-Type": "application/json", ...headers } }));
   let answer = () => {};
   let deliver = () => {};
+  const waiting = new Map();
+  // A request whose signal aborts (a bounded read: api.js) ends as fetch ends it.
+  const abortable = (options, executor) => new Promise((resolve, reject) => {
+    options.signal?.addEventListener("abort", () => reject(options.signal.reason ?? new DOMException("Aborted", "AbortError")));
+    executor(resolve, reject);
+  });
+  const answerWith = (given) => (given === "unreachable" ? Promise.reject(new TypeError("Failed to fetch"))
+    : given?.status ? reply(given.body, given.status, given.headers) : reply(given));
   globalThis.fetch = (url, options = {}) => {
     requests.push({ url, options });
+    if (held.includes(url)) {
+      return abortable(options, (resolve, reject) => {
+        waiting.set(url, (given) => answerWith(given).then(resolve, reject));
+      });
+    }
     if (url in replies) {
       const given = replies[url];
       if (given === "never") return new Promise(() => {});
@@ -129,7 +155,7 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
     }
     if (url === "/api/access/check") {
       if (!hold) return reply(access.body, access.status, access.headers);
-      return new Promise((resolve) => { answer = () => resolve(reply(access.body, access.status)); });
+      return abortable(options, (resolve) => { answer = () => resolve(reply(access.body, access.status)); });
     }
     if (url === "/api/samples") return reply(SAMPLES);
     if (url === PREVIEW_SCORES) return reply(SCORES);
@@ -143,7 +169,10 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
     createPaidReceipts: () => createPaidReceipts(() => ({ getItem: () => null, setItem: () => {}, removeItem: () => {} })),
     api, runView: { ...runView }, compareView,
     // The real one asks the server for the identity's history; here each call is counted.
-    sidebar: { refresh: () => { sidebarRefreshes.push(true); return Promise.resolve([]); }, resetView: () => {} },
+    sidebar: { refresh: () => { sidebarRefreshes.push(true); return Promise.resolve([]); }, resetView: () => {},
+      // What the boot asks of the rail before it is drawn (tests/js/sidebar_history_contract.mjs has the real ones).
+      prefetch: () => { rail.prefetched++; }, forgetPrefetch: () => { rail.forgotten++; },
+      loading: (container) => { rail.loading.push(container); } },
     // The real summary is built in tests/test_web_result_readability.py; here
     // it is a stand-in that keeps what it was given and, like the real one,
     // makes nothing of a scorecard without a readable score.
@@ -166,7 +195,9 @@ function fixture({ pathname = "/", search = "", hash = "", access, replies = {},
     confirm: () => true,
   });
   vm.runInContext(source, context);
-  return { get, requests, navigations, reloads, sidebarRefreshes, replaced, summaries, system, speech, answer: () => answer(),
+  return { get, requests, navigations, reloads, sidebarRefreshes, replaced, summaries, system, speech, answer: () => answer(), rail,
+    release: (url, given) => { assert.ok(waiting.has(url), `${url} was asked for`); waiting.get(url)(given); waiting.delete(url); },
+    asked: (url) => requests.filter((r) => r.url === url).length,
     deliver: () => deliver(), boot: () => documentElement.dataset.boot,
     run: (text) => vm.runInContext(text, context) };
 }
@@ -420,8 +451,13 @@ const scenarios = {
     await settle();
     assert.deepEqual(failure(f), { shown: true, title: "boot_failure_title", text: "boot_failure_rate_limited" });
     assert.deepEqual(shown(f), { landing: false, workbench: false, gate: false });
-    assert.equal(f.get("#viewer-bar").hidden, true, "Not the reader's bar over a report that was never asked for");
-    assert.ok(!f.requests.some((r) => r.url.startsWith(RUN_API)), "The run waits for a boot that answers");
+    assert.equal(f.get("#viewer-bar").hidden, true, "Not the reader's bar over a report");
+    // Since 2026-11-28 the run's first read goes out beside the check
+    // (app.js startBootReads): a capability read, answered the same whatever
+    // the check says. It is the only one, and nothing of it is drawn.
+    assert.equal(f.requests.filter((r) => r.url.startsWith(RUN_API)).length, 1,
+      "No poll follows a boot that did not answer");
+    assert.equal(f.get("#pane-run").hidden, true, "...and the run's pane stays put away behind the notice");
   },
   async a_boot_that_broke_in_the_page_is_not_blamed_on_the_server() {
     // A 200 the page cannot read is not an answer about the visitor, and not
@@ -1188,6 +1224,7 @@ const scenarios = {
     assert.equal(f.get("#viewer-bar").hidden, false, "A reader, as for any shared link");
     assert.deepEqual([f.get("#run-gone").hidden, f.get("#run-head").hidden, f.get("#run-body").hidden], [false, true, true],
       "The page says the assessment cannot be opened, in place of an empty run");
+    assert.deepEqual(f.get("#run-body").children, [], "...with no loading view left behind it, still saying it is busy");
     assert.equal(f.get("#run-gone-retention").hidden, false);
     assert.equal(f.get("#run-gone-retention").textContent, "gone_retention_days",
       "The retention period is the deployment's own, read from /health (tests/test_shared_link_pages.py words it)");
@@ -1202,9 +1239,119 @@ const scenarios = {
     assert.equal(forever.get("#run-gone").hidden, false);
     assert.equal(forever.get("#run-gone-retention").hidden, true);
 
-    // Another run opened from here gets its header back.
+    // Another run opened from here: the gone page goes, and the run's place
+    // says it is being read until its first answer brings the header back.
     f.run('openRun("20260926T131313Z-" + "c".repeat(32))');
-    assert.deepEqual([f.get("#run-gone").hidden, f.get("#run-head").hidden, f.get("#run-body").hidden], [true, false, false]);
+    assert.deepEqual([f.get("#run-gone").hidden, f.get("#run-head").hidden, f.get("#run-body").hidden], [true, true, false]);
+    assert.deepEqual(f.get("#run-body").children.map((node) => node.className), ["loading-view"]);
+  },
+  // ── Before the reads answer ──────────────────────────────────────────
+  // Measured on main in Chromium on 2026-11-28 (tests/test_boot_loading.py):
+  // a shared link showed the composer and "No runs yet" until its access
+  // check had answered, and only then asked for the run; a signed-in visit
+  // showed "No runs yet" and asked for its history only after the check.
+  async a_shared_link_waits_on_a_loading_view_and_asks_for_the_run_at_once() {
+    const progress = `${RUN_API}/progress?since=0`;
+    const f = fixture({ pathname: DEEP_LINK, access: refused(ACCOUNTS), hold: true, held: [progress] });
+    await settle();
+    assert.equal(f.get("#pane-compose").hidden, true, "No composer before anyone knows who is visiting");
+    assert.equal(f.get("#pane-loading").hidden, false, "A loading view holds the place");
+    assert.equal(f.asked(progress), 1, "The run is asked for beside the access check, not after it");
+    assert.equal(f.rail.prefetched, 0, "Nothing stored: there is no identity whose history it would be");
+    assert.equal(f.get("#identity-loading").hidden, false);
+    f.answer();
+    await settle();
+    assert.equal(f.get("#viewer-bar").hidden, false, "A reader");
+    assert.equal(f.get("#identity-loading").hidden, true, "Who is visiting is known now");
+    assert.deepEqual(["#pane-loading", "#pane-compose", "#pane-run"].map((id) => f.get(id).hidden), [true, true, false]);
+    assert.equal(f.get("#run-head").hidden, true, "No header with a placeholder title and an unknown state");
+    const view = f.get("#run-body").children;
+    assert.deepEqual(view.map((node) => node.className), ["loading-view"], "The run's place shows that it is being read");
+    assert.equal(view[0].attributes?.role, "status");
+    assert.equal(view[0].attributes?.["aria-busy"], "true");
+    f.release(progress, { run_id: DEEP_LINK.slice(5), topic: "Fixture topic", state: "completed", stage: "Done",
+      steps: [], artifacts: [], elapsed_seconds: 60, viewer_can_modify: false });
+    await settle();
+    assert.equal(f.get("#run-head").hidden, false, "The first answer brings the header");
+    assert.equal(f.get("#run-title").textContent, "Fixture topic");
+    assert.ok(!f.get("#run-body").children.some((node) => node.className === "loading-view"));
+    assert.equal(f.asked(progress), 1, "...and the early read was the run's first poll, not a second request");
+  },
+  async a_signed_in_visit_asks_for_its_history_beside_the_check() {
+    const f = fixture({ access: { status: 200, body: { ok: true, account: { ...ACCOUNT, keys_saved: true }, accounts: ACCOUNTS } },
+      hold: true });
+    await settle();
+    assert.equal(f.rail.prefetched, 1, "The history is asked for while the access check is out");
+    assert.equal(f.get("#pane-compose").hidden, true, "No composer before the check says whose page this is");
+    assert.equal(f.get("#pane-loading").hidden, false);
+    assert.equal(f.get("#identity-loading").hidden, false, "The rail's foot says an identity is being read");
+    assert.equal(f.get("#account-badge").hidden, true);
+    assert.equal(f.sidebarRefreshes.length, 0);
+    f.answer();
+    await settle();
+    assert.deepEqual(["#pane-loading", "#pane-compose"].map((id) => f.get(id).hidden), [true, false]);
+    assert.equal(f.get("#identity-loading").hidden, true);
+    assert.equal(f.get("#account-badge").hidden, false);
+    assert.ok(f.sidebarRefreshes.length >= 1, "The rail is drawn, from the early reply (sidebar.js)");
+    assert.equal(f.rail.forgotten, 0, "...which is not dropped on the way");
+    assert.ok(f.rail.loading.includes(f.get("#runlist")),
+      "A rail cleared for a new identity shows its loading rows, not a blank or an empty history");
+  },
+  async a_boot_that_stops_at_the_card_asks_again_after_it() {
+    const progress = `${RUN_API}/progress?since=0`;
+    const f = fixture({ pathname: DEEP_LINK, access: { status: 200, body: { ok: true, account: ACCOUNT, accounts: ACCOUNTS } },
+      held: [progress] });
+    await settle();
+    assert.equal(f.get("#gate").hidden, false, "An account without keys meets the keys card first");
+    assert.equal(f.rail.prefetched, 1);
+    assert.equal(f.rail.forgotten, 1, "What the boot asked for early is dropped: the card may stay open for minutes");
+    assert.equal(f.get("#identity-loading").hidden, true);
+    f.get("#byok-skip").onclick();
+    await settle();
+    assert.equal(f.asked(progress), 2, "The run is read again once the card is put down");
+  },
+  async a_first_read_that_fails_says_so_in_place_of_the_loading_view() {
+    for (const given of [{ status: 503, body: { detail: "Service Unavailable" } }, "unreachable"]) {
+      const f = fixture({ pathname: DEEP_LINK, access: refused(ACCOUNTS), replies: { [`${RUN_API}/progress?since=0`]: given } });
+      await settle();
+      assert.equal(f.get("#run-head").hidden, true);
+      const body = f.get("#run-body").children;
+      assert.deepEqual(body.map((node) => node.className), ["empty-note run-loading-failed"], JSON.stringify(given));
+      assert.equal(body[0].textContent, "run_loading_failed", "Said in the page's words; the poll keeps retrying");
+      assert.equal(body[0].attributes?.role, "status");
+      assert.equal(f.get("#run-gone").hidden, true, "Not read is not gone");
+    }
+  },
+  async a_boot_check_that_never_answers_ends_in_the_notice() {
+    const f = fixture({ pathname: DEEP_LINK, access: refused(ACCOUNTS), hold: true });
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    await settle();
+    assert.deepEqual(failure(f), { shown: true, title: "boot_failure_title", text: "msg_network" },
+      "A check that never answers ends in the notice, not a loading view for ever");
+    assert.equal(f.boot(), "failed");
+  },
+  async a_failed_runs_contact_comes_when_the_health_reading_does() {
+    // The contact under a run only the operator can look into is the health
+    // reading's (paintRunHelp). The run's first read now goes out beside the
+    // access check and comes back before that reading is even asked for.
+    const f = fixture({ pathname: DEEP_LINK, access: refused(ACCOUNTS), held: ["/health"], replies: {
+      [`${RUN_API}/progress?since=0`]: { run_id: DEEP_LINK.slice(5), topic: "Fixture topic", state: "failed",
+        stage: "Writing", error: "The run stopped.", error_code: null, steps: [], artifacts: [],
+        elapsed_seconds: 60, viewer_can_modify: false } } });
+    await settle();
+    const named = () => f.get("#run-help-contact").children.some((node) => node.textContent === "operator@example.test");
+    assert.equal(f.get("#run-help").hidden, false, "A failure only the operator can look into");
+    assert.equal(named(), false, "No contact known yet");
+    f.release("/health", { retention_days: 30, active_runs: 0, max_concurrent: 5, contact: "operator@example.test" });
+    await settle();
+    assert.equal(named(), true, "The line is drawn again with the contact the reading published");
+  },
+  async nothing_stored_asks_for_no_history() {
+    const f = fixture({ access: refused(ACCOUNTS) });
+    await settle();
+    assert.deepEqual(shown(f), { landing: true, workbench: false, gate: false });
+    assert.equal(f.rail.prefetched, 0, "Nobody to ask a history for");
+    assert.ok(!f.requests.some((r) => r.url.includes("/progress")), "...and no run on this address");
   },
   // ── Whose run it is ──────────────────────────────────────────────────
   // A run's link opens for whoever holds it. Until 2026-11-15 a signed-in

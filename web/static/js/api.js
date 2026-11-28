@@ -397,9 +397,13 @@ export const sampleScores = (slug) => request(`/api/samples/${encodeURIComponent
 
 // Verifies a code without storing it — the gate calls this with a candidate
 // before persisting it, and once at boot with whatever is already stored (or
-// none) to find out whether the deployment is gated at all.
-export const checkAccess = (code) =>
-  request("/api/access/check", { headers: code ? { "X-Access-Code": code } : {} });
+// none) to find out whether the deployment is gated at all. `timeoutMs` bounds
+// the boot's call only (app.js BOOT_READ_TIMEOUT_MS): the page shows a loading
+// view until it answers, and a check that never answers ends as one that could
+// not reach the server. A code typed into the gate is checked without a bound.
+export const checkAccess = (code, { timeoutMs } = {}) =>
+  request("/api/access/check", { headers: code ? { "X-Access-Code": code } : {},
+    ...(timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}) });
 
 /* ── Accounts ─────────────────────────────────────────────────────────
  * Ungated: tells the gate what to offer. Sign-up and sign-in return the
@@ -464,8 +468,10 @@ export const changePassword = (current_password, new_password) =>
 export const deleteAccount = (password) => request("/api/auth/delete-account", json({ password }));
 
 // The first page keeps the address it always had; later pages add an offset.
+// Bounded as a progress read is: the rail shows loading rows until it answers
+// (sidebar.js), and a read that never answers must end as one that failed.
 export const listRuns = (limit = 50, offset = 0) =>
-  request(`/api/runs?limit=${limit}${offset ? `&offset=${offset}` : ""}`);
+  request(`/api/runs?limit=${limit}${offset ? `&offset=${offset}` : ""}`, { signal: AbortSignal.timeout(15_000) });
 
 // Paid operations left today for the stored code; null when uncapped.
 export const getQuota = () => request("/api/quota");

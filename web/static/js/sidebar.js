@@ -73,8 +73,56 @@ export function grouped(runs) {
     .map((run) => ({ run, earlier: earlierOf.get(run.run_id) ?? [] }));
 }
 
+/* What the rail shows before the history has answered, and when it could not
+ * be read. `data-state` says which of the three the rail holds: "loading",
+ * "failed" or "shown" (render). The markup opens on the same loading rows
+ * (index.html #runlist). Until 2026-11-28 it opened on "No runs yet", which
+ * every signed-in visit read before its own runs arrived: about a second on
+ * production, 4.4 s on DevTools' Slow 4G (tests/test_boot_loading.py). */
+export function loading(container) {
+  container.innerHTML = "";
+  container.dataset.state = "loading";
+  const busy = document.createElement("div");
+  busy.className = "runlist__loading";
+  busy.setAttribute("role", "status");
+  busy.setAttribute("aria-busy", "true");
+  const said = document.createElement("span");
+  said.className = "visually-hidden";
+  said.textContent = t("runs_loading");
+  busy.append(said);
+  for (let row = 0; row < 4; row++) {
+    const bar = document.createElement("span");
+    bar.className = "runlist__loading-row";
+    busy.append(bar);
+  }
+  container.append(busy);
+}
+
+/* A history not read is not an empty one. The button asks the page for the
+ * list again (`onChange`, the page's refresh), showing the loading rows meanwhile. */
+function unread(container, onChange) {
+  container.innerHTML = "";
+  container.dataset.state = "failed";
+  const note = document.createElement("div");
+  note.className = "runlist__empty runlist__failed";
+  note.setAttribute("role", "status");
+  const line = document.createElement("span");
+  line.textContent = t("runs_read_failed");
+  const retry = document.createElement("button");
+  retry.type = "button";
+  retry.className = "runlist__retry";
+  retry.textContent = t("runs_retry");
+  retry.addEventListener("click", () => {
+    loading(container);
+    onChange();
+  });
+  note.append(line, retry);
+  container.append(note);
+}
+
 export function render(container, runs, { activeId, onSelect, onDelete, emptyKey = "no_runs" }) {
   container.innerHTML = "";
+  container.dataset.state = "shown";
 
   if (!runs.length) {
     const empty = document.createElement("div");
@@ -229,11 +277,41 @@ export function resetView() { wanted = PAGE; query = ""; }
 export const matches = (run, needle) => [run.topic, run.owner_label, run.run_id]
   .some((text) => String(text ?? "").toLocaleLowerCase().includes(needle));
 
+/* The first page, asked for before the rail is drawn: while the boot's
+ * access check is still out (app.js startBootReads), since the list is asked
+ * with the identity stored in this page whatever the check says, and the
+ * check decides only whether the reply is drawn. It was asked after the check
+ * until 2026-11-28, one round trip later (tests/test_boot_loading.py).
+ *
+ * The next refresh draws it only for the page it asked for and the identity
+ * it was asked with; otherwise it is dropped and the page asked again, so a
+ * reply cannot cross a sign-in, a sign-out or a search. app.js drops it when
+ * the boot stops at the sign-in card, which may stay open for minutes. */
+let early = null;
+
+export function prefetch() {
+  const limit = Math.min(wanted, FETCH_MAX);
+  const reply = api.listRuns(limit);
+  reply.catch(() => {});  // read by the refresh that takes it, or by nobody
+  early = { limit, session: api.getSessionToken(), code: api.getAccessCode(), reply };
+}
+
+export function forgetPrefetch() { early = null; }
+
+function takeEarly(limit) {
+  const taken = early;
+  early = null;
+  if (!taken || taken.limit !== limit) return null;
+  if (taken.session !== api.getSessionToken() || taken.code !== api.getAccessCode()) return null;
+  return taken.reply;
+}
+
 /* The newest `count` runs. One request, exactly as before, unless more than
  * a request's worth is wanted. A run that starts between two requests moves
  * every later one down a place, so a repeat is dropped rather than shown twice. */
 async function load(count) {
-  const first = await api.listRuns(Math.min(count, FETCH_MAX));
+  const limit = Math.min(count, FETCH_MAX);
+  const first = await (takeEarly(limit) ?? api.listRuns(limit));
   const runs = [...(first?.runs ?? [])];
   const total = Number.isFinite(first?.total) ? first.total : runs.length;
   const seen = new Set(runs.map((run) => run.run_id));
@@ -283,8 +361,11 @@ export async function refresh(container, {
     }
     return runs;
   } catch {
-    // A failed refresh leaves the previous list in place: an empty rail would
-    // read as "your runs are gone".
+    // A failed refresh leaves a list already drawn in place: an empty rail
+    // would read as "your runs are gone". A rail that has drawn none yet
+    // says the history could not be read; left as it was, its loading rows
+    // would wait for ever. A reply for an older view or identity paints nothing.
+    if (isCurrent() && container.dataset.state !== "shown") unread(container, onChange);
     return null;
   }
 }
