@@ -86,6 +86,19 @@ SCENARIOS = (
     # that says so when the run is gone (tests/test_shared_link_pages.py).
     "a_reader_of_a_shared_run_is_shown_a_header_written_for_them",
     "a_link_to_a_run_that_is_gone_says_so_and_offers_a_way_on",
+    # Before the reads answer: a loading view, never the composer or an empty
+    # history; the reads that do not need the access check's answer are sent
+    # beside it; a read that fails or never answers says so
+    # (tests/test_boot_loading.py).
+    "a_shared_link_waits_on_a_loading_view_and_asks_for_the_run_at_once",
+    "a_signed_in_visit_asks_for_its_history_beside_the_check",
+    "a_boot_that_stops_at_the_card_asks_again_after_it",
+    "a_first_read_that_fails_says_so_in_place_of_the_loading_view",
+    "a_boot_check_that_never_answers_ends_in_the_notice",
+    # The run's read now answers before the health reading: the operator's
+    # contact under a failed run is drawn again when the reading comes.
+    "a_failed_runs_contact_comes_when_the_health_reading_does",
+    "nothing_stored_asks_for_no_history",
     # "Get both keys in 3 steps" where the first assessment is free.
     "the_key_guide_under_the_keys_form_knows_a_free_run_is_left",
 )

@@ -24,6 +24,10 @@ _SCRIPT = Path(__file__).with_name("js") / "sidebar_history_contract.mjs"
     "resumed", "chains",
     # Each delete button names the run it removes.
     "delete_names",
+    # Before the history answers: loading, never "No runs yet"; a failed read
+    # says so with a way to ask again; the boot's early read is used once,
+    # for the identity it was asked with (tests/test_boot_loading.py).
+    "loading_until_answered", "first_read_fails", "prefetched_first_page",
 ])
 def test_the_rail_reads_and_searches_the_whole_history(scenario):
     node = shutil.which("node")

@@ -303,6 +303,90 @@
   font-size: var(--text-sm);
 }
 
+/* ── Loading ──
+   What stands where something is still being read: the page before it
+   knows what to show (index.html #pane-loading), a run before its first
+   answer (app.js openRun), the rail before the history (sidebar.js loading)
+   and the rail's foot before the access check (#identity-loading). Grey bars
+   that shimmer, in the surface tokens of the scorecard's skeleton
+   (result.css .skeleton). Until 2026-11-28 these places showed the composer,
+   "No runs yet" and a run titled "…" in an unknown state instead
+   (tests/test_boot_loading.py). */
+.loading-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: 720px;
+  padding: var(--space-6) 0;
+}
+.loading-view__line,
+.runlist__loading-row,
+.identity-loading span {
+  display: block;
+  background: linear-gradient(90deg,
+    var(--bg-raised) 25%, var(--bg-hover) 50%, var(--bg-raised) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+  border-radius: var(--radius-md);
+}
+.loading-view__line { height: 14px; }
+.loading-view__line--title { height: 28px; width: 60%; margin-bottom: var(--space-1); }
+.loading-view__line--meta { width: 35%; margin-bottom: var(--space-4); }
+.loading-view__line--short { width: 70%; }
+
+.runlist__loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2);
+}
+.runlist__loading-row { height: 26px; }
+
+.identity-loading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2);
+}
+.identity-loading span:first-child {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-full);
+}
+.identity-loading span:last-child { flex: 1; height: 12px; }
+
+/* A history that could not be read says so, with a way to ask again
+   (sidebar.js unread): not read is not empty. */
+.runlist__failed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+}
+.runlist__retry {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.runlist__retry:hover,
+.runlist__retry:focus-visible {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-view__line,
+  .runlist__loading-row,
+  .identity-loading span { animation: none; }
+}
+
 /* ── Sidebar footer ── */
 .sidebar__foot {
   display: flex;

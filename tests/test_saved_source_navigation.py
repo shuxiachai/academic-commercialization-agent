@@ -64,7 +64,9 @@ for (const part of [stop, locator, compose, showRun, route]) assert.ok(part.leng
 function runtime({ old = false, absent = false } = {}) {
   const link = { href: '/source-locator' }, composePane = { hidden: true }, runPane = { hidden: false }, topic = { focus() {} };
   const comparePane = { hidden: true };   // the third pane; the view functions hide it with the others
-  const ids = {'source-locator-link': link, 'pane-compose': composePane, 'pane-run': runPane, 'pane-compare': comparePane, topic};
+  const loadingPane = { hidden: false };  // the boot's loading view (index.html #pane-loading), put away by each of them
+  const ids = {'source-locator-link': link, 'pane-loading': loadingPane, 'pane-compose': composePane, 'pane-run': runPane,
+    'pane-compare': comparePane, topic};
   if (absent) delete ids['source-locator-link'];
   // Use the shipped $ helper with the same DOM API as the composer harness.
   const context = { document: { querySelector: sel => ids[sel.slice(1)] ?? null }, location: { pathname: '/' }, topic,

@@ -39,7 +39,9 @@ const get = selector => {
   return elements.get(selector);
 };
 const context = vm.createContext({
-  api: { pendingReceiptKeys: () => [], receiptStorageDegraded: () => false, discardBrowserKeys: () => true },
+  api: { pendingReceiptKeys: () => [], receiptStorageDegraded: () => false, discardBrowserKeys: () => true,
+    // Read by the boot before its access check (app.js startBootReads): nothing stored.
+    getSessionToken: () => null, getAccessCode: () => null, getByok: () => null },
   runView: { ...actualRunView }, sidebar: {}, result: {}, needsScopeWarning: () => false,
   createPaidReceipts: () => ({ subscribe() {}, state: () => ({ active: false }), begin: () => () => {},
     acknowledge: () => false }),

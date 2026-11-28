@@ -28,10 +28,19 @@ let activeRunId = null;
 // Requests from an old view/session cannot repaint the current identity's
 // capability list. A generation also rejects older responses within one login.
 let sidebarRevision = 0;
+// The bound on the boot's access check, as long as a progress read may take
+// (api.js getProgress). The page shows its loading view until the check
+// answers; one that never does ends in the boot notice (paintBootFailure).
+const BOOT_READ_TIMEOUT_MS = 15_000;
+// A read of the run at this address, sent beside the boot's access check
+// (startBootReads): { runId, reply }, taken once by openRun.
+let bootRun = null;
 
 function invalidateSidebar() {
   sidebarRevision++;
-  $("#runlist").innerHTML = "";
+  // The next identity's history is being read, not empty: loading rows, as
+  // the markup opens on, until its list answers (sidebar.js loading).
+  sidebar.loading($("#runlist"));
   // What one identity searched for, and how far it had paged, is not the
   // next identity's starting point.
   sidebar.resetView?.();
@@ -255,14 +264,22 @@ function localizeSourceLocatorLink() {
   link.title = runView.headerLabel("source_locator_title");
 }
 
+/* One main pane at a time. "loading" is the one the markup opens on
+ * (index.html #pane-loading), until the boot has decided what this visit is:
+ * the composer, a run or a comparison. Until 2026-11-28 the markup opened on
+ * the composer, and a shared link showed "What should we assess?" before its
+ * report (tests/test_boot_loading.py). */
+const PANES = ["loading", "compose", "run", "compare"];
+function showPane(name) {
+  for (const pane of PANES) $(`#pane-${pane}`).hidden = pane !== name;
+}
+
 function showCompose() {
   stopFollowing();
   activeRunId = null;
   paintActiveRun();
   syncSourceLocatorLink();
-  $("#pane-compose").hidden = false;
-  $("#pane-run").hidden = true;
-  $("#pane-compare").hidden = true;
+  showPane("compose");
   try { history.pushState({}, "", "/"); }
   catch { toast(t("msg_history_unavailable"), "error"); }
   refreshSidebar();
@@ -279,9 +296,7 @@ function showRun(runId) {
   // The line about a run in progress is not shown on that run's own page.
   paintActiveRun();
   syncSourceLocatorLink();
-  $("#pane-compose").hidden = true;
-  $("#pane-run").hidden = false;
-  $("#pane-compare").hidden = true;
+  showPane("run");
   refreshSidebar();
   scheduleCapacity();
 }
@@ -539,7 +554,13 @@ function paintContinued(runId) {
  * contact is the deployment's own published line (OPERATOR_CONTACT), from
  * the sign-in configuration or the health reading; none is written here. */
 const MAIL_ADDRESS = /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/;
+// The facts the line was last drawn from, so a health reading that comes
+// after the run's read draws it again with the contact it publishes
+// (noteHealthFacts). A run's first read has gone out beside the boot's access
+// check since 2026-11-28, before the reading is asked for.
+let runHelpFacts = null;
 function paintRunHelp({ state, error_code, funded_by, run_id }) {
+  runHelpFacts = { state, error_code, funded_by, run_id };
   const help = $("#run-help");
   const runId = typeof run_id === "string" && run_id ? run_id : activeRunId;
   const shown = Boolean(runId) && runView.needsOperator({ state, error_code, funded_by });
@@ -947,6 +968,7 @@ function noteHealthFacts(reading) {
   runMinutes = [low, high, runs].every((n) => Number.isInteger(n) && n >= 1) && low <= high ? { low, high, runs } : null;
   healthFactsKnown = true;
   paintRunTimes();
+  if (runHelpFacts && !$("#run-help").hidden) paintRunHelp(runHelpFacts);
 }
 
 /* "Here, the last 10 completed assessments took 5 to 25 minutes each."
@@ -1061,6 +1083,9 @@ document.addEventListener("visibilitychange", () => {
 function showGone() {
   stopClock();
   $("#run-head").hidden = true;
+  // Emptied as well as hidden: a loading view left in it would go on saying,
+  // to whatever reads the page's status regions, that the run is being read.
+  $("#run-body").innerHTML = "";
   $("#run-body").hidden = true;
   $("#run-gone").hidden = false;
   paintGone();
@@ -1150,6 +1175,38 @@ function liveDraftFold(runId, wording) {
   return fold;
 }
 
+/* What a run's place shows until its first read answers: that it is being
+ * read. Until 2026-11-28 it showed the run's header with "…" for a title, an
+ * "Unknown" state and an empty page under it (tests/test_boot_loading.py). */
+function runLoadingView() {
+  const view = document.createElement("div");
+  view.className = "loading-view";
+  view.setAttribute("role", "status");
+  view.setAttribute("aria-busy", "true");
+  const said = document.createElement("span");
+  said.className = "visually-hidden";
+  said.textContent = t("run_loading");
+  view.append(said);
+  for (const variant of ["title", "meta", "", "", "short"]) {
+    const line = document.createElement("span");
+    line.className = variant ? `loading-view__line loading-view__line--${variant}` : "loading-view__line";
+    view.append(line);
+  }
+  return view;
+}
+
+/* A first read that did not answer: said in the run's place, in the page's
+ * words, while the poll goes on asking (run.js follow retries every failure
+ * but a 404). Not the gone page: a run that could not be read is not one
+ * that is not there. */
+function runUnreadNote() {
+  const note = document.createElement("p");
+  note.className = "empty-note run-loading-failed";
+  note.setAttribute("role", "status");
+  note.textContent = t("run_loading_failed");
+  return note;
+}
+
 async function openRun(runId, { known } = {}) {
   stopFollowing();
   // Another run, or this one drawn again in another language.
@@ -1157,11 +1214,15 @@ async function openRun(runId, { known } = {}) {
   showRun(runId);
   $("#run-connection").textContent = "";
   $("#run-gone").hidden = true;
-  $("#run-head").hidden = false;
+  // A run the page has just submitted has a header to draw at once. One
+  // opened by its address or its row is read first: its header waits for
+  // that answer, and its place says it is being read.
+  $("#run-head").hidden = !known;
 
   const body = $("#run-body");
   body.innerHTML = "";
   body.hidden = false;
+  if (!known) body.append(runLoadingView());
   paintHeader({ topic: known?.topic ?? "…", state: known?.state ?? "unknown" });
   paintActions(known?.state ?? "unknown", known?.checkpointing, mayModify(known), known ?? null);
   try { history.pushState({}, "", `/run/${runId}`); }
@@ -1181,6 +1242,12 @@ async function openRun(runId, { known } = {}) {
       // A run that is not there is said by the page in its place (showGone), not here.
       $("#run-connection").textContent = state === "stale"
         ? t(lastSuccessAt === null ? "run_connection_unconfirmed" : "run_connection_stale") : "";
+      // Nothing read yet: the loading view would otherwise stay up for as
+      // long as the reads keep failing.
+      if (state === "stale" && lastSuccessAt === null && !known) {
+        body.innerHTML = "";
+        body.append(runUnreadNote());
+      }
       if (state !== "connected") {
         stopClock();
         const last = state === "stale" && lastProgress?.state === "running" && !viewerMode && mayModify(lastProgress)
@@ -1195,6 +1262,7 @@ async function openRun(runId, { known } = {}) {
     onUpdate(progress) {
       if (progress.state === "running") watchedActive = true;
       lastProgress = progress;
+      $("#run-head").hidden = false;
       paintHeader(progress);
       paintActions(progress.state, progress.checkpointing, mayModify(progress), progress);
       // The pane is the scroll container, and a reader may be partway down
@@ -1207,6 +1275,7 @@ async function openRun(runId, { known } = {}) {
     },
     onDone(progress) {
       dropLiveDraft();
+      $("#run-head").hidden = false;
       paintHeader(progress);
       paintActions(progress.state, progress.checkpointing, mayModify(progress), progress);
       runView.renderStages(body, runView.stageStates(
@@ -1237,7 +1306,7 @@ async function openRun(runId, { known } = {}) {
       if (err.status === 404) showGone();
       else toast(errorText(err), "error");
     },
-  });
+  }, { first: takeBootRun(runId) });
 }
 
 /* ── Sidebar ───────────────────────────────────────────────────────── */
@@ -1329,6 +1398,8 @@ async function refreshSidebar() {
     const entries = api.getByokRuns();
     if (!entries.length) {
       list.innerHTML = "";
+      // Read, and empty: the markup's loading rows are gone (sidebar.js render).
+      list.dataset.state = "shown";
       const note = document.createElement("div");
       note.className = "runlist__empty";
       note.textContent = t("byok_no_history");
@@ -2806,10 +2877,62 @@ async function ensureAccess() {
   try {
     await decideAccess();
   } finally {
+    identityKnown();
     leaveLanding();
     if (bootFailure) paintBootFailure(bootFailure);
     else $("#workbench").hidden = false;
   }
+}
+
+/* The rail's foot holds a placeholder (index.html #identity-loading) until the
+ * boot knows who is visiting: an account's badge, a code, keys, a reader or
+ * nobody. Until 2026-11-28 the foot was empty for that time, and a signed-in
+ * visitor saw a workbench with no account in it (tests/test_boot_loading.py). */
+function identityKnown() {
+  $("#identity-loading").hidden = true;
+}
+
+/* Reads sent beside the boot's access check, not after it, because their
+ * answers do not depend on its answer.
+ *
+ * A run's progress is a capability read: api/main.py answers it for whoever
+ * holds the link, with the same headers the check is sent with, and says in
+ * the reply whether this caller may change the run (viewer_can_modify). The
+ * check decides only how the page around the run is drawn. So on /run/<id>
+ * the first poll goes out now and openRun takes it as its first answer.
+ *
+ * The history's first page is asked with the stored session or code, the same
+ * identity the check is asked with. Whether the reply is used is the check's
+ * call: the rail is drawn only once the boot has decided, and sidebar.js drops
+ * a prefetched reply whose credentials have changed since (prefetch). Keys
+ * alone have no server history, and nothing stored has none either.
+ *
+ * Neither changes what the server checks: the requests are the ones the page
+ * sent before, each with the headers it always had, only earlier. Measured on
+ * main on 2026-11-28 with DevTools' Slow 4G, each saved a full round trip
+ * (about 0.6 s) before the run or the history appeared. */
+function startBootReads() {
+  if (location.pathname === "/reset" || location.pathname === "/verify") return;
+  // The address as routeFromLocation reads it, so openRun asks for the same id.
+  const shared = location.pathname.match(/^\/run\/([^/]+)$/);
+  if (shared) {
+    const runId = shared[1];
+    const reply = api.getProgress(runId, 0);
+    // Unwatched until openRun takes it; its failure is the first poll's then.
+    reply.catch(() => {});
+    bootRun = { runId, reply };
+  }
+  let keysOnly = false;
+  try { keysOnly = Boolean(api.getByok()); }
+  catch { keysOnly = false; }
+  if (api.getSessionToken() || (api.getAccessCode() && !keysOnly)) sidebar.prefetch();
+}
+
+/* The early read of this run, once: a second openRun of it polls afresh. */
+function takeBootRun(runId) {
+  const early = bootRun?.runId === runId ? bootRun.reply : null;
+  bootRun = null;
+  return early;
 }
 
 /* The boot's access check, ended without an answer about the visitor.
@@ -2890,8 +3013,10 @@ async function decideAccess() {
   try {
     // One boot request, carrying the stored code and session, answers
     // everything: whether the deployment is gated, whether this is an
-    // account, and what the gate should offer if it is not.
-    const access = await api.checkAccess(api.getAccessCode());
+    // account, and what the gate should offer if it is not. Bounded: the
+    // page waits on its loading view for this answer, and a check that never
+    // comes back ends in the boot notice rather than that view for ever.
+    const access = await api.checkAccess(api.getAccessCode(), { timeoutMs: BOOT_READ_TIMEOUT_MS });
     planPreviewEnabled = access?.plan_preview === true;
     quotaEnabled = access?.daily_quota === true;
     authConfig = access?.accounts ?? null;
@@ -2986,6 +3111,12 @@ function keyProblem(verdict, creds) {
  * resolving "back" instead of letting anyone in. Both are the landing's. */
 // `reset` is the token from a reset link: the card opens on the new-password form.
 function showGate(errorKey = null, { keysOnly = false, creating: startCreating = false, back = false, reset = null } = {}) {
+  // The card is who is visiting, as far as the page will know until it is
+  // put down. What the boot asked for early is dropped: the card may stay
+  // open for minutes, and the identity it ends with may be another one.
+  identityKnown();
+  bootRun = null;
+  sidebar.forgetPrefetch();
   const gate = $("#gate");
   // The card says how long a run takes, from the health reading (paintRunTimes).
   learnHealthFacts();
@@ -3759,9 +3890,7 @@ function showCompare() {
   stopFollowing();
   activeRunId = null;
   syncSourceLocatorLink();
-  $("#pane-compose").hidden = true;
-  $("#pane-run").hidden = true;
-  $("#pane-compare").hidden = false;
+  showPane("compare");
   refreshSidebar();
   scheduleCapacity();
 }
@@ -3811,9 +3940,7 @@ function routeFromLocation() {
     stopFollowing();
     activeRunId = null;
     syncSourceLocatorLink();
-    $("#pane-compose").hidden = false;
-    $("#pane-run").hidden = true;
-    $("#pane-compare").hidden = true;
+    showPane("compose");
     topic.focus();
   }
 }
@@ -3992,6 +4119,10 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 
+// The page opens on its loading view (index.html #pane-loading) and leaves it
+// for the pane this visit is for once the access check has answered
+// (routeFromLocation). What does not wait on that answer is asked for first.
+startBootReads();
 ensureAccess().then(() => {
   // Nobody was let in: nothing of the workbench starts behind the notice.
   if (bootFailure) return;

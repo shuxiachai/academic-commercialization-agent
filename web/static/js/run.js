@@ -162,8 +162,11 @@ function intervalFor(elapsedMs) {
  * past its first ninety seconds went on reading "running" for up to four.
  * One question is out at a time. If one is already out, its answer may have
  * been formed before the change, so one more follows it at once.
+ *
+ * `first`, when given, is a getProgress(runId, 0) promise sent before the
+ * follow began; its answer (or failure) is taken as the first poll's.
  */
-export function follow(runId, { onUpdate, onDone, onError, onConnection }) {
+export function follow(runId, { onUpdate, onDone, onError, onConnection }, { first = null } = {}) {
   let stopped = false;
   let ended = false;
   let asking = false;
@@ -176,7 +179,12 @@ export function follow(runId, { onUpdate, onDone, onError, onConnection }) {
   /* One question. Resolves to whether the run is still worth asking about. */
   async function ask() {
     try {
-      const progress = await api.getProgress(runId, seenSteps);
+      // `first` is a read of this run already sent, from the start of the
+      // log (app.js startBootReads, beside the boot's access check): it is
+      // the first question's answer, and every later one is asked here.
+      const reply = first ?? api.getProgress(runId, seenSteps);
+      first = null;
+      const progress = await reply;
       if (stopped) return false;
 
       lastSuccessAt = Date.now();

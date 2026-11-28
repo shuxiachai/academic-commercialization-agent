@@ -43,11 +43,13 @@ def test_nothing_else_is(method, path):
 
 def test_every_request_audit_in_the_two_smokes_answers_them():
     """One line per intercept, placed where the audit would otherwise fail."""
-    for name, audits in (("keyboard_smoke.py", 1), ("composer_smoke.py", 7)):
+    # composer_smoke's eighth is the loading journey (_loading_journey), which
+    # also serves the page for /run/<id> addresses.
+    for name, audits in (("keyboard_smoke.py", 1), ("composer_smoke.py", 8)):
         text = (_E2E / name).read_text(encoding="utf-8")
         assert "from e2e.landing_reads import answer_landing_read" in text, name
         assert text.count("elif answer_landing_read(route):") == audits, name
-        assert text.count('elif url.path == "/" or url.path.startswith("/static/"):') == audits, name
+        assert text.count('elif url.path == "/" or url.path.startswith(') == audits, name
 
 
 def test_the_rule_can_be_imported_where_playwright_is_not_installed():

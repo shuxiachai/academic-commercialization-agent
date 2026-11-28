@@ -267,7 +267,152 @@ const scenarios = {
     assert.equal(new Set(names).size, names.length, "no two buttons share a name");
     assert.deepEqual(buttons.map((node) => node.title), names);
   },
+
+  // ── Before the history has answered ────────────────────────────────
+  // A signed-in reader with seven runs was shown "No runs yet" for about a
+  // second on every visit (production, 2026-11-27): the page's own markup
+  // said so until the list arrived. Nothing may say "no runs" before the
+  // server has.
+  async loading_until_answered() {
+    let answer;
+    const requests = [];
+    const m = build({ listRuns: (limit = 50, offset = 0) => {
+      requests.push({ limit, offset });
+      return new Promise((resolve) => { answer = resolve; });
+    } });
+    assert.equal(typeof m.loading, "function", "sidebar.js paints a state for a history not read yet");
+    const list = new Element();
+    m.loading(list);
+    assert.equal(list.dataset.state, "loading");
+    const busy = list.children[0];
+    assert.equal(busy.className, "runlist__loading");
+    assert.equal(busy.attributes?.role, "status");
+    assert.equal(busy.attributes?.["aria-busy"], "true");
+    assert.equal(flat(busy).find((node) => node.className === "visually-hidden")?.textContent, "runs_loading",
+      "Said to a screen reader, in the interface's words");
+    const reading = m.refresh(list, { onSelect() {} });
+    await tick();
+    assert.deepEqual(requests, [{ limit: 50, offset: 0 }]);
+    assert.equal(list.dataset.state, "loading", "Still asking: still loading");
+    assert.ok(!flat(list).some((node) => node.textContent === "no_runs"), "Never an empty history before the answer");
+    answer({ runs: [], total: 0 });
+    await reading;
+    assert.equal(list.dataset.state, "shown");
+    assert.equal(list.children[0].textContent, "no_runs", "A history that is empty says so once the server has");
+  },
+  // A list that cannot be read says so, with a way to ask again. Until now a
+  // failed read kept whatever was there, which before the first answer would
+  // be the loading rows: a list loading for ever.
+  async first_read_fails() {
+    let fail = true;
+    const m = build({ listRuns: async () => {
+      if (fail) throw Object.assign(new Error("Service Unavailable"), { status: 503 });
+      return { runs: [run(1)], total: 1 };
+    } });
+    const list = new Element();
+    m.loading?.(list);
+    let asked = 0;
+    const options = { onSelect() {}, onChange: () => { asked++; } };
+    assert.equal(await m.refresh(list, options), null);
+    assert.equal(list.dataset.state, "failed", "An unread history is said to be unread, not left loading");
+    assert.equal(list.children.length, 1);
+    const note = list.children[0];
+    assert.equal(note.className, "runlist__empty runlist__failed");
+    assert.equal(note.attributes?.role, "status");
+    assert.equal(note.children[0].textContent, "runs_read_failed");
+    assert.ok(!flat(list).some((node) => node.textContent === "no_runs"), "Not read is not empty");
+    const retry = note.children[1];
+    assert.equal(retry.className, "runlist__retry");
+    assert.equal(retry.textContent, "runs_retry");
+    retry.listeners.click();
+    assert.equal(asked, 1, "The button asks the page for the list again");
+    fail = false;
+    await m.refresh(list, options);
+    assert.equal(list.dataset.state, "shown");
+    assert.equal(list.children.filter((node) => node.className === "runitem-row").length, 1);
+    // A list already drawn keeps its rows when a later read fails: an empty
+    // rail would read as "your runs are gone".
+    fail = true;
+    await m.refresh(list, options);
+    assert.equal(list.dataset.state, "shown");
+    assert.equal(list.children.filter((node) => node.className === "runitem-row").length, 1);
+    // A late failure that belongs to an older view paints nothing.
+    const fresh = new Element();
+    m.loading(fresh);
+    await m.refresh(fresh, { ...options, isCurrent: () => false });
+    assert.equal(fresh.dataset.state, "loading");
+  },
+  // Asked while the boot's access check is still out (app.js startBootReads),
+  // and used by the first refresh only for the identity it was asked with.
+  async prefetched_first_page() {
+    const requests = [];
+    const who = { session: "token-A", code: null };
+    let failing = false;
+    const m = build({
+      listRuns: async (limit = 50, offset = 0) => {
+        requests.push({ limit, offset, session: who.session });
+        if (failing) throw Object.assign(new Error("Bad Gateway"), { status: 502 });
+        return { runs: [run(1, who.session)], total: 1 };
+      },
+      getSessionToken: () => who.session,
+      getAccessCode: () => who.code,
+    });
+    assert.equal(typeof m.prefetch, "function", "sidebar.js can ask for the first page before it is drawn");
+    m.prefetch();
+    assert.deepEqual(requests, [{ limit: 50, offset: 0, session: "token-A" }], "Asked at once, for the page the rail shows first");
+    const list = new Element();
+    await m.refresh(list, { onSelect() {} });
+    assert.equal(requests.length, 1, "The first refresh draws that reply instead of asking again");
+    assert.deepEqual(list.children.filter((node) => node.className === "runitem-row")
+      .map((row) => row.children[0].dataset.runId), ["run-0001"]);
+    await m.refresh(list, { onSelect() {} });
+    assert.equal(requests.length, 2, "Used once; the next refresh asks as before");
+    // Another identity by the time the rail is drawn: the early reply is not theirs.
+    m.prefetch();
+    who.session = "token-B";
+    await m.refresh(list, { onSelect() {} });
+    assert.deepEqual(requests.slice(-2).map((r) => r.session), ["token-A", "token-B"]);
+    // Nor is it when a code is stored or removed in between.
+    m.prefetch();
+    who.code = "code";
+    await m.refresh(list, { onSelect() {} });
+    assert.equal(requests.length, 6);
+    who.code = null;
+    // Forgotten (the boot stopped at the sign-in card): asked again afterwards.
+    m.prefetch();
+    m.forgetPrefetch();
+    await m.refresh(list, { onSelect() {} });
+    assert.equal(requests.length, 8);
+    // A search wants more than the first page; the early reply is not used for it.
+    m.prefetch();
+    m.setQuery("token");
+    await m.refresh(list, { onSelect() {} });
+    assert.equal(requests.length, 10);
+    m.setQuery("");
+    // An early read that failed is a failed first read, said as one.
+    failing = true;
+    m.prefetch();
+    const fresh = new Element();
+    m.loading(fresh);
+    await m.refresh(fresh, { onSelect() {} });
+    assert.equal(requests.length, 11, "Not asked twice for one refresh");
+    assert.equal(fresh.dataset.state, "failed");
+  },
 };
+
+// The new scenarios build the module themselves, naming only what exists, so
+// that one missing export fails its scenario by assertion, not the file.
+function build(api) {
+  const box = new Element();
+  box.hidden = true;
+  const document = { createElement: () => new Element(), querySelector: (selector) => (selector === "#run-search" ? box : null) };
+  const names = ["render", "refresh", "setQuery", "resetView", "loading", "prefetch", "forgetPrefetch"];
+  return new Function("api", "t", "document",
+    `${source}; return { ${names.map((name) => `${name}: typeof ${name} === "function" ? ${name} : undefined`).join(", ")} };`,
+  )({ getSessionToken: () => null, getAccessCode: () => null, ...api }, (key) => key, document);
+}
+function flat(node) { return [node, ...(node.children ?? []).flatMap(flat)]; }
+const tick = () => new Promise((resolve) => setImmediate(resolve));
 assert.ok(scenarios[process.argv[2]], "Unknown scenario");
 await scenarios[process.argv[2]]();
 console.log(`PASS ${process.argv[2]}`);

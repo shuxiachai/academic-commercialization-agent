@@ -658,6 +658,240 @@ def _waiting_journey(browser, base: str) -> int:
         context.close()
 
 
+# Every painted frame of a page: what it showed that it could not have known.
+# A rAF callback runs before each paint, so a state shown for one frame is
+# caught. The journey reads it only on pages whose history is not empty.
+_FAKE_STATE_RECORDER = """
+(() => {
+  const seen = [];
+  window.__fakeStates = seen;
+  const visible = (node) => !!node && node.getClientRects().length > 0
+    && (!node.checkVisibility || node.checkVisibility({ checkVisibilityCSS: true }));
+  const note = (what) => { if (!seen.includes(what)) seen.push(what); };
+  const look = () => {
+    if (document.body) {
+      const rail = document.querySelector("#runlist");
+      if (visible(rail) && /No runs yet|暂无运行记录/.test(rail.innerText)) note("no runs");
+      // The composer is the page of someone the boot has let in; before the
+      // boot has decided who is visiting (app.js markBoot) it is a guess.
+      const decided = document.documentElement.dataset.boot === "ready";
+      if (!decided && visible(document.querySelector("#topic"))) note("composer");
+      if (visible(document.querySelector("#run-pill")) && /unknown|未知/i.test(document.querySelector("#run-pill").textContent)) {
+        note("unknown run state");
+      }
+    }
+    requestAnimationFrame(look);
+  };
+  requestAnimationFrame(look);
+})();
+"""
+
+
+def _loading_journey(browser, base: str) -> int:
+    """Each read held in turn: the page says it is loading, never the composer or "No runs yet".
+
+    The two pages reported from production on 2026-11-27 (tests/test_boot_loading.py):
+    a shared link opened anonymously, and the home of an account with seven
+    runs, one of them going. Then what must still appear when it is true (an
+    empty history, a run that is gone, the landing), what a read that fails
+    says, and the shared link at phone width in Chinese.
+    """
+    netloc = urlsplit(base).netloc
+    run_id = "20261120T131247Z-" + "5" * 32
+    run_api = f"/api/runs/{run_id}"
+    accounts = {"enabled": True, "signup_open": True, "signup": "open", "access_codes": False,
+                "password_reset": True, "notices": True, "key_check": False, "contact": None}
+    account = {"email": "reader@example.test", "admin": False, "verified": True, "keys_saved": True}
+    signed_in = {"ok": True, "account": account, "accounts": accounts}
+    refused = {"detail": "Sign in.", "accounts": accounts}
+    health = {"active_runs": 0, "active_paid_operations": 0, "max_concurrent": 5, "retention_days": 30}
+    finished = {"run_id": run_id, "topic": "Solid oxide fuel cells", "state": "completed", "stage": "Done",
+                "steps": [], "artifacts": ["report"], "elapsed_seconds": 237, "viewer_can_modify": False}
+    going = "20261127T000000Z-" + "b" * 32
+    history = {"runs": [{"run_id": f"2026112{index}T100000Z-" + "a" * 32, "topic": f"Assessment {index}",
+                         "state": "completed", "started_at": f"2026-11-2{index}T10:00:00Z"} for index in range(7)],
+               "total": 7, "active_runs": [{"run_id": going, "topic": "Going now"}], "at_capacity": True}
+    asked: list[str] = []
+    errors: list[str] = []
+    unexpected: list[str] = []
+
+    def report(route: Route) -> None:
+        route.fulfill(status=200, content_type="text/markdown; charset=utf-8",
+                      body="# Fixture report\n\nLOADING_JOURNEY_REPORT_REACHED")
+
+    def visit(path: str, answers: dict, *, session: bool = False, locale: str = SMOKE_LOCALE,
+              viewport: dict | None = None):
+        """A fresh browser at `path`: answers map an API path to a reply, "hold", or a callable."""
+        context = browser.new_context(locale=locale, **({"viewport": viewport} if viewport else {}))
+        if session:
+            context.add_init_script("try { if (!localStorage.getItem('session-token')) "
+                                    "localStorage.setItem('session-token', 'fixture-session'); } catch {}")
+        context.add_init_script(_FAKE_STATE_RECORDER)
+        holds: dict[str, list[Route]] = {}
+
+        def intercept(route: Route) -> None:
+            request = route.request
+            url = urlsplit(request.url)
+            if url.netloc != netloc or request.method != "GET":
+                unexpected.append(f"{request.method} {request.url}")
+                route.abort()
+                return
+            asked.append(url.path)
+            answer = answers.get(url.path)
+            if answer == "hold":
+                holds.setdefault(url.path, []).append(route)
+            elif callable(answer):
+                answer(route)
+            elif isinstance(answer, tuple):
+                _json(route, answer[1], status=answer[0])
+            elif answer is not None:
+                _json(route, answer)
+            elif answer_landing_read(route):
+                pass  # the landing, shown before the access check answered (e2e/landing_reads.py)
+            elif url.path == "/" or url.path.startswith(("/static/", "/run/")):
+                route.continue_()
+            else:
+                unexpected.append(url.path)
+                route.abort()
+
+        context.route("**/*", intercept)
+        page = context.new_page()
+        page.on("pageerror", lambda error: errors.append(str(error)))
+        page.goto(f"{base}{path}", wait_until="commit")
+        return context, page, holds
+
+    def wait_held(page: Page, holds: dict, path: str) -> Route:
+        deadline = time.monotonic() + 15
+        while not holds.get(path) and time.monotonic() < deadline:
+            page.wait_for_timeout(10)  # Pump intercepted browser events until the request is held.
+        assert holds.get(path), f"{path} was not asked for"
+        return holds[path].pop(0)
+
+    def fake_states(page: Page) -> list:
+        page.evaluate("() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))")
+        return page.evaluate("window.__fakeStates")
+
+    # 1. A shared link, opened by someone with nothing stored.
+    answers = {"/api/access/check": "hold", f"{run_api}/progress": "hold", f"{run_api}/report": report, "/health": health}
+    context, page, holds = visit(f"/run/{run_id}", answers)
+    try:
+        check = wait_held(page, holds, "/api/access/check")
+        progress = wait_held(page, holds, f"{run_api}/progress")
+        # Both are out at once: the run is not asked for after the check.
+        expect(page.locator("#pane-loading")).to_be_visible()
+        expect(page.locator("#runlist .runlist__loading")).to_be_visible()
+        expect(page.locator("#topic")).to_be_hidden()
+        _json(check, refused, status=401)
+        expect(page.locator("#viewer-bar")).to_be_visible()
+        expect(page.locator("#run-body .loading-view")).to_be_visible()
+        expect(page.locator("#run-head")).to_be_hidden()
+        _json(progress, finished)
+        expect(page.locator("#run-title")).to_have_text("Solid oxide fuel cells")
+        expect(page.locator("#run-body .prose")).to_contain_text("LOADING_JOURNEY_REPORT_REACHED")
+        expect(page.locator("#run-body .loading-view")).to_have_count(0)
+        assert fake_states(page) == [], fake_states(page)
+        assert asked.count(f"{run_api}/progress") == 1, "The early read is the run's first poll"
+    finally:
+        context.close()
+
+    # 2. The home of a signed-in account with seven runs, one of them going.
+    asked.clear()
+    answers = {"/api/access/check": "hold", "/api/runs": "hold", "/health": health}
+    context, page, holds = visit("/", answers, session=True)
+    try:
+        check = wait_held(page, holds, "/api/access/check")
+        listed = wait_held(page, holds, "/api/runs")
+        expect(page.locator("#pane-loading")).to_be_visible()
+        expect(page.locator("#runlist .runlist__loading")).to_be_visible()
+        expect(page.locator("#identity-loading")).to_be_visible()
+        expect(page.locator("#account-badge")).to_be_hidden()
+        _json(check, signed_in)
+        expect(page.locator("#account-badge")).to_be_visible()
+        expect(page.locator("#identity-loading")).to_be_hidden()
+        expect(page.locator("#topic")).to_be_visible()  # the home of a signed-in reader is the composer
+        expect(page.locator("#runlist .runlist__loading")).to_be_visible()
+        _json(listed, history)
+        expect(page.locator("#runlist .runitem")).to_have_count(7)
+        expect(page.locator("#active-run")).to_be_visible()
+        expect(page.locator("#runlist .runlist__loading")).to_have_count(0)
+        assert fake_states(page) == [], fake_states(page)
+        assert asked.count("/api/runs") == 1, "The early read is the rail's first page, not a second request"
+    finally:
+        context.close()
+
+    # 3. What is true still shows: an empty history, a run that is gone, the landing.
+    context, page, holds = visit("/", {"/api/access/check": signed_in, "/api/runs": {"runs": [], "total": 0},
+                                       "/health": health}, session=True)
+    try:
+        expect(page.locator("#runlist")).to_contain_text("No runs yet")
+        expect(page.locator("#runlist .runlist__loading")).to_have_count(0)
+    finally:
+        context.close()
+    context, page, holds = visit(f"/run/{run_id}", {"/api/access/check": (401, refused), "/health": health,
+                                                     f"{run_api}/progress": (404, {"detail": "No such run."})})
+    try:
+        expect(page.locator("#run-gone")).to_be_visible()
+        expect(page.locator("#run-body .loading-view")).to_have_count(0)
+        assert fake_states(page) == [], fake_states(page)
+    finally:
+        context.close()
+    context, page, holds = visit("/", {"/api/access/check": (401, refused), "/health": health})
+    try:
+        expect(page.locator("#landing")).to_be_visible()
+        expect(page.locator("#workbench")).to_be_hidden()
+    finally:
+        context.close()
+
+    # 4. A read that fails says so, and the page recovers when it answers.
+    answers = {"/api/access/check": signed_in, "/api/runs": (503, {"detail": "Service Unavailable"}), "/health": health}
+    context, page, holds = visit("/", answers, session=True)
+    try:
+        failed = page.locator("#runlist .runlist__failed")
+        expect(failed).to_contain_text("could not be read")
+        answers["/api/runs"] = history
+        failed.locator(".runlist__retry").click()
+        expect(page.locator("#runlist .runitem")).to_have_count(7)
+        assert fake_states(page) == [], fake_states(page)
+    finally:
+        context.close()
+    answers = {"/api/access/check": (401, refused), "/health": health, f"{run_api}/report": report,
+               f"{run_api}/progress": lambda route: route.abort()}
+    context, page, holds = visit(f"/run/{run_id}", answers)
+    try:
+        expect(page.locator("#run-body .run-loading-failed")).to_contain_text("retrying")
+        expect(page.locator("#run-head")).to_be_hidden()
+        answers[f"{run_api}/progress"] = finished
+        expect(page.locator("#run-title")).to_have_text("Solid oxide fuel cells", timeout=8000)
+        expect(page.locator("#run-body .run-loading-failed")).to_have_count(0)
+    finally:
+        context.close()
+
+    # 5. The shared link at phone width, in Chinese.
+    answers = {"/api/access/check": "hold", f"{run_api}/progress": "hold", f"{run_api}/report": report, "/health": health}
+    context, page, holds = visit(f"/run/{run_id}", answers, locale="zh-CN", viewport={"width": 375, "height": 812})
+    try:
+        check = wait_held(page, holds, "/api/access/check")
+        progress = wait_held(page, holds, f"{run_api}/progress")
+        expect(page.locator("#pane-loading")).to_be_visible()
+        expect(page.locator("#pane-loading .visually-hidden")).to_have_text(re.compile("[一-鿿]"))
+        _json(check, refused, status=401)
+        loading = page.locator("#run-body .loading-view")
+        expect(loading).to_be_visible()
+        expect(loading.locator(".visually-hidden")).to_have_text(re.compile("[一-鿿]"))
+        assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), "Nothing wider than the phone"
+        box = loading.bounding_box()
+        assert box and box["x"] >= 0 and box["x"] + box["width"] <= 375, box
+        _json(progress, finished)
+        expect(page.locator("#run-title")).to_have_text("Solid oxide fuel cells")
+        assert fake_states(page) == [], fake_states(page)
+    finally:
+        context.close()
+
+    assert not errors, errors
+    assert not unexpected, unexpected
+    return 0  # no paid request exists in this journey
+
+
 def main() -> None:
     app = FastAPI()
     reached_server: list[str] = []
@@ -673,6 +907,11 @@ def main() -> None:
 
     @app.get("/")
     def index():
+        return FileResponse(PROJECT_ROOT / "web/index.html")
+
+    # The same document at a run's address, as api/main.py serves it (_loading_journey).
+    @app.get("/run/{run_id}")
+    def run_page(run_id: str):
         return FileResponse(PROJECT_ROOT / "web/index.html")
 
     requests: list[Route] = []
@@ -987,6 +1226,7 @@ def main() -> None:
             wait_posts = _waiting_journey(browser, base)
             refresh_posts = _paid_refresh_journey(browser, base)
             history_reads = _history_generation_journey(browser, base)
+            loading_posts = _loading_journey(browser, base)
             recovered_posts = sum(receipt_journey(browser, base, operation, _json)
                                   for operation in ("run", "paper", "resume"))
             assert not unexpected, unexpected
@@ -1005,6 +1245,7 @@ def main() -> None:
                       "waiting_stubbed_posts": wait_posts,
                       "refresh_stubbed_posts": refresh_posts,
                       "history_held_reads": history_reads,
+                      "loading_journey_posts": loading_posts,
                       "receipt_recovered_stubbed_posts": recovered_posts,
                       "api_requests_reaching_server": len(reached_server), "unexpected_requests": len(unexpected),
                       "paid_provider_requests": 0, "page_errors": len(page_errors)}))
