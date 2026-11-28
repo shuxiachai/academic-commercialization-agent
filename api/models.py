@@ -372,7 +372,8 @@ class StepEvent(BaseModel):
         default=None, description="Provider attempt number within the call, from 1.")
     outcome: str | None = Field(
         default=None,
-        description="returned, timeout, error, adapted (a refused parameter resent), rate_limited "
+        description="returned, timeout (with error_type RunDeadlineExceeded: a streamed attempt cut at "
+                    "its node's deadline), error, adapted (a refused parameter resent), rate_limited "
                     "(a 429 that passes by waiting; a streamed node waits and asks again), empty (an "
                     "answer with no text; a streamed node asks up to three times in all), or cut "
                     "(the provider ended the answer at its output limit; the node fails).")

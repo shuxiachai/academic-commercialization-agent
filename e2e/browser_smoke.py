@@ -2138,7 +2138,7 @@ def _exercise_resume_before_scoring(browser, base_url: str, parent_id: str, owne
         # The cause by name, and that it was not the reader's topic or key;
         # nobody needs the run ID sent to them.
         outcome = page.locator("#run-outcome")
-        expect(outcome).to_contain_text("本次运行在下一步开始前到了运行时限")
+        expect(outcome).to_contain_text("本次运行在下一步完成前到了运行时限，这一步被中途停下或没有开始。")
         expect(outcome).to_contain_text("这不是你的题目或 Key 的问题。")
         expect(outcome).to_contain_text("从检查点续跑只做剩下的部分")
         expect(outcome).not_to_contain_text("分析失败")

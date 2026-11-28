@@ -19,6 +19,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
+import httpx
 from crewai import LLM
 
 from academic_agent import llm_parameter_fallback as parameter_fallback
@@ -284,7 +285,10 @@ _BASE_DELAY_SECONDS = 2.0
 
 
 class RunDeadlineExceeded(TimeoutError):
-    """The run lacks a full bounded window for another provider attempt."""
+    """The run lacks a full bounded window for another provider attempt, or the
+    node's deadline passed while an attempt was streaming and it was cut there
+    (_CutAtDeadline). Never retried; api/runs.py reads either as the run's time limit.
+    """
 
 
 # What a provider calls an answer it ended at an output limit: "length" on the
@@ -397,6 +401,12 @@ class _CallBudget:
     #: says five, which on a silent link is sixteen minutes to report what
     #: was known after five and a half. An instance is one node of one run.
     gave_up: BaseException | None = None
+    #: The window of the node that runs after this one, which this node's
+    #: deadline leaves it (runtime_budget.successor_window_for_agent): the
+    #: scorer's, on the reviewer; 0 everywhere else. _give_thinking_time
+    #: grows it with this node's own window and moves the deadline back by
+    #: as much, since both nodes run the same model.
+    successor_window_seconds: float = 0.0
 
     def require_window(self, *, delay_seconds: float = 0.0) -> None:
         if self.deadline_monotonic is None:
@@ -408,6 +418,77 @@ class _CallBudget:
                 f"{self.stage} has {max(0.0, remaining):.1f}s remaining; "
                 f"a bounded provider attempt requires {required:.1f}s"
             )
+
+
+# An attempt that has begun ends at its node's deadline.
+#
+# require_window decides whether an attempt may begin; until 2026-11-28
+# nothing ended one that had. A streamed attempt's only bound was the wait
+# for its next chunk, 60 seconds (120 on a model that cannot turn thinking
+# off), and a model that is thinking is not silent. Production 2026-11-25,
+# qwen3.8-2.4t-a95b: the review began 606 s before the reviewer's deadline,
+# its one attempt was still streaming 853 s later, and the watchdog killed
+# the run at 30:07. The reviewer's fallback (the validated draft, then the
+# scorer) and the 60-second closeout reserve were there and never reached.
+#
+# So a streamed answer is cut at the first chunk that arrives past the
+# deadline. The check sits on the HTTP response's own bytes, below the SDK:
+# a reasoning chunk, which CrewAI's stream reader reads and drops without an
+# event, counts as much as an answer's. Closing the response drops the
+# connection, which is how a provider learns to stop. What it cannot reach:
+# a stream silent at the deadline still waits out its per-chunk bound, and a
+# plain request is left alone, since its whole wait is bounded by a window
+# that had to fit before the deadline for it to be sent, and a body that
+# lands later was generated and billed already.
+class _CutAtDeadline(httpx.SyncByteStream):
+    """A streamed response's bytes, ended at the first chunk past the node's deadline."""
+
+    def __init__(self, stream: httpx.SyncByteStream, budget: "_CallBudget") -> None:
+        self._stream, self._budget = stream, budget
+
+    def __iter__(self):
+        for chunk in self._stream:
+            deadline = self._budget.deadline_monotonic
+            if deadline is not None and time.monotonic() >= deadline:
+                self._stream.close()
+                raise RunDeadlineExceeded(
+                    f"{' '.join(self._budget.stage.split())}: the attempt in progress was cut at the "
+                    "stage's deadline; a bounded provider attempt requires its answer before that deadline")
+            yield chunk
+
+    def close(self) -> None:
+        self._stream.close()
+
+
+def _cut_streams_at_deadline(llm, budget: "_CallBudget") -> None:
+    """Make the HTTP client a provider sends through cut its streamed answers at the node's deadline.
+
+    An httpx response hook on the SDK client's HTTP client, checked before
+    every attempt: a transport retry rebuilds the client (_reconnect) and the
+    new one needs it too, while the copies with_options makes share their
+    HTTP client and find it already there. A provider without one (a test's
+    stand-in) is left as it is.
+    """
+    sdk = getattr(llm, "_client", None)
+    if sdk is None and callable(getattr(llm, "_get_sync_client", None)):
+        try:
+            sdk = llm._get_sync_client()
+        except ValueError:
+            # No key: the call itself raises the same, as CrewAI's own build does.
+            return
+    http = getattr(sdk, "_client", None)
+    if not isinstance(http, httpx.Client):
+        return
+    hooks = http.event_hooks
+    if any(getattr(hook, "_academic_agent_cut", False) for hook in hooks["response"]):
+        return
+
+    def cut_at_deadline(response: httpx.Response) -> None:
+        if isinstance(response.stream, httpx.SyncByteStream):
+            response.stream = _CutAtDeadline(response.stream, budget)
+
+    cut_at_deadline._academic_agent_cut = True
+    http.event_hooks = {**hooks, "response": [*hooks["response"], cut_at_deadline]}
 
 
 def _max_attempts_for(llm) -> int:
@@ -598,7 +679,13 @@ def _reconnect(llm, stage: str) -> bool:
 
 
 def _give_thinking_time(llm, budget: "_CallBudget") -> None:
-    """Double this LLM's per-call timeout, and the window a call needs, once."""
+    """Double this LLM's per-call timeout, and the window a call needs, once.
+
+    The node after it runs the same model, so its window doubles too: the
+    window this node's deadline leaves it grows by as much, and the deadline
+    moves back by the same amount (on the reviewer, 150 s, so that a review
+    cut at its deadline leaves the scorer its 300).
+    """
     if getattr(llm, "_academic_agent_thinking_time", False):
         return
     llm._academic_agent_thinking_time = True
@@ -607,6 +694,11 @@ def _give_thinking_time(llm, budget: "_CallBudget") -> None:
         _set_transport_timeout(llm, timeout * _THINKING_TIMEOUT_FACTOR)
     if budget.request_timeout_seconds > 0:
         budget.request_timeout_seconds *= _THINKING_TIMEOUT_FACTOR
+    if budget.successor_window_seconds > 0:
+        grown = budget.successor_window_seconds * (_THINKING_TIMEOUT_FACTOR - 1)
+        budget.successor_window_seconds += grown
+        if budget.deadline_monotonic is not None:
+            budget.deadline_monotonic -= grown
 
 
 # One observer for the whole worker process: every provider attempt, returned
@@ -734,10 +826,24 @@ def _wrap_with_retry(llm):
 
         while True:
             budget.require_window()
+            if streamed and budget.deadline_monotonic is not None:
+                _cut_streams_at_deadline(llm, budget)
             started = time.monotonic()
             stopped["reason"] = stopped["usage"] = None
             try:
                 result = inner(*args, **kwargs)
+            except RunDeadlineExceeded as cut:
+                # The node's deadline passed while its answer was streaming
+                # (_CutAtDeadline). Not a refused parameter, not a rate limit
+                # whatever the stage's name says, and never asked again.
+                budget.gave_up = cut
+                report("timeout", started, retry=False, exc=cut)
+                print(
+                    f"[llm] {' '.join(budget.stage.split())}: attempt {attempt}/{max_attempts} cut at the "
+                    f"stage's deadline after {time.monotonic() - started:.1f}s",
+                    file=sys.stderr, flush=True,
+                )
+                raise
             except BaseException as exc:      # noqa: BLE001 - re-raised below
                 change = (parameter_fallback.adjustment(f"{type(exc).__name__}: {exc}", _sent_parameters(llm))
                           if identity is not None else None)
@@ -835,17 +941,25 @@ def configure_llm_deadline(
     deadline_monotonic: float | None,
     stage: str,
     request_timeout_seconds: float,
+    successor_window_seconds: float = 0.0,
 ):
-    """Attach one code-owned stage deadline to a wrapped CrewAI provider."""
+    """Attach one code-owned stage deadline to a wrapped CrewAI provider.
+
+    The deadline is the last moment an attempt may end: one is begun only if
+    its whole window fits before it, and a streamed one still going there is cut.
+    """
 
     budget = getattr(llm, "_academic_agent_call_budget", None)
     if not isinstance(budget, _CallBudget):
         raise RuntimeError("LLM was not created through the retry/deadline adapter")
     if request_timeout_seconds <= 0:
         raise ValueError("request timeout must be positive")
+    if successor_window_seconds < 0:
+        raise ValueError("successor window must not be negative")
     budget.deadline_monotonic = deadline_monotonic
     budget.stage = stage
     budget.request_timeout_seconds = request_timeout_seconds
+    budget.successor_window_seconds = successor_window_seconds
     # A streamed node keeps its per-chunk bound: the window says how long a
     # healthy attempt may take, not how long to wait for the next byte.
     if not getattr(llm, "stream", False):

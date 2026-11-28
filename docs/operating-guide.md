@@ -931,9 +931,14 @@ API-launched workers apply bounded provider deadlines and disable hidden SDK
 retries. Defaults reserve closeout time before the 30-minute watchdog (40
 for a model known to run only in thinking mode):
 150-second ordinary provider calls, a 240-second Reviewer window and a
-60-second closeout reserve. Direct CLI runs are operator-controlled and do
-not inherit the API watchdog. UI and both run endpoints distinguish terminal
-reason, stop method and elapsed time.
+60-second closeout reserve. Each node's deadline is also where an attempt it
+has begun ends: a streamed answer still arriving there is cut at its first
+chunk past it, and a review cut that way takes the reviewer's fallback (the
+draft unreviewed, then scoring). On a model known to run only in thinking
+mode the scorer's window is 300 seconds, so the Reviewer's deadline sits 390
+seconds before the limit instead of 240. Direct CLI runs are
+operator-controlled and do not inherit the API watchdog. UI and both run
+endpoints distinguish terminal reason, stop method and elapsed time.
 
 The worker writes every provider attempt to `steps.jsonl` as an `llm_attempt`
 row with the agent, attempt number, outcome, duration and whether a retry
@@ -1203,7 +1208,10 @@ These are example policy values, not a cost/SLO guarantee.
   of attempts records the transport error that used them up. A model call the
   run's own time budget refused before sending it (less time left than the
   window one attempt is planned for) is `run_time_limit` and stays charged;
-  until 2026-11-27 it read as `unknown`, "The analysis failed".
+  until 2026-11-27 it read as `unknown`, "The analysis failed". So is a
+  writer, evidence or scoring call the budget cut at its node's deadline while
+  it was still streaming (since 2026-11-28; before, such a call ran on until
+  the watchdog ended the run as a timeout, which was charged too).
 - `PLAN_PREVIEW_DAILY_LIMIT` (default 20, 0 disables) caps `POST /api/plan`
   per code or account and UTC day. A preview is one planner call and does not
   use a paid operation. The browser shows the reading before a code-funded
