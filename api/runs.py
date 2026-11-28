@@ -57,6 +57,25 @@ from api.runtime_projection import project_runtime_metadata
 # A run is killed after this long. The bound belongs to the worker contract,
 # not to whichever client submitted or polls the run.
 TIMEOUT_SECONDS = 1800
+# A model that cannot turn thinking off is killed after this long instead.
+# Measured on the production runs of qwen3.8-2.4t-a95b, which refuses
+# non-thinking mode (docs/results-2026-11-28-thinking-model-time-limit.md):
+# its stage medians add up to 27.7 minutes, and of the six runs that reached
+# the writer one delivered a reviewed and scored report inside 30 minutes.
+# Its reviews took 459-544 seconds against a 300-second window, so scoring
+# was refused twice with 200 seconds left before the closeout reserve, a
+# review was skipped once, and a run timed out once in its review. Replayed
+# under the rules below, 40 minutes lets three more of the six finish with
+# their review and makes none worse. 35 would have turned the run that
+# finished without its review into a failure at scoring: the review would
+# have started and left the scorer too little. Every other model's runs
+# there ended at least 15 minutes inside 30 and keep it. The reviewer
+# reserve, the windows and the closeout reserve are unchanged.
+THINKING_TIMEOUT_SECONDS = 2400
+#: The newest run directories read for a model's thinking_required mark.
+_THINKING_SCAN_RUNS = 100
+_thinking_models: set[str] = set()
+_thinking_lock = threading.Lock()
 
 # Concurrent paid operations, not merely worker processes. A full assessment
 # occupies a subprocess; PDF contribution extraction calls the same upstream
@@ -1043,6 +1062,69 @@ def _is_valid_run_id(run_id: str) -> bool:
     )
 
 
+def _launch_model(byok: BYOKCredentials | None) -> str | None:
+    """The model the worker will run, resolved as the worker resolves it; None when it cannot be."""
+    from academic_agent.llm_config import resolve_provider_config
+
+    try:
+        if byok is not None:
+            return resolve_provider_config(
+                provider=byok.llm_provider, api_key=byok.llm_api_key, model=byok.llm_model,
+            ).model
+        return resolve_provider_config().model
+    except (RuntimeError, ValueError):
+        # A configuration the worker cannot use fails there, by name, as it
+        # did before this limit existed; it is not the launch's to refuse.
+        return None
+
+
+def _thinking_required(model: str) -> bool:
+    """Whether `model` is known to run only in thinking mode.
+
+    Known one of two ways, both learned from the model's own refusal of
+    non-thinking mode (llm_parameter_fallback): this process saw it, which a
+    topic preview does on its first request, or the worker of an earlier run
+    of the model did and marked its status.json (pipeline_worker
+    write_status). Not a list of model names: such a list would be wrong with
+    the next model, as llm_parameter_fallback explains. The first run of a
+    new model with no preview before it is not known yet and keeps 30
+    minutes; its worker marks the record for the runs after it.
+    """
+    from academic_agent import llm_parameter_fallback as parameter_fallback
+
+    with _thinking_lock:
+        if model in _thinking_models:
+            return True
+    if parameter_fallback.requires_thinking(model):
+        return True
+    try:
+        recent = run_directories()[:_THINKING_SCAN_RUNS]
+    except OSError:
+        # An unreadable output root does not stop a launch over its limit.
+        return False
+    for run_dir in recent:
+        try:
+            status = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if (isinstance(status, dict) and status.get("llm_model") == model
+                and status.get("thinking_required") is True):
+            # A model does not start accepting non-thinking mode, so the
+            # answer is kept for the life of the process.
+            with _thinking_lock:
+                _thinking_models.add(model)
+            return True
+    return False
+
+
+def _hard_timeout_seconds(byok: BYOKCredentials | None) -> int:
+    """This run's limit: longer for a model known to run only in thinking mode."""
+    model = _launch_model(byok)
+    if model is not None and _thinking_required(model):
+        return THINKING_TIMEOUT_SECONDS
+    return TIMEOUT_SECONDS
+
+
 def _start_run_from_spec(
     spec: RunSpec,
     *,
@@ -1144,9 +1226,10 @@ def _start_run_from_spec(
         # One deadline travels to both the worker and the parent reaper. The
         # monotonic handle remains authoritative here; the wall value is
         # converted once by the child so clock changes cannot extend it.
+        # Decided before the clock starts: the record scan reads files.
+        hard_timeout_seconds = _hard_timeout_seconds(byok)
         worker_started = time.monotonic()
         worker_started_at = datetime.now(UTC)
-        hard_timeout_seconds = TIMEOUT_SECONDS
         hard_deadline_epoch = time.time() + hard_timeout_seconds
         cmd = [
             sys.executable, "-m", "academic_agent.pipeline_worker",

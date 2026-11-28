@@ -1,7 +1,7 @@
 # Runtime terminal integrity and deadline budget
 
-The API's 30-minute watchdog is the final availability boundary for a paid
-assessment. It is not a useful timeout for each model request: if Reviewer is
+The API's 30-minute watchdog (40 minutes for a model known to run only in
+thinking mode) is the final availability boundary for a paid assessment. It is not a useful timeout for each model request: if Reviewer is
 allowed to consume that whole window, the parent can kill the worker after a
 validated Writer checkpoint exists but before Reviewer fallback, independent
 Scorer execution, usage accounting, and final artifacts are persisted.
@@ -21,7 +21,7 @@ Current code-owned policy:
 
 | Boundary | Value | Purpose |
 |---|---:|---|
-| API hard watchdog | 1,800 seconds | Last-resort process termination; unchanged |
+| API hard watchdog | 1,800 seconds; 2,400 for a model known to run only in thinking mode | Last-resort process termination; decided at launch |
 | One provider attempt | 150 seconds | Bounds the OpenAI-compatible transport |
 | One report-writer attempt | 300 seconds | The writer's ordinary 5,000–6,500-token answer does not fit 150; its deadline is unchanged |
 | Silence inside a streamed answer | 60 seconds | Every crew node streams; the SDK timeout bounds the wait for one chunk, so a dead connection surfaces in a minute instead of after a whole window |
@@ -74,6 +74,23 @@ make five attempts where a plain one makes three: a failed streamed attempt
 costs about a minute, a failed plain one its whole window. More attempts add
 no time back: every attempt, the fourth and fifth included, is refused unless
 its backoff plus a full window still fit before the stage deadline.
+
+A model that refuses non-thinking mode gets 2,400 seconds. On 2026-11-28
+`qwen3.8-2.4t-a95b`, the production model, needed 27.7 minutes at its stage
+medians, and one of its six runs that reached the writer delivered a reviewed
+and scored report inside 1,800 seconds. Replayed, 2,400 seconds saves three of
+the six and makes none worse; 2,100 would have turned a run that finished
+without its review into one refused at scoring
+([measurement](results-2026-11-28-thinking-model-time-limit.md)). The other
+rows of the table are measured from the later deadline unchanged. The limit is
+fixed at launch, before the worker has met the model's refusal, so the API
+decides from what it can read then, with no list of models: a refusal its own
+process has learned (a topic preview calls the same model through the same
+adaptation), or a `thinking_required: true` mark on the status of a recent run
+of the same model, which the worker writes once its model refuses
+non-thinking mode. The first run of such a model with neither keeps 1,800
+seconds. The run page, the watchdog and the terminal record all read the
+run's own duration.
 
 The 240-second reserve is operational policy, not an SLO. It was selected from
 an observed 102-second Writer/Reviewer/Scorer recovery suffix and must be

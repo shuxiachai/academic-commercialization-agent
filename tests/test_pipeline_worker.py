@@ -296,6 +296,12 @@ class MergeStatusFieldsTests(unittest.TestCase):
         data = self._merge(existing, stage="Agent 4")
         self.assertEqual(data["decision_gate"], existing["decision_gate"])
 
+    def test_thinking_required_survives_every_stage_write(self):
+        """Marked once the model refuses non-thinking mode; the API reads it
+        at the next launch of that model (api/runs.py _thinking_required)."""
+        data = self._merge({"thinking_required": True}, stage="Agent 6")
+        self.assertIs(data.get("thinking_required"), True)
+
     def test_a_new_value_overwrites_the_sticky_one(self):
         existing = {"topic": "old topic"}
         data = self._merge(existing, topic="new topic")
@@ -817,6 +823,45 @@ class MainEndToEndTests(unittest.TestCase):
             .read_text(encoding="utf-8")
         )
         self.assertEqual(payload, diagnostics)
+
+    def _run_learning(self, learned_model, *, fail=False):
+        """One run of THINKING_ONLY whose crew call learns that `learned_model` refuses non-thinking mode."""
+        from academic_agent import llm_parameter_fallback as fallback
+
+        fallback.reset()
+        self.addCleanup(fallback.reset)
+        crew = MagicMock()
+        crew.agents = []
+
+        def kickoff(*_args, **_kwargs):
+            fallback.learn("https://dashscope.example/v1", learned_model, "enable_thinking", True)
+            if fail:
+                raise RuntimeError("writer exhausted retries")
+            return self._crew_result()
+
+        crew.kickoff.side_effect = kickoff
+        with patch("academic_agent.pipeline_worker._configured_model", return_value="thinking-only-model"),              patch("academic_agent.crew.AcademicAgent") as agent_cls:
+            agent_cls.return_value.crew.return_value = crew
+            run_dir = self._run()
+        return json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
+
+    def test_a_model_that_refused_non_thinking_mode_is_marked_for_its_next_launch(self):
+        """The API launches the next run of this model with 40 minutes from this mark."""
+        status = self._run_learning("thinking-only-model")
+        self.assertEqual(status["stage"], "Done")
+        self.assertEqual(status["llm_model"], "thinking-only-model")
+        self.assertIs(status.get("thinking_required"), True)
+
+    def test_a_failed_run_still_carries_the_mark(self):
+        """The runs that need the longer limit are the ones that fail without it."""
+        status = self._run_learning("thinking-only-model", fail=True)
+        self.assertEqual(status["stage"], "Error")
+        self.assertIs(status.get("thinking_required"), True)
+
+    def test_another_models_refusal_does_not_mark_this_run(self):
+        status = self._run_learning("some-other-model")
+        self.assertEqual(status["stage"], "Done")
+        self.assertNotIn("thinking_required", status)
 
     def test_crew_failure_after_sources_collected_still_reports_the_topic(self):
         """status.json must keep the topic even though the crew never finished

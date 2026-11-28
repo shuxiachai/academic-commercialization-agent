@@ -2533,7 +2533,8 @@ def _submit_run_without_receipt(request: RunRequest, http_request: Request) -> R
     """Queue an assessment. Returns immediately with a run_id to poll.
 
     Run time is provider-bound and may take several minutes; the 30-minute
-    watchdog is the hard availability boundary. Authorized either by the
+    watchdog (40 for a model known to run only in thinking mode) is the hard
+    availability boundary. Authorized either by the
     X-Access-Code header (billed to the deployment) or by supplying
     llm_provider/llm_api_key/serper_api_key in the body (billed to the
     caller) — not gated by the middleware because that choice needs the
