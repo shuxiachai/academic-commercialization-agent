@@ -1147,7 +1147,7 @@ const scenarios = {
       "Assessed 21 Nov 2026");
     // Still going: the time so far, and a run that did not finish says it ran.
     assert.deepEqual(reader({ state: "running", recovery: null, lineage: null, elapsed_seconds: 120,
-      eta: { low_seconds: 300, high_seconds: 900, basis_runs: 5, same_model: true, model: MODEL } }).slice(2), ["· running for 2:00"]);
+      eta: { low_seconds: 300, high_seconds: 900, basis_runs: 5 } }).slice(2), ["· running for 2:00"]);
     for (const id of ["#run-eta", "#run-deadline", "#run-current-step", "#run-deadline-note"]) {
       assert.equal(shown(id), null, "Live timing details are for the person running this assessment");
       assert.equal(f.get(id).textContent, "");

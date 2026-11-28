@@ -425,10 +425,7 @@ const HEADER_STRINGS = {
     eta_left: "about {range} left",
     // Why a range is as wide as it is, after it in brackets (etaSummary).
     eta_with_why: "{text} ({why})",
-    eta_why_others: "no run on this model has finished these steps here yet, so this goes by runs on other models",
-    eta_why_some: "{steps} go by runs on other models: none on this model yet",
-    eta_why_few: "few runs on this model so far, so the range is widened",
-    eta_why_any: "going by recent runs here",
+    eta_why_few: "few runs here have finished these steps yet, so the range is widened",
     eta_range: "{low}–{high} min",
     eta_range_one: "{high} min",
     eta_soon: "under a minute left",
@@ -441,7 +438,6 @@ const HEADER_STRINGS = {
     deadline_last_stage: "Last confirmed step · {stage}",
     deadline_limit: "Run limit {limit} · up to {left} remaining (min:sec)",
     // After the limit line when the estimate's slow end needs more than is left (deadlineView).
-    deadline_near_model: "Past runs on this model came close to the {minutes}-minute limit",
     deadline_near: "Going by past runs, this run may come close to the {minutes}-minute limit",
     deadline_pending: "Run limit {limit} (min:sec) reached. Waiting for the server to confirm the outcome.",
     deadline_unknown: "Time limit for this run is unavailable.",
@@ -453,9 +449,7 @@ const HEADER_STRINGS = {
     deadline_checkpoints: "Completed checkpoints may be reused if the run times out.",
     deadline_partial: "Some checkpoints were saved. Recovery after a timeout depends on which checkpoints remain usable.",
     deadline_no_saved: "No completed checkpoint or saved sources have been confirmed yet.",
-    eta_title: "Going by past runs on {model} here: for this step and each one after it, its times in the last (up to 10) runs that finished it, including runs that later failed or timed out; the fastest added up to the slowest added up, from {runs} runs. Not a guarantee.",
-    eta_title_any: "Going by recent runs here: for this step and each one after it, its times in the last (up to 10) runs that finished it; the fastest added up to the slowest added up, from {runs} runs. Not a guarantee.",
-    eta_title_others: "{model} has not finished {steps} here yet; those go by recent runs on other models.",
+    eta_title: "Going by recent runs here, whatever model they ran on: for this step and each one after it, its times in the last (up to 10) runs that finished it, including runs that later failed or timed out; the fastest added up to the slowest added up, from {runs} runs. A different model can take much more or much less time. Not a guarantee.",
     eta_title_few: "A step finished fewer than three times has its range widened by how much past runs varied.",
     // A resumed run, under its header (lineageSummary).
     stage_reused: "reused from the earlier run",
@@ -571,10 +565,7 @@ const HEADER_STRINGS = {
     stage_timing: "阶段耗时",
     eta_left: "预计还需约 {range}",
     eta_with_why: "{text}（{why}）",
-    eta_why_others: "这个模型在本站还没有完成过这些步骤，按其他模型的运行估计",
-    eta_why_some: "{steps}还没有这个模型的记录，按其他模型的运行估计",
-    eta_why_few: "这个模型的记录还少，区间已放宽",
-    eta_why_any: "按本站最近的运行估计",
+    eta_why_few: "本站完成过这些步骤的运行还少，区间已放宽",
     eta_range: "{low}–{high} 分钟",
     eta_range_one: "{high} 分钟",
     eta_soon: "预计不到 1 分钟",
@@ -586,7 +577,6 @@ const HEADER_STRINGS = {
     deadline_stage: "当前阶段 · {stage}",
     deadline_last_stage: "上次确认的阶段 · {stage}",
     deadline_limit: "本次运行时限 {limit} · 最多还可运行 {left}（分:秒）",
-    deadline_near_model: "这个模型以往用时接近 {minutes} 分钟时限",
     deadline_near: "按以往的运行估计，可能接近 {minutes} 分钟时限",
     deadline_pending: "已达到本次运行时限 {limit}（分:秒），正在等待服务器确认结果。",
     deadline_unknown: "暂未取得本次运行的时限。",
@@ -598,9 +588,7 @@ const HEADER_STRINGS = {
     deadline_checkpoints: "如果超时，仍可能从已保存的检查点恢复运行。",
     deadline_partial: "已有部分检查点保存。如果超时，可恢复的内容取决于哪些检查点仍然有效。",
     deadline_no_saved: "暂未确认有已完成的检查点或已保存的来源。",
-    eta_title: "按 {model} 在本站以往的运行估计：从这一步到结束，每一步取最近最多 10 次完成时的用时（包括后来失败或超时的运行），最快的相加到最慢的相加，共参考 {runs} 次运行。仅供参考，不是保证。",
-    eta_title_any: "按本站最近的运行估计：从这一步到结束，每一步取最近最多 10 次完成时的用时，最快的相加到最慢的相加，共参考 {runs} 次运行。仅供参考，不是保证。",
-    eta_title_others: "{model} 在本站还没有完成过{steps}，这几步按其他模型最近的运行估计。",
+    eta_title: "按本站最近的运行估计，不分模型：从这一步到结束，每一步取最近最多 10 次完成时的用时（包括后来失败或超时的运行），最快的相加到最慢的相加，共参考 {runs} 次运行。用的模型不同，实际用时可能相差很多。仅供参考，不是保证。",
     eta_title_few: "完成次数少于 3 次的步骤，区间已按以往运行的波动放宽。",
     stage_reused: "沿用上次结果",
     lineage_reused: "这是一次续跑，接着{earlier}做。沿用上次结果：{reused}。本次重做：{ran}。",
@@ -739,21 +727,21 @@ function minutesRange(low, high) {
 /**
  * "about 12–25 min left" for a running run; "" without an estimate.
  *
- * The range is what recent completed runs took from this step to their end
+ * The range is what recent runs took from this step to their end
  * (api/eta.py), not one typical figure: the page said "about 7 min" at the
- * start of a run that took 24 min 40 s. Where the range comes from runs of
- * other models the line says so, since a model's speed is most of the
- * answer. A run slower at its step than every run in the pool is told that,
- * with what the later steps took, instead of a countdown that has run out.
+ * start of a run that took 24 min 40 s. A run slower at its step than every
+ * recent one is told that, with what the later steps took, instead of a
+ * countdown that has run out.
  *
- * The range is now built stage by stage from the run's own model (api/eta.py)
- * and can be wide: on 2026-11-27 a run was told "1–16" and then "5–6" with
- * fourteen minutes to go. Why it is wide is said after it, in brackets:
- * steps this model has not finished here yet go by other models' runs, or
- * few runs on this model widened it. `model` is the run's own; without one,
- * every step goes by recent runs of whatever model.
+ * It is built stage by stage from every model's recent runs. From 2026-11-27
+ * (#512) it was the run's own model's first, and the line said in brackets
+ * which steps went by other models; the deployment's model is changed often,
+ * and on 2026-11-28 the user asked that a change not move the estimate. So no
+ * line speaks of models, even beside a reply from before that change. What is
+ * said after the range, in brackets, is that it was widened because few runs
+ * here have finished those steps yet.
  */
-export function etaSummary(eta, stage, model = null) {
+export function etaSummary(eta, stage) {
   const low = eta?.low_seconds;
   const high = eta?.high_seconds;
   if (!Number.isFinite(low) || !Number.isFinite(high) || low < 0 || high < low) return "";
@@ -769,41 +757,18 @@ export function etaSummary(eta, stage, model = null) {
   }
   if (high < 60) return headerLabel("eta_soon");
   const text = say("eta_left", { range: minutesRange(low, high) });
-  const why = etaWhy(eta, stage, model);
-  return why ? say("eta_with_why", { text, why }) : text;
+  return widened(eta) ? say("eta_with_why", { text, why: headerLabel("eta_why_few") }) : text;
 }
 
-/* The steps ahead that go by other models' runs, as stage ids. A reply
- * from before api/eta.py named them said only `same_model`, and false then
- * meant the whole range. */
-function otherModelSteps(eta, stage) {
-  const ahead = STAGES.slice(Math.max(0, stageIndex(stage))).map((s) => s.id);
-  if (!Array.isArray(eta.other_model_stages)) return eta.same_model === false ? ahead : [];
-  return ahead.filter((id) => eta.other_model_stages.includes(id));
+function widened(eta) {
+  return Array.isArray(eta.few_sample_stages) && eta.few_sample_stages.length > 0;
 }
 
-function stageList(ids) {
-  const labels = STAGE_SHORT_LABELS[uiLanguage()] ?? STAGE_SHORT_LABELS.English;
-  return ids.map((id) => labels[id]).join(headerLabel("lineage_sep"));
-}
-
-function etaWhy(eta, stage, model) {
-  const others = otherModelSteps(eta, stage);
-  if (!model && others.length) return headerLabel("eta_why_any");
-  const ahead = STAGES.length - Math.max(0, stageIndex(stage));
-  if (others.length && others.length === ahead) return headerLabel("eta_why_others");
-  if (others.length) return say("eta_why_some", { steps: stageList(others) });
-  return Array.isArray(eta.few_sample_stages) && eta.few_sample_stages.length ? headerLabel("eta_why_few") : "";
-}
-
-/** How the range is drawn and from whose runs. `model` is the run's own. */
-export function etaTitle(eta, model = null) {
+/** How the range is drawn, and that a different model can take much more or less. */
+export function etaTitle(eta) {
   if (!Number.isFinite(eta?.basis_runs)) return "";
-  const runs = eta.basis_runs;
-  const parts = [eta.model ? say("eta_title", { runs, model: eta.model }) : say("eta_title_any", { runs })];
-  const others = Array.isArray(eta.other_model_stages) ? eta.other_model_stages : [];
-  if (model && others.length) parts.push(say("eta_title_others", { model, steps: stageList(others) }));
-  if (Array.isArray(eta.few_sample_stages) && eta.few_sample_stages.length) parts.push(headerLabel("eta_title_few"));
+  const parts = [say("eta_title", { runs: eta.basis_runs })];
+  if (widened(eta)) parts.push(headerLabel("eta_title_few"));
   return parts.join(" ");
 }
 
@@ -850,15 +815,15 @@ export function deadlineView(progress, sincePoll = 0) {
     limit: formatDuration(limit), left: formatDuration(remaining),
   });
   // The run of 2026-11-27 needed 20 to 25 of its 30 minutes for writing and
-  // review alone, as this model's runs before it had, and the page never
+  // review alone, as its model's runs before it had, and the page never
   // said the limit was in reach. When the slow end of the estimate needs
   // more than is left, this line says so. Both figures are from the same
   // reading and both fall with the clock, so the warning holds steady
-  // between polls. Only a model's own times are called the model's.
+  // between polls. The estimate is every model's (etaSummary), so the
+  // warning is said of past runs, not of this run's model.
   const eta = progress.eta;
   if (remaining && Number.isFinite(eta?.high_seconds) && eta.high_seconds > observed) {
-    const near = say(eta.same_model ? "deadline_near_model" : "deadline_near", { minutes: Math.round(limit / 60) });
-    line = `${line} · ${near}`;
+    line = `${line} · ${say("deadline_near", { minutes: Math.round(limit / 60) })}`;
   }
   if (remaining > Math.min(300, limit / 5)) return { line, note: "" };
   const nodes = progress.checkpointing?.committed_nodes;

@@ -1193,9 +1193,7 @@ def _exercise_browser(
                 body = dict(deadline_api_payload)
                 body["eta"] = {
                     "remaining_seconds": 150, "low_seconds": 60, "high_seconds": 240,
-                    "basis_runs": 6, "basis": "stages", "model": None,
-                    "same_model": False, "overdue": True,
-                    "other_model_stages": ["review", "scoring"], "few_sample_stages": [],
+                    "basis_runs": 6, "basis": "stages", "overdue": True, "few_sample_stages": [],
                 }
                 route.fulfill(response=response, json=body)
                 return

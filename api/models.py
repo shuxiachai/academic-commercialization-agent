@@ -410,23 +410,13 @@ class RunEta(BaseModel):
     basis_runs: int = Field(description="Earlier runs whose stage times went into the range.")
     basis: Literal["stages"] = Field(
         description="`stages`: each stage's recorded times, from any run that finished that stage, "
-                    "including runs that later failed or timed out.",
+                    "including runs that later failed or timed out, whatever model it ran on.",
     )
-    model: str | None = Field(
-        default=None,
-        description="This run's model when any stage ahead goes by its own runs' times; null when "
-                    "every one goes by other models' runs.")
-    same_model: bool = Field(
-        default=False,
-        description="True when every stage ahead goes by this run's own model's times.")
     overdue: bool = Field(
         default=False,
         description="This run has been in its current stage longer than its slowest recorded time (widened "
                     "where it was seen fewer than three times); the range is then what the later stages "
                     "alone took.")
-    other_model_stages: list[EtaStage] = Field(
-        default_factory=list,
-        description="Stages ahead that this run's model has not finished here, which go by other models' times.")
     few_sample_stages: list[EtaStage] = Field(
         default_factory=list,
         description="Stages ahead with fewer than three recorded times, whose range is widened.")

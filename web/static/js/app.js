@@ -375,9 +375,9 @@ function paintHeader(progress) {
 
   // What recent runs on this model took from this step on, for a run still going.
   timingLine("#run-current-step", live ? runView.currentStep(progress.stage) : "");
-  const etaText = live ? runView.etaSummary(eta, progress.stage, llm_model) : "";
+  const etaText = live ? runView.etaSummary(eta, progress.stage) : "";
   timingLine("#run-eta", live ? `${runView.headerLabel("eta_heading")} · ${etaText || runView.headerLabel("eta_missing")}` : "");
-  $("#run-eta").title = etaText ? runView.etaTitle(eta, llm_model) : "";
+  $("#run-eta").title = etaText ? runView.etaTitle(eta) : "";
   paintNotifyButton(state);
 
   const summary = reader ? "" : runView.sourceSummary(source_counts);
