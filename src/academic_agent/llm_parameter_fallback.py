@@ -106,6 +106,19 @@ def learned(base_url: str, model: str) -> dict[str, object]:
         return dict(_learned.get((base_url, model), {}))
 
 
+def requires_thinking(model: str) -> bool:
+    """Whether this process has learned that `model`, at any endpoint, runs only in thinking mode.
+
+    By model name, not endpoint: a model that refuses non-thinking mode does
+    so wherever it is served, and the run records that carry this fact
+    (api/runs.py) name the model only. A run of such a model gets a longer
+    limit, decided when it is launched.
+    """
+    with _lock:
+        return any(name == model and changes.get("enable_thinking") is True
+                   for (_base, name), changes in _learned.items())
+
+
 def learn(base_url: str, model: str, parameter: str, value: object) -> None:
     with _lock:
         _learned.setdefault((base_url, model), {})[parameter] = value

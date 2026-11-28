@@ -153,6 +153,17 @@ The longer bounds come from 2026-10-23. qwen3.7-max-preview took up to 29
 seconds just to refuse a request. The report writer's 8,400-token answer ran
 past 150 seconds once.
 
+A thinking-only model also gets 40 minutes for the whole run instead of 30.
+On 2026-11-28 `qwen3.8-2.4t-a95b` needed about 28 minutes at its stage
+medians, and only one of its six runs that reached the writer delivered a
+reviewed and scored report in 30
+([measurement](results-2026-11-28-thinking-model-time-limit.md)). The limit is
+fixed when the run starts, so it applies once the deployment knows the model
+refuses non-thinking mode: from a topic preview in the same process, or from a
+recent run of the model, whose `status.json` then carries
+`thinking_required: true`. The first run of a new thinking-only model after a
+restart, with no preview before it, still gets 30.
+
 The factory and auxiliary planning/translation share model, key and endpoint
 resolution. Endpoints require HTTPS without credentials/query/fragment; a known
 vendor endpoint cannot contradict the selected provider. Explicit BYOK ignores
@@ -917,7 +928,8 @@ run. Successful local checkpoint reuse is not exactly-once external billing.
 Read [the recovery design](checkpoint-recovery.md) before changing this path.
 
 API-launched workers apply bounded provider deadlines and disable hidden SDK
-retries. Defaults reserve closeout time before the 30-minute watchdog:
+retries. Defaults reserve closeout time before the 30-minute watchdog (40
+for a model known to run only in thinking mode):
 150-second ordinary provider calls, a 240-second Reviewer window and a
 60-second closeout reserve. Direct CLI runs are operator-controlled and do
 not inherit the API watchdog. UI and both run endpoints distinguish terminal

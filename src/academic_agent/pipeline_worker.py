@@ -502,7 +502,7 @@ def _merge_status_fields(
         "component_coverage", "evidence_gap_shadow", "decision_gate", "report_audit",
         "quality_review",
         "checkpointing", "recovery",
-        "pipeline_revision", "llm_model",
+        "pipeline_revision", "llm_model", "thinking_required",
     ):
         if existing.get(sticky) is not None:
             data[sticky] = existing[sticky]
@@ -589,6 +589,7 @@ def main() -> None:
         task_node,
     )
     from academic_agent.checkpoints import CheckpointStore, hash_text
+    from academic_agent import llm_parameter_fallback as parameter_fallback
     from academic_agent.llm_config import (
         configure_llm_deadline,
         set_attempt_observer,
@@ -679,6 +680,13 @@ def main() -> None:
                 now=datetime.now(UTC).isoformat(),
                 llm_model=llm_model,
             )
+            # Once this worker's model has refused non-thinking mode, the
+            # record says so. The API reads it when it launches the next run
+            # of the model, and gives that run the longer limit (api/runs.py
+            # _hard_timeout_seconds); this run's own limit was fixed at launch.
+            model = data.get("llm_model")
+            if isinstance(model, str) and parameter_fallback.requires_thinking(model):
+                data["thinking_required"] = True
             if evidence_incomplete is not None:
                 data["evidence_incomplete"] = evidence_incomplete
             if failed_domains is not None:
