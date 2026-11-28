@@ -26,12 +26,13 @@ Current code-owned policy:
 | One report-writer attempt | 300 seconds | The writer's ordinary 5,000–6,500-token answer does not fit 150; its deadline is unchanged |
 | Silence inside a streamed answer | 60 seconds | Every crew node streams; the SDK timeout bounds the wait for one chunk, so a dead connection surfaces in a minute instead of after a whole window |
 | Attempts per call | 3; 5 on a streamed node | A failed streamed attempt costs its per-chunk bound, not a whole window, so the same run time affords more; each attempt still needs its full window to begin |
-| Reviewer reserve | 240 seconds | Leaves room for validated-draft fallback and Scorer |
+| Reviewer reserve | 240 seconds; 390 on a model known to run only in thinking mode | Leaves room for validated-draft fallback and a whole Scorer window: the closeout's 60, the Scorer's 150 (300 when thinking cannot be turned off) and 30 to hand over |
 | Other paid-node reserve | 60 seconds | Leaves room for usage, audits, status and terminal writes |
 
 Reviewer therefore may not begin an attempt unless its full 150-second window
 fits before `hard deadline - 240 seconds`. Other nodes use `hard deadline - 60
-seconds`. The existing project retry wrapper is the only retry owner: SDK
+seconds`. A node's deadline is also where an attempt it has begun ends: see
+[an attempt in progress](#an-attempt-in-progress). The existing project retry wrapper is the only retry owner: SDK
 retries are set to zero inside API workers, and another visible retry is refused
 unless its backoff plus a complete request window still fit. A code-owned
 `RunDeadlineExceeded` is not classified as a transport failure and is never
@@ -98,6 +99,49 @@ re-measured before it is changed. A direct CLI invocation has no parent
 watchdog, so its runtime budget is explicitly reported as `unbounded_cli`; the
 private worker transport setting is removed rather than inherited from a stale
 environment.
+
+### An attempt in progress
+
+The window decides whether an attempt may begin. Until 2026-11-28 nothing
+ended one that had begun except the wait for its next chunk (60 seconds, 120
+on a thinking-only model), and a model that is thinking sends chunks all the
+time. On 2026-11-25 a `qwen3.8-2.4t-a95b` review began 606 seconds before the
+reviewer's deadline, was still streaming 853 seconds later, and the watchdog
+killed the run at 30:07, past the reviewer fallback and the closeout reserve.
+
+Now a streamed answer still arriving at its node's deadline is cut at the
+first chunk past it. The check sits on the HTTP response's bytes, as an httpx
+response hook on each node's own client (`llm_config._CutAtDeadline`), so a
+reasoning chunk, which CrewAI reads without an event, counts as much as an
+answer's; the response is closed, which drops the connection the provider is
+generating on. The cut is the budget's own `RunDeadlineExceeded`: never
+adapted, waited for or retried, the node not asked again, the attempt row
+`timeout`. A cut review takes the [reviewer fallback](#reviewer-deadline-behavior);
+a cut writer, evidence node or scorer fails the run as `run_time_limit` with
+the closeout reserve still in hand, where it used to end as a watchdog
+timeout.
+
+For the cut review to leave the Scorer a whole window, the Reviewer's
+deadline holds the Scorer's window at its current size. A thinking-only model
+doubles every window when the worker first meets its refusal of non-thinking
+mode, the Scorer's to 300 seconds, and the Reviewer's deadline moves back by
+the same 150 seconds, to `hard deadline - 390 seconds`; on every other model
+it stays at 240. Before, a review that ran past `hard deadline - 360` on such
+a model left the Scorer less than its window and the run failed at scoring
+whether or not the review was cut.
+
+What the cut does not reach:
+
+- A stream silent at the deadline still waits out its per-chunk bound, so the
+  cut can come up to 60 seconds late (120 on a thinking-only model). A
+  thinking-only review cut that late leaves the Scorer less than its window,
+  and the run fails as `run_time_limit` before the closeout reserve.
+- A plain (non-streamed) request is not cut: its read timeout is its window,
+  which had to fit before the deadline for it to be sent, and a body that
+  lands later was already generated and billed. Every crew node streams; the
+  calls outside the crew (paper extraction, the language helpers) are given
+  no stage deadline.
+- A run with no watchdog (the CLI) has no deadline to cut at.
 
 ## Immutable terminal record
 
@@ -211,9 +255,10 @@ total.
 
 ## Reviewer deadline behavior
 
-Deadline exhaustion enters the existing narrow Reviewer recovery path. It is
-eligible only when Writer has a validated output and neither Reviewer nor
-Scorer has completed. The unchanged Writer draft is delivered with an explicit
+Deadline exhaustion enters the existing narrow Reviewer recovery path, whether
+the Reviewer's attempt was refused before it began or cut while it was
+streaming. It is eligible only when Writer has a validated output and neither
+Reviewer nor Scorer has completed. The unchanged Writer draft is delivered with an explicit
 `quality_review.status=fallback`, while Scorer executes independently under its
 own guardrail and earlier deadline. A Writer failure or Scorer failure still
 fails the run.

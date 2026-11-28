@@ -238,6 +238,35 @@ def _recover_from_reviewer_failure(
     }
 
 
+def _configure_node_deadlines(agents: list[Any], runtime_budget: RuntimeBudget) -> None:
+    """Give each crew node its deadline and its window, or, with no watchdog, only its name.
+
+    Agent instances are constructed before the API deadline is available to
+    their wrapped call methods. The worker configures that mutable seam once,
+    before either checkpoint hydration or paid execution can invoke a provider.
+    A node's deadline is also where an attempt it has begun is cut
+    (llm_config._CutAtDeadline).
+    """
+    from academic_agent.llm_config import configure_llm_deadline, set_llm_stage
+
+    for index, agent in enumerate(agents):
+        stage = str(agent.role or f"Agent {index + 1}")
+        if not runtime_budget.active:
+            # No watchdog, no deadline; attempt records still need their node.
+            set_llm_stage(agent.llm, stage)
+            continue
+        configure_llm_deadline(
+            agent.llm,
+            deadline_monotonic=runtime_budget.deadline_for_agent(index),
+            stage=stage,
+            # The writer's one attempt may run 300 s; the others 150.
+            request_timeout_seconds=runtime_budget.request_timeout_for_agent(index),
+            # The reviewer's deadline leaves the scorer its window, also when
+            # a thinking-only model doubles it.
+            successor_window_seconds=runtime_budget.successor_window_for_agent(index),
+        )
+
+
 class ProgressTracker:
     """Which agent just finished, what stage the run is now in, and which
     agent to show as starting next.
@@ -590,11 +619,7 @@ def main() -> None:
     )
     from academic_agent.checkpoints import CheckpointStore, hash_text
     from academic_agent import llm_parameter_fallback as parameter_fallback
-    from academic_agent.llm_config import (
-        configure_llm_deadline,
-        set_attempt_observer,
-        set_llm_stage,
-    )
+    from academic_agent.llm_config import set_attempt_observer
     from academic_agent.evidence_gap import (
         persist_shadow_audit,
         run_shadow_assessment,
@@ -1152,23 +1177,7 @@ def main() -> None:
             source_collection,
             task_callback=on_task_complete,
         ).crew()
-        if runtime_budget.active:
-            for index, agent in enumerate(crew_obj.agents):
-                # Agent instances are constructed before the API deadline is
-                # available to their wrapped call methods. Configure that
-                # mutable seam once, before either checkpoint hydration or
-                # paid execution can invoke a provider.
-                configure_llm_deadline(
-                    agent.llm,
-                    deadline_monotonic=runtime_budget.deadline_for_agent(index),
-                    stage=str(agent.role or f"Agent {index + 1}"),
-                    # The writer's one attempt may run 300 s; the others 150.
-                    request_timeout_seconds=runtime_budget.request_timeout_for_agent(index),
-                )
-        else:
-            # No watchdog, no deadline; attempt records still need their node.
-            for index, agent in enumerate(crew_obj.agents):
-                set_llm_stage(agent.llm, str(agent.role or f"Agent {index + 1}"))
+        _configure_node_deadlines(crew_obj.agents, runtime_budget)
         crew_inputs = source_collection.crew_inputs()
         # Decision context does not alter retrieval or scoring. It enters only
         # the Writer/Reviewer placeholders, while remaining part of the exact

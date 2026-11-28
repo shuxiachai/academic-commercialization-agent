@@ -22,6 +22,16 @@ counts successful requests only), so the stage silently costs two attempts.
 The writer gets 300 seconds; its deadline does not move, only the bound on
 one attempt. Every other node keeps 150 until its own attempt records, which
 the worker now writes to steps.jsonl, say otherwise.
+
+A node's deadline is where an attempt in progress is cut, not only the last
+moment one may begin (llm_config cuts a streamed answer at the first chunk
+past it). The reviewer's 240 seconds hold the closeout's 60, the scorer's
+150-second window and 30 to hand over, so a review cut there still leaves the
+scorer a whole window. A model that cannot turn thinking off doubles every
+window, the scorer's to 300; llm_config then moves the reviewer's deadline
+back by the 150 seconds the scorer's window grew, keeping the same 30
+(successor_window_for_agent). Without that, a review cut at 240 left such a
+scorer 180 seconds against its 300 and the run failed there anyway.
 """
 
 from __future__ import annotations
@@ -44,9 +54,11 @@ WRITER_REQUEST_TIMEOUT_SECONDS = 300
 #: dead connection, found in a minute instead of a whole window. The planning
 #: windows above still say how long a healthy attempt may take.
 STREAM_IDLE_TIMEOUT_SECONDS = 60
-#: Index of the report writer in the crew's agent order (tasks 1-3 evidence,
-#: 4 writer, 5 reviewer, 6 scorer), matching deadline_for_agent's reviewer 4.
+#: Indexes in the crew's agent order (tasks 1-3 evidence, 4 writer,
+#: 5 reviewer, 6 scorer).
 _WRITER_INDEX = 3
+_REVIEWER_INDEX = 4
+_SCORER_INDEX = 5
 
 
 @dataclass(frozen=True)
@@ -109,7 +121,7 @@ class RuntimeBudget:
     def deadline_for_agent(self, index: int) -> float | None:
         """Reviewer stops early; every other node shares the finalization edge."""
 
-        return self.reviewer_deadline if index == 4 else self.paid_work_deadline
+        return self.reviewer_deadline if index == _REVIEWER_INDEX else self.paid_work_deadline
 
     def request_timeout_for_agent(self, index: int) -> int:
         """The writer's one attempt may run twice as long; nothing else changes."""
@@ -117,6 +129,19 @@ class RuntimeBudget:
         if index == _WRITER_INDEX:
             return self.writer_request_timeout_seconds
         return self.request_timeout_seconds
+
+    def successor_window_for_agent(self, index: int) -> int:
+        """The scorer's window, which the reviewer's deadline leaves it; 0 for every other node.
+
+        The reviewer's reserve holds it at its ordinary size. llm_config
+        moves the reviewer's deadline back by however much that window grows
+        on a model that cannot turn thinking off, and no further: on every
+        other model the deadline stays where deadline_for_agent puts it.
+        """
+
+        if index == _REVIEWER_INDEX:
+            return self.request_timeout_for_agent(_SCORER_INDEX)
+        return 0
 
     def public_snapshot(self) -> dict[str, object]:
         """Serializable policy metadata; monotonic process-local values stay private."""

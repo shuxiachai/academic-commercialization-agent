@@ -2020,11 +2020,17 @@ _PUBLIC_FAILURE_CATEGORIES: tuple[_FailureCategory, ...] = (
     # decided by this same reading, and the scorer's role in the sentence
     # carries the topic. So whatever an earlier marker matches keeps the code
     # it had; only text that matched nothing (and read "unknown") moves.
+    # Since 2026-11-28 the same budget also cuts a streamed call still going
+    # at its node's deadline (llm_config._CutAtDeadline, same marker), which
+    # until then ran on until the watchdog killed the run. A cut review is
+    # not a failure (the draft is delivered unreviewed); a cut writer or
+    # scorer is, and the sentence says a step can be stopped as well as not begun.
     _FailureCategory(
         "run_time_limit",
         ("a bounded provider attempt requires",),
-        "The run reached its time limit before the next step could start, so that step was not begun."
-        + _NOT_YOURS + " The finished steps are saved: resuming from the checkpoint does only what is left.",
+        "The run reached its time limit before the next step could finish, so that step was stopped "
+        "or not begun." + _NOT_YOURS
+        + " The finished steps are saved: resuming from the checkpoint does only what is left.",
     ),
 )
 
