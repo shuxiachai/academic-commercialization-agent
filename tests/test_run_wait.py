@@ -238,6 +238,17 @@ class EtaTests(_Root):
             self._finished(None, total=total, model="m")
         self.assertIsNone(self._estimate(STAGES[0], in_stage=5))
 
+    def test_a_run_whose_worker_has_written_its_end_is_told_nothing(self):
+        """Production, 2026-11-28: for the seconds between the worker writing "Done" and the run
+        reading as completed, the page said "about 3-33 min left", the whole run's range, with the
+        limit warning. An end line is no stage, and nothing is ahead of it."""
+        for durations in self.THREE:
+            self._finished(durations, model="m")
+        for end in ("Done", "Error"):
+            self.assertIsNone(self._estimate(end, in_stage=0), end)
+        # Before the worker names any stage the whole run is still ahead, as before.
+        self.assertEqual(self._estimate("", in_stage=0)["high_seconds"], 680)
+
     def test_a_finished_run_reports_no_eta(self):
         for durations in self.THREE:
             run_dir = self._finished(durations)

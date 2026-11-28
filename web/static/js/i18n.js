@@ -366,6 +366,9 @@ const STRINGS = {
     live_draft_note: "This is the report as its writer finished it. The review that checks its citations and claims is still going and may change it, and nothing has been scored. It is not the assessment's conclusion: that is the report this run delivers when it finishes.",
     live_draft_reviewed: "Read the draft now (reviewed, not scored)",
     live_draft_reviewed_note: "This is the report after the review that checks its citations and claims; the scoring is still going. It is not the assessment's conclusion: that is the report this run delivers when it finishes.",
+    // The writer's text while the run scores: its review left no revised version.
+    live_draft_unreviewed: "Read the draft now (not reviewed, not scored)",
+    live_draft_unreviewed_note: "This is the report as its writer finished it. It has not been through the review that checks its citations and claims (the review left no revised version), and the scoring is still going. It is not the assessment's conclusion: that is the report this run delivers when it finishes.",
     live_draft_loading: "Reading the draft…",
     live_draft_failed: "The draft could not be read just now. Close this and open it again to retry.",
     tab_sources: "Sources",
@@ -1266,6 +1269,8 @@ const STRINGS = {
     live_draft_note: "这是报告撰写这一步写好的草稿。审查还在进行，它会核对引用和论断，可能修改这里的内容；评分还没有开始。它不是这次评估的结论，结论以运行完成后交付的报告为准。",
     live_draft_reviewed: "先读草稿（已核查、未评分）",
     live_draft_reviewed_note: "这是经过核对引用和论断的审查之后的报告草稿，评分还在进行。它不是这次评估的结论，结论以运行完成后交付的报告为准。",
+    live_draft_unreviewed: "先读草稿（未经审查、未评分）",
+    live_draft_unreviewed_note: "这是报告撰写这一步写好的草稿，没有经过核对引用和论断的审查（审查这一步没有留下修改后的版本），评分还在进行。它不是这次评估的结论，结论以运行完成后交付的报告为准。",
     live_draft_loading: "正在读取草稿…",
     live_draft_failed: "暂时读不到草稿。收起后再展开即可重试。",
     tab_sources: "来源",

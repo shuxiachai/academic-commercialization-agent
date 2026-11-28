@@ -1089,9 +1089,10 @@ function paintGone() {
  * notice above it says what it is before a line of it can be read as the
  * assessment. The stage list is redrawn on every poll (renderStages empties
  * the pane), so the same fold is put back each time: one that is open stays
- * open with what it read. When the reviewer's text replaces the writer's
- * (draft_stage), the fold is built again under its new name, and read again
- * if it was open. It goes when the run ends: a stopped run's draft is its own
+ * open with what it read. When what it is called changes (the reviewer's text
+ * replacing the writer's, or scoring starting on a text the review did not
+ * revise), the fold is built again under its new name, and read again if it
+ * was open. It goes when the run ends: a stopped run's draft is its own
  * tab (result.js), and a finished run has its report. */
 let liveDraft = null;
 
@@ -1101,11 +1102,10 @@ function paintLiveDraft(body, runId, progress) {
     dropLiveDraft();
     return;
   }
-  const stage = progress.draft_stage ?? null;
-  if (liveDraft?.runId !== runId || liveDraft.stage !== stage) {
+  if (liveDraft?.runId !== runId || liveDraft.label !== wording.label) {
     const wasOpen = liveDraft?.runId === runId && liveDraft.fold.open;
     dropLiveDraft();
-    liveDraft = { runId, stage, fold: liveDraftFold(runId, wording) };
+    liveDraft = { runId, label: wording.label, fold: liveDraftFold(runId, wording) };
     // Opening it fires its toggle, which reads the new text.
     if (wasOpen) liveDraft.fold.open = true;
   }

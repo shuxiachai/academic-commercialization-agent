@@ -1022,8 +1022,10 @@ is `overdue`: the header says the remaining time for the current stage cannot
 be estimated and names the later stages the range covers (during review,
 scoring alone). A resumed run has no estimate while it is still in its first
 stage: until its worker has read the checkpoints, an estimate would be for a
-whole run. The newest 200 ended runs are read and cached for ten minutes;
-`eta` is `null` when a stage ahead has no time on record.
+whole run. Nor is a run whose worker has written its end ("Done" or
+"Error") and is not yet read as ended. The newest 200 ended runs are read and
+cached for ten minutes; `eta` is `null` when a stage ahead has no time on
+record.
 
 The estimate does not depend on the run's model. Models differ by most of a
 run's time, so the range is wider than one model's would be, and a model
@@ -1061,7 +1063,11 @@ Once the review has begun, the writer's saved report is listed as the
 artifact `draft` of the running run (`runs.draft_in_review`), and the
 reviewer's once scoring has begun (`draft_stage`). The run page offers it
 under the stage list, closed, as "Read the draft now (in review, not scored)"
-("先读草稿（审查中、未评分）"), or "(reviewed, not scored)" during scoring.
+("先读草稿（审查中、未评分）"), or "(reviewed, not scored)" during scoring. A
+run scoring the writer's text, because the review left no revised version,
+says "(not reviewed, not scored)" ("先读草稿（未经审查、未评分）"): on
+2026-11-28 the run's time budget refused the review (0:00) after a writer
+call of almost fifteen minutes, and the fold said the review was going on.
 It is read only when opened, and a notice above the text says the review may
 still change it, nothing is scored, and it is not the assessment's
 conclusion. Before the review it is not offered: until then the writer has
