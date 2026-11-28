@@ -2681,8 +2681,8 @@ def get_state(run_id: str, *, _depth: int = _LINEAGE_DEPTH) -> dict:
         "daily_charge_reason": _read_refund_reason(run_dir),
         "elapsed_seconds": elapsed,
         "stage_timings": timings,
-        # What earlier runs took from this stage on, stage by stage, for a running run only.
-        "eta": (estimate(stage, timings, model=llm_model)
+        # What earlier runs of any model took from this stage on, stage by stage, for a running run only.
+        "eta": (estimate(stage, timings)
                 if state == "running" and not awaiting_resume_stage else None),
         # For a resume whose worker has not yet said where it starts: the
         # checkpoints of its parent that it is expected to reuse. None after.

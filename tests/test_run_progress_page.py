@@ -88,18 +88,16 @@ def page(tmp_path_factory):
 # ── The time left ───────────────────────────────────────────────────────────
 
 
-ALL_STAGES = ["sources", "evidence", "report", "review", "scoring"]
-
-
-def eta(low, high, *, runs=6, model="qwen3.8-max", same_model=True, overdue=False, others=None, few=()):
-    if others is None:
-        others = [] if same_model else ALL_STAGES
+def eta(low, high, *, runs=6, overdue=False, few=()):
     return {"remaining_seconds": (low + high) // 2, "low_seconds": low, "high_seconds": high, "basis_runs": runs,
-            "basis": "stages", "model": model if same_model or len(others) < 5 else None, "same_model": same_model,
-            "overdue": overdue, "other_model_stages": list(others), "few_sample_stages": list(few)}
+            "basis": "stages", "overdue": overdue, "few_sample_stages": list(few)}
 
 
-def test_the_time_left_is_a_range_from_this_models_runs(page):
+#: What #512's server said beside the range, for a page loaded before this change reached it.
+BY_MODEL = {"model": None, "same_model": False, "other_model_stages": ["sources", "evidence", "report", "review", "scoring"]}
+
+
+def test_the_time_left_is_a_range_from_recent_runs(page):
     english, chinese = page([EN, "etaSummary", [eta(700, 1480)]], [ZH, "etaSummary", [eta(700, 1480)]])
     # 11:40 to 24:40: rounded outward, so the range said is never narrower than the one measured.
     assert english == "about 11–25 min left"
@@ -115,29 +113,21 @@ def test_one_run_or_two_alike_is_said_as_one_figure(page):
     assert page([EN, "etaSummary", [eta(20, 200)]])[0] == "about 1–4 min left"
 
 
-def test_why_a_range_is_wide_is_said_on_the_line(page):
-    """2026-11-27: "going by runs on other models" on a model with three runs here, and nothing
-    said when the range rested on one run. The line now says which it is, for the reader who
-    sees a 20-minute range and wonders why."""
-    others = eta(340, 1070, same_model=False)
-    some = eta(340, 1070, same_model=False, others=["review", "scoring"])
+def test_a_range_widened_for_few_runs_says_so_and_no_line_speaks_of_models(page):
+    """The deployment's model is changed often (free allowances run out), and the user asked on
+    2026-11-28 that the estimate not depend on it: every run is told the same range from the
+    recent runs of whatever model. The line says why only when the range was widened for steps
+    few runs have finished, and never "on other models", even beside a reply that says so."""
     few = eta(340, 1070, few=["review", "scoring"])
-    english, chinese, some_zh, some_en, few_zh, few_en, unnamed_zh = page(
-        [EN, "etaSummary", [others, SOURCES, "brand-new-model"]], [ZH, "etaSummary", [others, SOURCES, "brand-new-model"]],
-        [ZH, "etaSummary", [some, REPORT, "m"]], [EN, "etaSummary", [some, REPORT, "m"]],
-        [ZH, "etaSummary", [few, REPORT, "m"]], [EN, "etaSummary", [few, REPORT, "m"]],
-        [ZH, "etaSummary", [others, SOURCES, None]])
-    assert english == "about 5–18 min left (no run on this model has finished these steps here yet, " \
-                      "so this goes by runs on other models)"
-    assert chinese == "预计还需约 5–18 分钟（这个模型在本站还没有完成过这些步骤，按其他模型的运行估计）"
-    assert some_zh == "预计还需约 5–18 分钟（审查、评分还没有这个模型的记录，按其他模型的运行估计）"
-    assert some_en == "about 5–18 min left (Review, Scoring go by runs on other models: none on this model yet)"
-    assert few_zh == "预计还需约 5–18 分钟（这个模型的记录还少，区间已放宽）"
-    assert few_en == "about 5–18 min left (few runs on this model so far, so the range is widened)"
-    assert unnamed_zh == "预计还需约 5–18 分钟（按本站最近的运行估计）"
-    # A reply from before the change names no stages: its "other models" was the whole range.
-    old = {key: value for key, value in others.items() if key not in ("other_model_stages", "few_sample_stages")}
-    assert page([ZH, "etaSummary", [old, SOURCES, "m"]])[0] == chinese
+    few_zh, few_en, plain_zh, old_zh, old_en = page(
+        [ZH, "etaSummary", [few, REPORT]], [EN, "etaSummary", [few, REPORT]],
+        [ZH, "etaSummary", [eta(340, 1070), REPORT]],
+        [ZH, "etaSummary", [{**eta(340, 1070), **BY_MODEL}, SOURCES, "brand-new-model"]],
+        [EN, "etaSummary", [{**eta(340, 1070), **BY_MODEL}, SOURCES, "brand-new-model"]])
+    assert few_zh == "预计还需约 5–18 分钟（本站完成过这些步骤的运行还少，区间已放宽）"
+    assert few_en == "about 5–18 min left (few runs here have finished these steps yet, so the range is widened)"
+    assert plain_zh == old_zh == "预计还需约 5–18 分钟"
+    assert old_en == "about 5–18 min left"
 
 
 def test_a_run_slower_than_every_recent_one_is_told_so_not_counted_down(page):
@@ -166,29 +156,29 @@ def test_countdown_uses_this_runs_observed_budget_and_saved_checkpoints(page):
 
 
 def test_the_limit_line_warns_when_the_slowest_estimate_runs_past_it(page):
-    """2026-11-27: this model's writing and review alone took 20 to 25 minutes of a 30-minute
-    limit, and the page never said so. When the high end of the estimate needs more time than
-    is left before the limit, the limit's own line says it, from the first reading."""
+    """2026-11-27: writing and review alone took 20 to 25 minutes of a 30-minute limit, and the
+    page never said so. When the high end of the estimate needs more time than is left before
+    the limit, the limit's own line says it, from the first reading. The range is no longer any
+    one model's, so neither is the warning, even beside a reply from before that change."""
     budget = {"state": "active", "hard_timeout_seconds": 1800, "remaining_seconds": 1788}
-    own = {"runtime_budget": budget, "eta": eta(1204, 2079)}
-    others = {"runtime_budget": budget, "eta": eta(1204, 2079, same_model=False)}
+    near = {"runtime_budget": budget, "eta": eta(1204, 2079)}
+    old = {"runtime_budget": budget, "eta": {**eta(1204, 2079), "model": "m", "same_model": True,
+                                             "other_model_stages": []}}
     inside = {"runtime_budget": budget, "eta": eta(600, 1700)}
-    (own_zh, own_en, others_zh, others_en, inside_zh, none_zh, stale_zh) = page(
-        [ZH, "deadlineView", [own, 0]], [EN, "deadlineView", [own, 0]],
-        [ZH, "deadlineView", [others, 0]], [EN, "deadlineView", [others, 0]],
+    (near_zh, near_en, old_zh, inside_zh, none_zh, stale_zh) = page(
+        [ZH, "deadlineView", [near, 0]], [EN, "deadlineView", [near, 0]], [ZH, "deadlineView", [old, 0]],
         [ZH, "deadlineView", [inside, 0]], [ZH, "deadlineView", [{"runtime_budget": budget}, 0]],
-        [ZH, "deadlineView", [own, None]])
-    assert own_zh["line"] == "本次运行时限 30:00 · 最多还可运行 29:48（分:秒） · 这个模型以往用时接近 30 分钟时限"
-    assert own_en["line"].endswith("· Past runs on this model came close to the 30-minute limit")
-    assert others_zh["line"].endswith("· 按以往的运行估计，可能接近 30 分钟时限")
-    assert others_en["line"].endswith("· Going by past runs, this run may come close to the 30-minute limit")
-    assert "时限" not in inside_zh["line"].split("·")[-1] and "接近" not in inside_zh["line"]
+        [ZH, "deadlineView", [near, None]])
+    assert near_zh["line"] == "本次运行时限 30:00 · 最多还可运行 29:48（分:秒） · 按以往的运行估计，可能接近 30 分钟时限"
+    assert near_en["line"].endswith("· Going by past runs, this run may come close to the 30-minute limit")
+    assert old_zh["line"] == near_zh["line"]
+    assert "接近" not in inside_zh["line"]
     assert "接近" not in none_zh["line"]
     # Without a current reading of the time left there is nothing to compare with.
     assert "接近" not in stale_zh["line"]
     # The comparison is made at the reading, so the warning does not come and go between polls.
-    later = page([ZH, "deadlineView", [own, 600]])[0]
-    assert later["line"].endswith("这个模型以往用时接近 30 分钟时限")
+    later = page([ZH, "deadlineView", [near, 600]])[0]
+    assert later["line"].endswith("按以往的运行估计，可能接近 30 分钟时限")
 
 
 def test_no_estimate_is_no_text(page):
@@ -197,27 +187,24 @@ def test_no_estimate_is_no_text(page):
         assert page([EN, "etaSummary", [nothing]])[0] == "", nothing
 
 
-def test_the_tooltip_says_how_the_range_is_drawn_and_from_whose_runs(page):
-    same, others, some, few, unnamed = page(
-        [ZH, "etaTitle", [eta(700, 1480), "qwen3.8-max"]],
-        [ZH, "etaTitle", [eta(340, 1070, same_model=False, runs=10), "brand-new-model"]],
-        [ZH, "etaTitle", [eta(340, 1070, model="m", same_model=False, others=["review", "scoring"]), "m"]],
-        [EN, "etaTitle", [eta(340, 1070, few=["scoring"]), "m"]],
-        [EN, "etaTitle", [eta(340, 1070, same_model=False, runs=10), None]])
-    assert same.startswith("按 qwen3.8-max 在本站以往的运行估计")
-    assert "包括后来失败或超时的运行" in same and "共参考 6 次运行" in same and "不是保证" in same
-    assert others.startswith("按本站最近的运行估计") and "brand-new-model 在本站还没有完成过来源、证据分析" in others
-    assert some.startswith("按 m 在本站以往的运行估计") and "m 在本站还没有完成过审查、评分" in some
+def test_the_tooltip_says_how_the_range_is_drawn_whatever_the_model(page):
+    zh, en, few, old = page(
+        [ZH, "etaTitle", [eta(700, 1480)]], [EN, "etaTitle", [eta(700, 1480)]],
+        [EN, "etaTitle", [eta(340, 1070, few=["scoring"])]],
+        [ZH, "etaTitle", [{**eta(340, 1070, runs=10), **BY_MODEL}, "brand-new-model"]])
+    assert zh.startswith("按本站最近的运行估计，不分模型")
+    assert "包括后来失败或超时的运行" in zh and "共参考 6 次运行" in zh and "不是保证" in zh
+    # Why a model change can still move the real time, said where the method is.
+    assert "用的模型不同，实际用时可能相差很多" in zh
+    assert en.startswith("Going by recent runs here, whatever model they ran on")
     assert "fewer than three times" in few and "widened" in few
-    assert unnamed.startswith("Going by recent runs here") and "has not finished" not in unnamed
-    assert page([EN, "etaTitle", [None, "m"]])[0] == ""
-    # A model's name is text: a "$&" in it is not a replacement pattern.
-    assert "a$&b" in page([EN, "etaTitle", [eta(1, 2, model="a$&b"), "a$&b"]])[0]
+    assert old.startswith("按本站最近的运行估计，不分模型") and "brand-new-model" not in old and "还没有完成过" not in old
+    assert page([EN, "etaTitle", [None]])[0] == ""
 
 
-def test_the_header_gives_the_estimate_the_runs_own_model():
-    assert "runView.etaTitle(eta, llm_model)" in APP_JS
-    assert "runView.etaSummary(eta, progress.stage, llm_model)" in APP_JS
+def test_the_header_asks_for_the_estimate_without_the_runs_model():
+    assert "runView.etaTitle(eta)" in APP_JS
+    assert "runView.etaSummary(eta, progress.stage)" in APP_JS
     assert re.search(r"function paintHeader\(progress\)\s*\{\s*const \{[^}]*\bllm_model, lineage, run_id, continued_by,", APP_JS)
 
 
@@ -722,14 +709,18 @@ def test_the_sentence_is_this_deployments_own_recent_runs_or_nothing(page):
 def test_every_new_string_is_in_both_languages():
     header = RUN_JS[RUN_JS.index("const HEADER_STRINGS = {"):RUN_JS.index("// English keeps the API's own state words")]
     english, chinese = header.split('"Simplified Chinese": {')
-    for key in ("eta_left", "eta_why_others", "eta_why_some", "eta_why_few", "eta_why_any", "eta_with_why",
-                "eta_range", "eta_range_one", "eta_soon", "eta_over", "eta_over_later", "eta_title", "eta_title_others",
-                "eta_title_any", "eta_title_few", "deadline_near_model", "deadline_near", "stage_reused", "lineage_reused", "lineage_reused_all",
+    for key in ("eta_left", "eta_why_few", "eta_with_why",
+                "eta_range", "eta_range_one", "eta_soon", "eta_over", "eta_over_later", "eta_title",
+                "eta_title_few", "deadline_near", "stage_reused", "lineage_reused", "lineage_reused_all",
                 "lineage_cold", "lineage_earlier", "lineage_sep", "lineage_total", "lineage_total_running",
                 "lineage_usage", "lineage_usage_before", "lineage_usage_none", "lineage_cost", "lineage_at_least",
                 "lineage_missing", "continued_note", "continued_open", "help_run_id", "help_copy", "help_copied", "help_copy_failed", "help_contact",
                 "help_no_contact"):
         assert english.count(f"    {key}: ") == 1 and chinese.count(f"    {key}: ") == 1, key
+    # The wording of a range drawn by model went with it (2026-11-28).
+    for key in ("eta_why_others", "eta_why_some", "eta_why_any", "eta_title_others", "eta_title_any",
+                "deadline_near_model"):
+        assert f"    {key}: " not in header, key
     for key in ("tab_draft", "draft_note", "draft_note_owner", "rel_no_report_draft", "live_draft", "live_draft_note",
                 "live_draft_reviewed", "live_draft_reviewed_note", "live_draft_loading", "live_draft_failed",
                 "runs_earlier_one", "runs_earlier_many",

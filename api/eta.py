@@ -23,10 +23,8 @@ So the range is now built stage by stage:
   stage it got through, not the one it stopped in. A resume lends the stages
   it ran and none it took from its parent, and its seconds are read where
   they were spent (`_finished_stages`, as run.js stageSeconds shows them).
-- For each stage still ahead, the newest `STAGE_SAMPLES` times of this run's
-  model, fastest to slowest. A stage this model has never finished here goes
-  by other models' times for it, and the answer names it
-  (`other_model_stages`), so the page can say why the range is wide.
+- For each stage still ahead, the newest `STAGE_SAMPLES` times of that
+  stage, fastest to slowest, whatever model ran them.
 - A stage seen fewer than `MIN_SAMPLES` times is widened (`WIDEN`) and named
   (`few_sample_stages`). Measured on the 106 local benchmark runs, in 13
   batches of one model each, whole-run times: the next run lay between the
@@ -39,6 +37,22 @@ So the range is now built stage by stage:
   can rise; both fall with the clock, the low end stopping at the later
   stages' fastest. A run slower at its stage than the slowest (widened) time
   is `overdue`, and the range is what the later stages alone took.
+
+Not this run's model's times alone. #512 drew each stage from the run's own
+model first and from other models only where it had none, which is the
+narrower range while the model stays the same. The deployment's model is
+changed often, though, as one free allowance runs out and another is used,
+and every change started that model's estimate again from other models'
+runs, worded differently, until it had runs of its own. On 2026-11-28 the
+user asked that a change of model not move the estimate: every run is told
+the same range from the recent runs here. What it costs is said where the
+method is (run.js etaTitle): models differ by most of a run's time (24
+command-line runs, docs/results-2026-11-19-run-progress-and-resume.md: 2 to
+17 minutes), so the range is wider, and a model slower than the recent ones
+can run past its slow end. It is not the figure of 2026-11-18 again: that
+was a middle over thirty whole runs, where a slower model's runs were
+outvoted; this runs to the slowest of each stage's newest ten, so they
+widen it as soon as they have finished a stage.
 
 It is what earlier runs did, not a promise. The link between the host and the
 model provider stalls for minutes at a time (api/link_probe.py), which is
@@ -76,7 +90,7 @@ STAGE_NODES = {
 _END_STAGES = frozenset({"Done", "Error"})
 #: Run directories read for stage times, newest first.
 SCAN_RUNS = 200
-#: The newest times of one stage on one model that make its range.
+#: The newest times of one stage that make its range.
 STAGE_SAMPLES = 10
 MIN_SAMPLES = 3
 #: How much a stage seen once or twice is widened: its fastest time divided
@@ -168,9 +182,7 @@ def _finished_stages(raw: object, *, completed: bool, ended_at: datetime | None,
 
 
 def _record(run_dir: Path) -> dict | None:
-    """What one ended run says: its model, the stages it finished, and its whole time."""
-    from api import runs
-
+    """What one ended run says: the stages it finished, and its whole time."""
     try:
         record = load_terminal_record(run_dir)
     except TerminalRecordUnreadable:
@@ -189,7 +201,6 @@ def _record(run_dir: Path) -> dict | None:
     completed = record.state == "completed"
     return {
         "run": run_dir.name,
-        "model": runs.run_model(status, record.usage),
         "stages": _finished_stages(status.get("stage_timings"), completed=completed,
                                    ended_at=record.ended_at, recovery=recovery),
         "total": record.elapsed_seconds,
@@ -218,16 +229,12 @@ def history() -> list[dict]:
     return [record for record in _records() if record["completed"] and not record["resumed"]][:SAMPLE_RUNS]
 
 
-def _times(key: str, model: str | None, records: list[dict]) -> tuple[list[tuple[str, int]], bool]:
-    """The newest times of one stage: this model's when it has any, else other models'."""
-    own = [(r["run"], r["stages"][key]) for r in records if model and r["model"] == model and key in r["stages"]]
-    if own:
-        return own[:STAGE_SAMPLES], True
-    others = [(r["run"], r["stages"][key]) for r in records if key in r["stages"] and not (model and r["model"] == model)]
-    return others[:STAGE_SAMPLES], False
+def _times(key: str, records: list[dict]) -> list[tuple[str, int]]:
+    """The newest times of one stage, with the runs they are from."""
+    return [(r["run"], r["stages"][key]) for r in records if key in r["stages"]][:STAGE_SAMPLES]
 
 
-def estimate(stage: str, timings: list[dict], *, model: str | None = None) -> dict | None:
+def estimate(stage: str, timings: list[dict]) -> dict | None:
     """The rest of the current stage and every later one, fastest to slowest; None with no time on record
     for one of them."""
     order = [key for _, key in STAGES]
@@ -240,18 +247,15 @@ def estimate(stage: str, timings: list[dict], *, model: str | None = None) -> di
     records = _records()
     ranges: list[tuple[float, float]] = []
     runs_asked: set[str] = set()
-    others: list[str] = []
     few: list[str] = []
     for key in ahead:
-        times, own = _times(key, model, records)
+        times = _times(key, records)
         if not times:
             return None
         seconds = [value for _run, value in times]
         widen = WIDEN.get(len(seconds), 1.0)
         ranges.append((min(seconds) / widen, max(seconds) * widen))
         runs_asked.update(run for run, _value in times)
-        if not own:
-            others.append(key)
         if len(seconds) < MIN_SAMPLES:
             few.append(key)
 
@@ -271,11 +275,7 @@ def estimate(stage: str, timings: list[dict], *, model: str | None = None) -> di
         # The runs whose times went into the range.
         "basis_runs": len(runs_asked),
         "basis": "stages",
-        # Whose runs: the model's name when any stage ahead goes by its own times.
-        "model": model if len(others) < len(ahead) else None,
-        "same_model": bool(model) and not others,
         "overdue": overdue,
-        "other_model_stages": others,
         "few_sample_stages": few,
     }
 

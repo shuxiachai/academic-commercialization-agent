@@ -554,10 +554,9 @@ def _waiting_journey(browser, base: str) -> int:
     progress = {"run_id": run_id, "topic": "Sodium-ion batteries", "state": "running",
                 "stage": "Agent 4 — Report Writing", "steps": [], "artifacts": [], "elapsed_seconds": 420,
                 "runtime_budget": {"state": "active", "hard_timeout_seconds": 900, "remaining_seconds": 480},
-                # The range twelve runs of this model took from here on (api/eta.py).
+                # The range twelve recent runs took from here on, whatever their model (api/eta.py).
                 "eta": {"remaining_seconds": 490, "low_seconds": 280, "high_seconds": 700, "basis_runs": 12,
-                        "basis": "stages", "model": "fixture-model", "same_model": True, "overdue": False,
-                        "other_model_stages": [], "few_sample_stages": []}}
+                        "basis": "stages", "overdue": False, "few_sample_stages": []}}
     page = context.new_page()
     page.on("pageerror", lambda error: errors.append(str(error)))
 
@@ -612,7 +611,7 @@ def _waiting_journey(browser, base: str) -> int:
         _json(posts[0], {"run_id": run_id, "topic": progress["topic"], "state": "running"}, status=202)
         expect(page.locator("#run-eta")).to_have_text("Historical estimate · about 4–12 min left")
         expect(page.locator("#run-eta")).to_have_attribute(
-            "title", re.compile("Going by past runs on fixture-model here.*from 12 runs"))
+            "title", re.compile("Going by recent runs here, whatever model they ran on.*from 12 runs"))
 
         # Losing a progress read cannot change the known 15-minute launch limit.
         # The estimate and remaining time need a fresh observation to resume.
@@ -628,9 +627,9 @@ def _waiting_journey(browser, base: str) -> int:
         expect(page.locator("#run-current-step")).to_have_text("Current step · Reviewing citations and claims")
         expect(page.locator("#run-deadline")).to_contain_text(re.compile(r"up to (2:00|1:59) remaining"))
         expect(page.locator("#run-eta")).to_be_visible()
-        # The slowest of this model's earlier runs needed more than two minutes from here.
+        # The slowest of the recent runs needed more than two minutes from here.
         expect(page.locator("#run-deadline")).to_contain_text(
-            "· Past runs on this model came close to the 15-minute limit")
+            "· Going by past runs, this run may come close to the 15-minute limit")
 
         # Asked only from the button; once granted, the button goes away.
         notify = page.locator("#run-notify")
