@@ -234,6 +234,39 @@ def test_a_run_in_review_offers_its_draft_under_a_label_that_says_what_it_is(pag
     assert reviewed_zh == "先读草稿（已核查、未评分）"
 
 
+def test_a_run_scoring_a_draft_its_review_did_not_revise_says_so(page):
+    """Production, 2026-11-28 01:07 UTC: the writer's call took 14 min 48 s through three
+    failed attempts, the run's time budget refused the review (0:00, RunDeadlineExceeded), and
+    for the five minutes of scoring the fold read "审查中" above "审查还在进行". The text was the
+    writer's, and no review was going on."""
+    scoring = {"state": "running", "stage": SCORING, "artifacts": ["sources", "draft"], "draft_stage": "writer"}
+    in_review = {**scoring, "stage": REVIEW}
+    reviewed = {**scoring, "draft_stage": "reviewer"}
+    unrevised, reviewing, revised = page(
+        [ZH, "liveDraftWording", [scoring]], [ZH, "liveDraftWording", [in_review]],
+        [ZH, "liveDraftWording", [reviewed]])
+    assert unrevised == {"label": "live_draft_unreviewed", "note": "live_draft_unreviewed_note"}
+    assert reviewing == {"label": "live_draft", "note": "live_draft_note"}
+    assert revised == {"label": "live_draft_reviewed", "note": "live_draft_reviewed_note"}
+    label_zh, note_zh, label_en, note_en = page(
+        [ZH, "label", ["live_draft_unreviewed"]], [ZH, "label", ["live_draft_unreviewed_note"]],
+        [EN, "label", ["live_draft_unreviewed"]], [EN, "label", ["live_draft_unreviewed_note"]])
+    assert label_zh == "先读草稿（未经审查、未评分）"
+    assert "没有经过核对引用和论断的审查" in note_zh and "评分还在进行" in note_zh
+    assert "不是这次评估的结论" in note_zh and "审查还在进行" not in note_zh
+    assert label_en == "Read the draft now (not reviewed, not scored)"
+    assert "has not been through the review" in note_en and "not the assessment's conclusion" in note_en
+
+
+def test_the_fold_is_drawn_again_when_what_it_is_called_changes():
+    """The run of 2026-11-28 went from review to scoring with the writer's text: the same draft,
+    a different name. The fold is rebuilt on its label, not on whose text it is."""
+    start = APP_JS.index("function paintLiveDraft(")
+    body = APP_JS[start:APP_JS.index("\n}\n", start)]
+    assert "liveDraft.label !== wording.label" in body
+    assert "draft_stage" not in body
+
+
 def test_the_page_draws_the_draft_beside_the_stages_and_drops_it_when_the_run_ends():
     update = APP_JS[APP_JS.index("    onUpdate(progress) {"):APP_JS.index("    onDone(progress) {")]
     assert "paintLiveDraft(body, runId, progress);" in update
@@ -723,6 +756,7 @@ def test_every_new_string_is_in_both_languages():
         assert f"    {key}: " not in header, key
     for key in ("tab_draft", "draft_note", "draft_note_owner", "rel_no_report_draft", "live_draft", "live_draft_note",
                 "live_draft_reviewed", "live_draft_reviewed_note", "live_draft_loading", "live_draft_failed",
+                "live_draft_unreviewed", "live_draft_unreviewed_note",
                 "runs_earlier_one", "runs_earlier_many",
                 "run_earlier_row", "run_time", "run_time_one"):
         assert STRINGS.count(f"    {key}: ") == 2, key

@@ -237,6 +237,11 @@ def _times(key: str, records: list[dict]) -> list[tuple[str, int]]:
 def estimate(stage: str, timings: list[dict]) -> dict | None:
     """The rest of the current stage and every later one, fastest to slowest; None with no time on record
     for one of them."""
+    if stage in _END_STAGES:
+        # The worker has written its end and the run is not yet read as ended: nothing is ahead.
+        # Taken for "no stage yet", this was the whole run's range, shown on 2026-11-28 for the
+        # seconds before a completed run read as completed.
+        return None
     order = [key for _, key in STAGES]
     current = stage_key(stage)
     # Before the worker names its first stage the whole run is ahead.

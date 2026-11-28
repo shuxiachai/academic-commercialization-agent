@@ -779,16 +779,21 @@ export function etaTitle(eta) {
  * report saved, and the page showed that text only after the run failed.
  * The server lists the saved text as `draft` once the review has begun
  * (runs.draft_in_review): the writer's during the review, the reviewed one
- * during scoring (`draft_stage`). Both the label and the notice above the
+ * during scoring (`draft_stage`), or the writer's still when the review left
+ * no revised version, which is said as such. Both the label and the notice above the
  * text say it is a draft, unscored, and not the assessment's conclusion. A
  * run that has stopped keeps its Draft tab (result.js hasDraft) instead.
  */
 export function liveDraftWording(progress) {
   if (progress?.state !== "running" || !(progress.artifacts ?? []).includes("draft")) return null;
-  const reviewed = progress.draft_stage === "reviewer";
-  return reviewed
-    ? { label: "live_draft_reviewed", note: "live_draft_reviewed_note" }
-    : { label: "live_draft", note: "live_draft_note" };
+  if (progress.draft_stage === "reviewer") return { label: "live_draft_reviewed", note: "live_draft_reviewed_note" };
+  // The writer's text while the run scores: the review left no revised version. On 2026-11-28
+  // the run's time budget refused the review (0:00), and for five minutes of scoring the fold
+  // still said the review was going on.
+  if (STAGES[stageIndex(progress.stage)]?.id === "scoring") {
+    return { label: "live_draft_unreviewed", note: "live_draft_unreviewed_note" };
+  }
+  return { label: "live_draft", note: "live_draft_note" };
 }
 
 export function currentStep(stage, { lastConfirmed = false } = {}) {
