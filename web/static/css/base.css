@@ -130,6 +130,48 @@ textarea {
 
 [hidden] { display: none !important; }
 
+/* When scripts are unavailable, explain why the otherwise interactive page
+   cannot continue. Both languages remain visible because JavaScript is what
+   normally applies the reader's language choice. */
+.noscript-notice {
+  display: block;
+  margin-bottom: var(--space-6);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  background: var(--warning-subtle);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+.noscript-notice--page {
+  width: min(var(--content-width), calc(100% - 2 * var(--space-4)));
+  margin: var(--space-4) auto;
+}
+.noscript-notice__languages {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.noscript-notice__languages > p {
+  min-width: 0;
+  line-height: var(--leading-normal);
+  overflow-wrap: anywhere;
+}
+.noscript-notice__languages > p + p {
+  padding-left: var(--space-4);
+  border-left: 1px solid var(--border-default);
+}
+/* On a phone the two languages stack instead of sharing a narrow row. */
+@media (max-width: 640px) {
+  .noscript-notice__languages { grid-template-columns: minmax(0, 1fr); }
+  .noscript-notice__languages > p + p {
+    padding-left: 0;
+    padding-top: var(--space-3);
+    border-left: 0;
+    border-top: 1px solid var(--border-default);
+  }
+}
+
 /* ── Touch devices ──
    Every text field, wherever it is styled: a field added later is covered
    without anyone remembering this rule. Doubling :root lifts it over the
